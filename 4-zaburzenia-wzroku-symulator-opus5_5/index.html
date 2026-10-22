@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0e16">
+  <title>Oczami innych – symulator zaburzeń wzroku</title>
+  <meta name="description" content="Zobacz świat tak, jak widzą go osoby z krótkowzrocznością, nadwzrocznością, astygmatyzmem, zezem, daltonizmem, zaćmą, jaskrą, AMD i innymi zaburzeniami wzroku. Interaktywna symulacja z wyjaśnieniami.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M4 32C12 18 22 12 32 12s20 6 28 20c-8 14-18 20-28 20S12 46 4 32z' fill='%23e6ebf5'/%3E%3Ccircle cx='32' cy='32' r='13' fill='%2314b8a6'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%230a0e16'/%3E%3Ccircle cx='36' cy='28' r='2.5' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- ============ GÓRNY PASEK ============ -->
+    <header class="topbar">
+      <a class="brand" href="#" id="brand" aria-label="Oczami innych – start">
+        <svg class="brand-eye" viewBox="0 0 64 40" aria-hidden="true">
+          <path d="M2 20C10 7 20 2 32 2s22 5 30 18c-8 13-18 18-30 18S10 33 2 20z" fill="none" stroke="currentColor" stroke-width="3"/>
+          <circle cx="32" cy="20" r="11" fill="#14b8a6"/><circle cx="32" cy="20" r="5" fill="#0a0e16"/><circle cx="35.5" cy="16.5" r="2.2" fill="#fff"/>
+        </svg>
+        <span class="brand-text"><b>Oczami innych</b><small>Jak widzą świat osoby z zaburzeniami wzroku</small></span>
+      </a>
+      <nav class="modes" id="modes">
+        <button data-mode="sim" class="on">Symulator</button>
+        <button data-mode="quiz">Quiz</button>
+        <button data-mode="about">Jak to działa</button>
+      </nav>
+      <div class="top-actions">
+        <button class="icon-btn" id="btn-list" title="Lista zaburzeń" aria-label="Lista zaburzeń">☰</button>
+        <button class="icon-btn" id="btn-fs" title="Pełny ekran (F)" aria-label="Pełny ekran">⛶</button>
+      </div>
+    </header>
+
+    <!-- ============ LISTA ZABURZEŃ ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="search-wrap">
+        <input id="search" type="search" placeholder="Szukaj: zaćma, daltonizm, zez…" autocomplete="off">
+      </div>
+      <label class="switch" title="Pozwala nałożyć na siebie kilka zaburzeń, np. starczowzroczność + zaćmę">
+        <input type="checkbox" id="combine"><span class="switch-ui"></span><span>Łącz kilka zaburzeń</span>
+      </label>
+      <div class="cond-list" id="cond-list"></div>
+      <p class="side-foot">To symulacja edukacyjna, nie narzędzie diagnostyczne. Każda nagła zmiana widzenia to powód do wizyty u okulisty.</p>
+    </aside>
+
+    <!-- ============ SCENA ============ -->
+    <main class="stage">
+      <div class="viewer" id="viewer">
+        <canvas id="view"></canvas>
+        <div class="hud" id="hud">
+          <div class="hud-row"><span class="hud-k">Patrzysz na</span><b id="h-target">–</b><span class="hud-dim" id="h-dist"></span></div>
+          <div class="hud-row"><span class="hud-k">Oko ostrzy na</span><b id="h-focus">–</b></div>
+          <div class="hud-row" id="h-visus-row"><span class="hud-k">Ostrość wzroku</span><b id="h-visus">–</b><span class="hud-dim">zdrowe oko: 1,0</span></div>
+          <div class="hud-bar" title="Ile z możliwej akomodacji oko zużywa w tej chwili"><span class="hud-k">Wysiłek oka</span><i><em id="h-effort"></em></i></div>
+        </div>
+        <div class="chips" id="active-chips"></div>
+        <div class="split" id="split" hidden>
+          <div class="split-line"></div>
+          <button class="split-knob" id="split-knob" aria-label="Przesuń granicę porównania">⇆</button>
+          <span class="split-tag split-l">Zdrowe oko</span>
+          <span class="split-tag split-r" id="split-r">Z zaburzeniem</span>
+        </div>
+        <div class="gaze" id="gaze"></div>
+        <div class="viewer-msg" id="viewer-msg" hidden></div>
+        <div class="toast" id="toast" hidden></div>
+        <div class="drop" id="drop" hidden><div>Upuść zdjęcie, żeby zobaczyć je oczami innych</div></div>
+        <div class="quiz" id="quiz" hidden></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="scenes" id="scenes" role="tablist" aria-label="Sceny"></div>
+        <div class="tools">
+          <button class="tool" id="t-compare" title="Porównanie ze zdrowym okiem (C)"><span>◧</span> Porównaj</button>
+          <button class="tool" id="t-correct" title="Korekcja lub leczenie (K)"><span>👓</span> <em>Okulary</em></button>
+          <button class="tool" id="t-blink" title="Mrugnij (spacja)" hidden><span>😌</span> Mrugnij</button>
+          <button class="tool" id="t-field" title="Jak pokazywać ubytki pola widzenia" hidden><span>◐</span> <em>Ubytki: realistyczne</em></button>
+          <button class="tool on" id="t-auto" title="Gdy kursor jest poza sceną, oko samo rozgląda się po ciekawych miejscach"><span>👁</span> Rozglądaj się</button>
+        </div>
+      </div>
+      <div class="source-bar" id="source-bar" hidden>
+        <label for="src-dist">Odległość od obiektów na obrazie</label>
+        <input type="range" id="src-dist" min="0" max="100" value="50">
+        <output id="src-dist-out">1 m</output>
+        <button class="tool small" id="src-change" hidden>Zmień zdjęcie</button>
+      </div>
+    </main>
+
+    <!-- ============ OPIS ============ -->
+    <aside class="info" id="info"></aside>
+  </div>
+
+  <!-- ============ POWITANIE ============ -->
+  <div class="modal" id="intro" hidden>
+    <div class="modal-card intro-card">
+      <div class="intro-eye" aria-hidden="true">
+        <svg viewBox="0 0 64 40"><path d="M2 20C10 7 20 2 32 2s22 5 30 18c-8 13-18 18-30 18S10 33 2 20z" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="32" cy="20" r="11" fill="#14b8a6"/><circle cx="32" cy="20" r="5" fill="#0a0e16"/><circle cx="35.5" cy="16.5" r="2.2" fill="#fff"/></svg>
+      </div>
+      <h2>Zobacz świat oczami innych</h2>
+      <p>Krótkowzroczność, astygmatyzm, daltonizm, zaćma, jaskra i jeszcze ponad 20 innych zaburzeń. Każde z nich pokazuje, jak dana osoba widzi świat i skąd to się bierze.</p>
+      <ul class="intro-steps">
+        <li><b>1</b><span><strong>Wybierz zaburzenie</strong> z listy. Suwakami ustawisz jego nasilenie.</span></li>
+        <li><b>2</b><span><strong>Ruszaj kursorem po scenie.</strong> Oko patrzy tam, gdzie kursor, i ustawia ostrość tak, jak potrafi.</span></li>
+        <li><b>3</b><span><strong>Porównaj</strong> ze zdrowym okiem, <strong>załóż okulary</strong> albo sprawdź się w <strong>quizie</strong>.</span></li>
+      </ul>
+      <button class="btn primary" id="intro-go">Zaczynamy</button>
+      <p class="intro-note">Symulacja jest edukacyjna, nie służy do diagnozy.</p>
+    </div>
+  </div>
+
+  <div class="modal" id="about" hidden>
+    <div class="modal-card about-card">
+      <button class="modal-x" data-close aria-label="Zamknij">×</button>
+      <h2>Jak to działa</h2>
+      <div class="about-grid">
+        <section>
+          <h3>Każdy piksel wie, jak jest daleko</h3>
+          <p>Sceny są rysowane razem z mapą głębi. Dla każdego punktu obrazu wiadomo, czy to telefon 33 cm od oka, czy wieża 200 m dalej. Odległość zapisuję w dioptriach (1/metry), czyli w tej samej jednostce, w której okulista podaje wadę wzroku.</p>
+        </section>
+        <section>
+          <h3>Fizyka zamiast filtra „rozmycie”</h3>
+          <p>Rozmycie każdego punktu liczę ze wzoru na krążek rozproszenia: <em>średnica źrenicy × niedoostrzenie</em>. Dlatego krótkowidz widzi ostro telefon, a nie widzi autobusu, w nocy przy szerokiej źrenicy jest gorzej, a światła zamieniają się w krążki, smugi (astygmatyzm) albo komety (stożek rogówki).</p>
+        </section>
+        <section>
+          <h3>Oko, które ostrzy samo</h3>
+          <p>Oko patrzy tam, gdzie kursor, i po ułamku sekundy ustawia ostrość, ale tylko w zakresie swojej akomodacji. Ten zakres zależy od wieku (u 10-latka ok. 13 D, u 60-latka ok. 1 D) i od wady wzroku.</p>
+        </section>
+        <section>
+          <h3>Ubytki idą za wzrokiem</h3>
+          <p>Mroczki w AMD, ubytki w jaskrze czy męty są „przyklejone” do siatkówki, więc przesuwają się razem z punktem patrzenia. Tego właśnie nie oddają statyczne obrazki w internecie.</p>
+        </section>
+        <section>
+          <h3>Barwy według nauki</h3>
+          <p>Daltonizm symuluję modelem Machado, Oliveiry i Fernandesa (2009), w liniowej przestrzeni barw, z płynnym przejściem od anomalii do całkowitego braku danego typu czopków.</p>
+        </section>
+        <section>
+          <h3>Czego się nie da pokazać</h3>
+          <p>Ekran nie odtworzy widzenia przestrzennego, olśnienia prawdziwym słońcem ani tego, jak mózg z czasem przystosowuje się do wady. Każdy przypadek jest też inny. Liczby są uśrednione, a symulacja nie zastąpi badania u okulisty.</p>
+        </section>
+      </div>
+      <h3 class="kbd-title">Skróty klawiszowe</h3>
+      <div class="kbd-list">
+        <span><kbd>C</kbd> porównanie</span><span><kbd>K</kbd> okulary / leczenie</span><span><kbd>Spacja</kbd> mrugnięcie</span>
+        <span><kbd>H</kbd> (przytrzymaj) zdrowe oko</span><span><kbd>↑</kbd><kbd>↓</kbd> poprzednie / następne zaburzenie</span>
+        <span><kbd>1</kbd>–<kbd>7</kbd> sceny</span><span><kbd>F</kbd> pełny ekran</span>
+      </div>
+      <p class="about-foot">Własne zdjęcie albo obraz z kamery też możesz zobaczyć oczami innych. Obraz zostaje w przeglądarce i nigdzie nie jest wysyłany.</p>
+    </div>
+  </div>
+
+  <input type="file" id="file" accept="image/*" hidden>
+  <video id="video" playsinline muted hidden></video>
+
+  <script src="js/painter.js"></script>
+  <script src="js/scenes/ulica.js"></script>
+  <script src="js/scenes/targ.js"></script>
+  <script src="js/scenes/gabinet.js"></script>
+  <script src="js/scenes/tablice.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/conditions.js"></script>
+  <script src="js/diagram.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
