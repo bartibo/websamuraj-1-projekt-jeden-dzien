@@ -22,12 +22,12 @@ const SpriteCache = {
 };
 
 class ParticleSystem {
-  constructor() { this.items = []; this.texts = []; }
+  constructor() { this.items = []; this.texts = []; this.cap = 2400; this.fonts = new Map(); }
   clear() { this.items.length = 0; this.texts.length = 0; }
 
   // p: { k: 'spark'|'glow'|'ring'|'smoke'|'debris', x, y, vx, vy, life, s, c, a, drag, grow, len, r0, r1, rot, vr }
   add(p) {
-    if (this.items.length > 2400) return;
+    if (this.items.length > this.cap) return;
     p.age = 0;
     if (p.vx === undefined) { p.vx = 0; p.vy = 0; }
     if (p.a === undefined) p.a = 1;
@@ -128,11 +128,16 @@ class ParticleSystem {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
+    let cur = '';
     for (const t of this.texts) {
       const k = t.age / t.life;
       const pop = t.age < 0.12 ? 0.6 + (t.age / 0.12) * 0.5 : t.age < 0.22 ? 1.1 - (t.age - 0.12) : 1;
       ctx.globalAlpha = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
-      ctx.font = `700 ${Math.round(t.size * pop)}px Orbitron, "Segoe UI", sans-serif`;
+      // napis fontu budowany raz na rozmiar i ustawiany tylko przy zmianie (parsowanie ctx.font jest drogie)
+      const px = Math.round(t.size * pop);
+      let f = this.fonts.get(px);
+      if (!f) { f = `700 ${px}px Orbitron, Oxanium, "Segoe UI", sans-serif`; this.fonts.set(px, f); }
+      if (f !== cur) { ctx.font = f; cur = f; }
       ctx.lineWidth = 3.5;
       ctx.strokeStyle = 'rgba(0,0,0,0.65)';
       ctx.strokeText(t.str, t.x, t.y);

@@ -9,7 +9,9 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='none' stroke='%235ef2ff' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='21' fill='%231f6fb3'/%3E%3Cpath d='M20 24c6-4 10 2 14-1s8 3 6 8-9 3-11 8-8 2-9-4 0-8 0-11z' fill='%233f9a4a'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <!-- Czcionki nie blokują pierwszego obrazu. Oxanium uzupełnia polskie znaki, których Orbitron nie ma. -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Orbitron:wght@500;700;900&family=Oxanium:wght@500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Orbitron:wght@500;700;900&family=Oxanium:wght@500;700;800&display=swap"></noscript>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -31,18 +33,21 @@
       <div class="hud-wave" id="hud-wave">1</div>
       <div class="wave-bar"><i id="hud-wave-bar"></i></div>
       <div class="hud-left" id="hud-left"></div>
+      <div class="hud-event" id="hud-event"></div>
     </div>
 
     <div class="hud-tr">
       <div class="hud-cred">
         <div class="hud-label">Kredyty</div>
         <div class="hud-credits"><span id="hud-credits">0</span><small>¢</small></div>
+        <div class="hud-protos" id="hud-protos"></div>
+        <div class="hud-auto" id="hud-auto">Auto-ogień [F]</div>
       </div>
       <button class="icon-btn" data-action="pause" aria-label="Pauza" id="pause-icon"></button>
     </div>
 
     <div class="hud-boss" id="hud-boss">
-      <div class="boss-name">⚠ Planetoida</div>
+      <div class="boss-name" id="hud-boss-name">⚠ Planetoida</div>
       <div class="boss-bar"><i id="hud-boss-bar"></i></div>
     </div>
 
@@ -63,16 +68,15 @@
       <span class="emp-key">Spacja · PPM</span>
     </button>
 
-    <div class="hud-auto" id="hud-auto">Auto-ogień [F]</div>
   </div>
 
-  <div id="banner"><div id="banner-title"></div><div id="banner-sub"></div></div>
+  <div id="banner"><div id="banner-title"></div><div id="banner-sub"></div><div id="banner-ev"></div></div>
   <div id="callouts"></div>
 
   <!-- ===================== MENU ===================== -->
   <section class="screen active" id="screen-menu">
     <div class="menu-top">
-      <div class="kicker">Planetarna Sieć Obrony · Protokół Ω</div>
+      <div class="kicker"><span>Planetarna Sieć Obrony</span><span class="dot"> · </span><span>Protokół Ω</span></div>
       <h1 class="logo"><span class="l1">Tarcza</span><span class="l2">Ziemi</span></h1>
       <p class="tagline">Z głębi kosmosu nadciąga deszcz meteorytów. Jesteś ostatnią linią obrony ludzkości.</p>
     </div>
@@ -111,6 +115,8 @@
             <li>Szybkie zestrzelenia budują <b>combo</b> – co 8 trafień rośnie mnożnik punktów (do ×5).</li>
             <li>Zestrzel <b>kapsułę</b> wypadającą z meteorytu, aby zdobyć bonus.</li>
             <li>Między falami wydawaj <b>kredyty</b> na ulepszenia. Fala bez uszkodzeń planety to premia +60%.</li>
+            <li>Co kilka fal wybierasz <b>protokół obrony</b> – jedną z trzech kart z plusem i minusem, na resztę gry.</li>
+            <li>Od fali 3 fale mają <b>wydarzenia</b> (np. burza słoneczna, dwa fronty). Sklep zapowiada następne.</li>
           </ul>
         </div>
         <div>
@@ -129,10 +135,15 @@
     <div class="panel small-panel">
       <h2>Pauza</h2>
       <p class="muted">Meteoryty zamarły w bezruchu… na razie.</p>
+      <div class="pause-protos" id="pause-protos"></div>
       <div class="stack">
         <button class="btn primary" data-action="resume">Wznów obronę</button>
-        <button class="btn" data-action="sound" data-sound-label>Dźwięk: wł.</button>
-        <button class="btn" data-action="music" data-music-label>Muzyka: wł.</button>
+        <div class="row2">
+          <button class="btn" data-action="sound" data-sound-label>Dźwięk: wł.</button>
+          <button class="btn" data-action="music" data-music-label>Muzyka: wł.</button>
+          <button class="btn" data-action="auto" data-auto-label>Auto-ogień: wył.</button>
+          <button class="btn" data-action="shake" data-shake-label>Wstrząsy: wł.</button>
+        </div>
         <button class="btn ghost" data-action="menu">Porzuć misję</button>
       </div>
     </div>
@@ -156,11 +167,16 @@
         <span>Integralność planety: <b id="shop-planet">100 / 100</b></span>
         <span>Pojemność tarczy: <b id="shop-shield">30</b></span>
         <span class="heal" id="shop-heal"></span>
+        <span class="mods" id="shop-mods"></span>
       </div>
+      <div class="proto-offer" id="shop-protos"></div>
       <div class="upgrade-grid" id="upgrade-grid"></div>
       <div class="shop-foot">
         <div class="shop-next" id="shop-next"></div>
-        <button class="btn primary" data-action="next">Następna fala <kbd>Enter</kbd></button>
+        <div class="foot-actions">
+          <button class="btn repair-btn" data-action="buy" data-id="repair" id="repair-btn"></button>
+          <button class="btn primary" data-action="next" id="next-btn">Następna fala <kbd>Enter</kbd></button>
+        </div>
       </div>
     </div>
   </section>
@@ -168,9 +184,10 @@
   <!-- ===================== KONIEC GRY ===================== -->
   <section class="screen" id="screen-over">
     <div class="panel over-panel">
-      <div class="kicker danger-text">Transmisja przerwana</div>
+      <div class="kicker danger-text" id="over-kicker">Transmisja przerwana</div>
       <h2 id="over-title">Ziemia upadła</h2>
       <p class="muted" id="over-sub"></p>
+      <p class="over-cause" id="over-cause"></p>
       <div class="over-score-label">Wynik końcowy</div>
       <div class="over-score" id="over-score">0</div>
       <div class="over-stats" id="over-stats"></div>

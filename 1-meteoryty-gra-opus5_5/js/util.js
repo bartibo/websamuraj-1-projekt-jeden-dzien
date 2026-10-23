@@ -41,7 +41,8 @@ function weightedPick(entries) {
   }
   return entries[entries.length - 1][0];
 }
-function formatNum(n) { return Math.floor(n).toLocaleString('pl-PL'); }
+const NUM_FMT = new Intl.NumberFormat('pl-PL');
+function formatNum(n) { return NUM_FMT.format(Math.floor(n)); }
 function fmt1(x) { return String(Math.round(x * 10) / 10).replace('.', ','); }
 
 function mulberry32(a) {

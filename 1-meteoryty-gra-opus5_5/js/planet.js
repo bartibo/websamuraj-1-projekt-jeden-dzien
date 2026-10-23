@@ -113,6 +113,7 @@ class Planet {
     this.heat.fill(0);
     this.heatList.length = 0;
     this.doom = 0;
+    this.dirty = true;
   }
 
   // Prekalkulacja mapowania piksel ekranu -> współrzędne tekstury dla danego promienia
@@ -173,8 +174,13 @@ class Planet {
     hl.length = j;
   }
 
+  // Obrót jest powolny, więc piksele przeliczamy co 3. klatkę (od razu – po uderzeniu i w czasie zagłady)
   render(dt) {
     if (!this.n) return;
+    this.acc = (this.acc || 0) + dt;
+    this.frame = ((this.frame || 0) + 1) % 3;
+    if (this.frame && !this.dirty && !this.doom) return;
+    dt = this.acc; this.acc = 0; this.dirty = false;
     this.rot = (this.rot + dt * 0.07) % TAU;
     this.crot = (this.crot + dt * 0.095) % TAU;
     this.decayHeat(dt);
@@ -218,6 +224,7 @@ class Planet {
 
   // Trwały, żarzący się krater w miejscu uderzenia (kąt w układzie ekranu)
   addImpact(screenAngle, power) {
+    this.dirty = true;
     const W = this.W, H = this.H, tex = this.tex;
     const nx = Math.cos(screenAngle) * 0.88, ny = Math.sin(screenAngle) * 0.88;
     const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));

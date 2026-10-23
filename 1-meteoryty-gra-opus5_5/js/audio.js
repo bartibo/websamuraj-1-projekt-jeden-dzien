@@ -162,6 +162,9 @@ const Sound = (() => {
     get muted() { return muted; },
     get musicOn() { return musicOn; },
     setIntensity(v) { intensity = v; },
+    // ukryta karta: zatrzymaj kontekst audio (muzyka nie tworzy wtedy nowych oscylatorów)
+    suspend() { if (ctx && ctx.state === 'running') ctx.suspend(); },
+    resume() { if (ctx && ctx.state === 'suspended') ctx.resume(); },
     toggleMute() {
       muted = !muted; Store.set('tz_muted', muted);
       if (ctx) master.gain.setTargetAtTime(muted ? 0 : 0.9, ctx.currentTime, 0.03);

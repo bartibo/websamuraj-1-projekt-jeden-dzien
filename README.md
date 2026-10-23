@@ -25,3 +25,7 @@ Autor: Bartłomiej Borowczyk · [vibemaster.pl](https://vibemaster.pl)
 ## Jak uruchomić
 
 Wejdź do folderu projektu i kliknij dwa razy `index.html`.
+
+## Agenci oceniający
+
+W [`.claude/agents/`](.claude/agents/) są czterej agenci Claude Code do oceny projektów webowych: `ocena-design` (wygląd i interfejs), `ocena-ux` (jak się gra i korzysta), `ocena-optymalizacja` (szybkość i zasoby) oraz `rozwoj-produktu` (co dodać, nie zmieniając głównej idei). Nie mają przypiętego modelu, więc zawsze używają domyślnego. Wysiłek: `high`.

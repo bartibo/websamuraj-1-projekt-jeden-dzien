@@ -8,6 +8,8 @@
 
   let last = performance.now();
   function frame(now) {
+    // następna klatka zamówiona od razu – wyjątek w jednej klatce nie zatrzyma gry na zawsze
+    requestAnimationFrame(frame);
     let dt = (now - last) / 1000;
     last = now;
     if (dt > 0.05) dt = 0.05;
@@ -15,7 +17,6 @@
     Game.update(dt);
     Game.render();
     UI.updateHUD();
-    requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
@@ -68,14 +69,16 @@
     } else if (k === 'KeyN') {
       Sound.toggleMusic(); UI.updateSoundLabels();
     } else if (k === 'KeyF') {
-      Game.autoFire = !Game.autoFire;
-      if (Game.state === 'playing') UI.callout(Game.autoFire ? 'AUTO-OGIEŃ: WŁ.' : 'AUTO-OGIEŃ: WYŁ.', '94,242,255');
+      if (Game.state === 'playing' || Game.state === 'paused') UI.action('auto');
     } else if (k === 'Enter' || k === 'NumpadEnter') {
       if (e.repeat) return;
       if (Game.state === 'shop') UI.action('next');
       else if (Game.state === 'menu' && UI.current === 'menu') UI.action('play');
       else if (Game.state === 'gameover') UI.action('restart');
     } else if (Game.state === 'shop') {
+      const proto = { KeyQ: 0, KeyW: 1, KeyE: 2 }[k];
+      if (proto !== undefined) { Game.chooseProtocol(proto); return; }
+      if (k === 'KeyR') { Game.rerollOffer(); return; }
       const m = /^(?:Digit|Numpad)(\d)$/.exec(k);
       if (m) {
         const u = UPGRADES[(parseInt(m[1], 10) + 9) % 10];
@@ -85,6 +88,8 @@
   });
 
   window.addEventListener('resize', () => Game.resize());
-  document.addEventListener('visibilitychange', () => { if (document.hidden) Game.pause(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { Game.pause(); Sound.suspend(); } else Sound.resume();
+  });
   window.addEventListener('blur', () => { Game.mouse.down = false; Game.pause(); });
 })();

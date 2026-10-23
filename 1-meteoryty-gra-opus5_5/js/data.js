@@ -6,7 +6,7 @@ const METEOR_TYPES = {
   rock: {
     name: 'Skalny', desc: 'Najczęstszy. Duże rozpadają się na mniejsze odłamki.',
     radius: [13, 22, 34], hp: [10, 24, 48], impact: [3, 6, 10], score: [10, 20, 35], credits: [2, 3, 5],
-    speed: 1.0, spin: 0.5, trail: 'dust', palette: 'rock', color: '#ffb070',
+    speed: 1.0, spin: 0.5, trail: 'dust', palette: 'rock', color: '#e3c7a2',
   },
   fast: {
     name: 'Szybki odłamek', desc: 'Mały, ale bardzo szybki. Pojawia się od fali 2.',
@@ -35,8 +35,8 @@ const METEOR_TYPES = {
   },
   boss: {
     name: 'Planetoida', desc: 'Olbrzym nadlatujący co 5 fal. Wyrzuca z siebie odłamki.',
-    radius: [78], hp: [1100], impact: [45], score: [3000], credits: [160],
-    speed: 0.4, spin: 0.12, trail: 'boss', palette: 'boss', color: '#ff4040', drop: 1,
+    radius: [78], hp: [800], impact: [45], score: [3000], credits: [160],
+    speed: 0.32, spin: 0.12, trail: 'boss', palette: 'boss', color: '#ff4040', drop: 1,
   },
 };
 
@@ -65,11 +65,14 @@ const POWERUPS = {
 
 const HOMING_NAMES = ['brak', 'słabe', 'średnie', 'silne'];
 
+// Po 10 poziomach Moc i Szybkostrzelność da się dalej podkręcać, ale coraz drożej – ujście dla kredytów
+const softCost = l => l < 10 ? 60 + l * 50 : Math.round(560 * Math.pow(1.3, l - 9));
+
 const UPGRADES = [
-  { id: 'dmg', name: 'Moc działa', desc: 'Silniejsze pociski plazmowe.', max: 10,
-    cost: l => 60 + l * 50, stat: (g, l) => `${fmt1(g.calcDmg(l))} → ${fmt1(g.calcDmg(l + 1))} obrażeń` },
-  { id: 'rate', name: 'Szybkostrzelność', desc: 'Szybsze chłodzenie luf.', max: 10,
-    cost: l => 60 + l * 50, stat: (g, l) => `${fmt1(g.calcRate(l))} → ${fmt1(g.calcRate(l + 1))} strz./s` },
+  { id: 'dmg', name: 'Moc działa', desc: 'Silniejsze pociski plazmowe.', max: Infinity, pips: 10,
+    cost: softCost, stat: (g, l) => `${fmt1(g.calcDmg(l))} → ${fmt1(g.calcDmg(l + 1))} obrażeń` },
+  { id: 'rate', name: 'Szybkostrzelność', desc: 'Szybsze chłodzenie luf.', max: Infinity, pips: 10,
+    cost: softCost, stat: (g, l) => `${fmt1(g.calcRate(l))} → ${fmt1(g.calcRate(l + 1))} strz./s` },
   { id: 'multi', name: 'Wielolufowość', desc: 'Dodatkowy pocisk w każdej salwie.', max: 4,
     cost: l => 180 + l * 170, stat: (g, l) => `Pociski: ${l + 1} → ${l + 2}` },
   { id: 'pierce', name: 'Przebicie', desc: 'Pocisk przelatuje przez kolejny cel.', max: 3,
@@ -89,7 +92,7 @@ const UPGRADES = [
 ];
 
 const WAVE_INTRO = {
-  1: 'Pierwsze meteoryty wchodzą w atmosferę',
+  1: 'Przytrzymaj LPM, by strzelać · Spacja – impuls EMP',
   2: 'Nowe zagrożenie: szybkie odłamki',
   3: 'Nowe zagrożenie: meteoryty żelazne',
   4: 'Nowe zagrożenie: meteoryty wybuchowe',
@@ -102,6 +105,33 @@ const WAVE_FLAVOR = [
   'Radar nie nadąża z liczeniem',
   'Ludzkość patrzy w niebo',
   'Kolejna fala na kursie kolizyjnym',
+];
+
+/* Protokoły obrony: co kilka fal wybór 1 z 3 kart na resztę rozgrywki. Każda ma plus i minus. */
+const PROTOCOL_WAVES = [2, 4, 7, 10, 14, 18];
+const PROTOCOL_MAX = 4;
+const PROTOCOLS = [
+  { id: 'rail',     name: 'Działo szynowe',       plus: '×2,6 obrażeń, +2 przebicia', minus: 'połowa szybkostrzelności', icon: 'pierce' },
+  { id: 'chain',    name: 'Reakcja łańcuchowa',   plus: '20% zestrzeleń wybucha i rani sąsiadów', minus: 'tarcza −20%', icon: 'chain' },
+  { id: 'mirror',   name: 'Tarcza zwierciadlana', plus: 'uderzenie w tarczę odpala 3 pociski', minus: 'regeneracja tarczy −40%', icon: 'shield' },
+  { id: 'cryo',     name: 'Kriopociski',          plus: 'trafiony meteoryt zwalnia na 1,5 s', minus: 'obrażenia −20%', icon: 'cryo' },
+  { id: 'scrap',    name: 'Złomiarze',            plus: 'kredyty z meteorytów ×1,6', minus: 'tarcza −30%', icon: 'scrap' },
+  { id: 'overload', name: 'Przeciążenie EMP',     plus: 'każde zestrzelenie skraca odnowę EMP o 0,4 s', minus: 'zasięg EMP −25%', icon: 'emp' },
+  { id: 'glass',    name: 'Szklane działo',       plus: '×1,6 obrażeń', minus: 'tarcza −50%', icon: 'dmg' },
+  { id: 'cascade',  name: 'Kaskada',              plus: 'combo trwa 4 s, mnożnik do ×7', minus: 'uderzenie w tarczę zeruje combo', icon: 'cascade' },
+  { id: 'swarm',    name: 'Rój',                  plus: 'dwa razy więcej satelitów (co najmniej 2)', minus: 'satelity −50% obrażeń, działo −15% szybkostrzelności', icon: 'drone' },
+];
+
+/* Wydarzenia fal: od fali 3 każda zwykła fala ma jedno zjawisko, zapowiadane w sklepie. */
+const WAVE_EVENTS = [
+  { id: 'caps',     name: 'Deszcz kapsuł',      desc: 'bonusy wypadają 3× częściej', from: 3, drop: 3 },
+  { id: 'perseids', name: 'Rój Perseidów',      desc: 'szybkie odłamki z jednego sektora nieba', from: 4, weights: { fast: 9 }, count: 1.15, sector: 0.7 },
+  { id: 'volleys',  name: 'Ostrzał salwami',    desc: 'meteoryty nadlatują zwartymi grupami', from: 4, volley: 0.35 },
+  { id: 'iron',     name: 'Pole żelaza',        desc: 'dużo żelaznych meteorytów, kredyty ×1,5', from: 5, weights: { iron: 8 }, count: 0.8, credits: 1.5 },
+  { id: 'chainrx',  name: 'Niestabilny rój',    desc: 'dużo wybuchowych – czas na reakcje łańcuchowe', from: 5, weights: { volatile: 8 } },
+  { id: 'storm',    name: 'Burza słoneczna',    desc: 'tarcza się nie odnawia, EMP ładuje się 2× szybciej', from: 6, noRegen: true, emp: 0.5 },
+  { id: 'comets',   name: 'Deszcz komet',       desc: 'komety rozpadające się na lód', from: 7, weights: { comet: 7 } },
+  { id: 'fronts',   name: 'Dwa fronty',         desc: 'meteoryty nadlatują z dwóch przeciwnych stron', from: 8, fronts: true },
 ];
 
 const ICONS = (() => {
@@ -118,5 +148,9 @@ const ICONS = (() => {
     emp: s('<circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 0 1 8.4 0M16.2 16.2a6 6 0 0 1-8.4 0M4.9 4.9a10 10 0 0 1 14.2 0M19.1 19.1a10 10 0 0 1-14.2 0"/>'),
     repair: s('<circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/>'),
     pause: s('<path d="M9 5v14M15 5v14"/>'),
+    chain: s('<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>'),
+    cryo: s('<path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/><path d="M9 4l3 2 3-2M9 20l3-2 3 2"/>'),
+    scrap: s('<circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2a3.4 3.4 0 1 0 0 5.6M8 12h5"/>'),
+    cascade: s('<path d="M4 18l4-4 4 3 8-9"/><path d="M15 8h5v5"/>'),
   };
 })();

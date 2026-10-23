@@ -2,6 +2,8 @@
 /* Tło: mgławice, Droga Mleczna, poświata Słońca, migoczące gwiazdy z paralaksą i spadające gwiazdy. */
 
 class Background {
+  static get LEVELS() { return 8; }
+
   resize(w, h) {
     this.w = w; this.h = h;
     const sc = 0.5;
@@ -53,18 +55,22 @@ class Background {
     }
     this.neb = c;
 
+    // Gwiazdy pogrupowane po odcieniu; jasność kwantowana do LEVELS poziomów, żeby rysować kubełkami
+    // (kilkadziesiąt zmian stanu canvasu na klatkę zamiast kilkuset)
     this.stars = [];
     const n = Math.round(w * h / 3200);
-    const tints = ['255,255,255', '200,220,255', '255,232,205', '180,200,255'];
+    this.tints = ['255,255,255', '200,220,255', '255,232,205', '180,200,255'];
     for (let i = 0; i < n; i++) {
       const big = Math.random() < 0.08;
-      const col = pick(tints);
+      const ti = (Math.random() * this.tints.length) | 0;
       this.stars.push({
         x: Math.random() * w, y: Math.random() * h, z: rand(0.25, 1),
         s: big ? rand(1.5, 2.3) : rand(0.6, 1.3), big,
-        ph: rand(0, TAU), sp: rand(0.6, 3), col, fill: `rgb(${col})`,
+        ph: rand(0, TAU), sp: rand(0.6, 3), ti,
       });
     }
+    this.stars.sort((a, b) => a.ti - b.ti);
+    this.lvl = new Uint8Array(n); this.sx = new Float32Array(n); this.sy = new Float32Array(n);
     this.shooting = [];
     this.shootTimer = rand(2, 5);
   }
@@ -73,21 +79,35 @@ class Background {
     const w = this.w, h = this.h;
     ctx.drawImage(this.neb, -w * 0.05 - px * 0.4, -h * 0.05 - py * 0.4, w * 1.1, h * 1.1);
 
-    for (const s of this.stars) {
+    const st = this.stars, n = st.length, L = Background.LEVELS, lvl = this.lvl, SX = this.sx, SY = this.sy;
+    for (let i = 0; i < n; i++) {
+      const s = st[i];
       let x = (s.x - px * s.z * 1.5) % w; if (x < 0) x += w;
       let y = (s.y - py * s.z * 1.5) % h; if (y < 0) y += h;
       const a = (0.55 + 0.45 * Math.sin(t * s.sp + s.ph)) * (0.4 + 0.6 * s.z);
-      ctx.globalAlpha = a;
-      ctx.fillStyle = s.fill;
-      ctx.fillRect(x, y, s.s, s.s);
-      if (s.big) {
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = a * 0.5;
-        const gs = s.s * 5;
-        ctx.drawImage(SpriteCache.glow(s.col), x - gs + s.s / 2, y - gs + s.s / 2, gs * 2, gs * 2);
-        ctx.globalCompositeOperation = 'source-over';
-      }
+      SX[i] = x; SY[i] = y;
+      lvl[i] = Math.min(L - 1, (a * L) | 0);
     }
+    for (let i0 = 0; i0 < n;) {
+      const ti = st[i0].ti;
+      let i1 = i0;
+      while (i1 < n && st[i1].ti === ti) i1++;
+      ctx.fillStyle = `rgb(${this.tints[ti]})`;
+      for (let l = 0; l < L; l++) {
+        ctx.globalAlpha = (l + 0.5) / L;
+        for (let i = i0; i < i1; i++) if (lvl[i] === l) ctx.fillRect(SX[i], SY[i], st[i].s, st[i].s);
+      }
+      i0 = i1;
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < n; i++) {
+      const s = st[i];
+      if (!s.big) continue;
+      ctx.globalAlpha = (lvl[i] + 0.5) / L * 0.5;
+      const gs = s.s * 5;
+      ctx.drawImage(SpriteCache.glow(this.tints[s.ti]), SX[i] - gs + s.s / 2, SY[i] - gs + s.s / 2, gs * 2, gs * 2);
+    }
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
 
     // Spadające gwiazdy w tle

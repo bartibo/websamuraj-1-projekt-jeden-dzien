@@ -6,6 +6,7 @@ const UI = {
     this.g = game;
     this.cache = {};
     this.current = null;
+    this.touch = !!(window.matchMedia && matchMedia('(hover: none) and (pointer: coarse)').matches);
     const $ = id => document.getElementById(id);
     this.$ = $;
     this.screens = {
@@ -16,7 +17,8 @@ const UI = {
     this.el = {};
     for (const id of ['hud-score', 'hud-wave', 'hud-credits', 'hud-combo', 'hud-combo-n', 'hud-mult', 'hud-combo-bar',
       'hud-wave-bar', 'hud-left', 'hud-hp', 'hud-hp-t', 'bar-hp', 'hud-sh', 'hud-sh-t', 'bar-sh', 'emp-btn',
-      'hud-boss', 'hud-boss-bar', 'hud-auto', 'fx-rapid', 'fx-spread', 'fx-slow']) this.el[id] = $(id);
+      'hud-boss', 'hud-boss-bar', 'hud-boss-name', 'hud-auto', 'hud-event', 'hud-protos',
+      'fx-rapid', 'fx-spread', 'fx-slow']) this.el[id] = $(id);
     this.fxBars = {};
     for (const k of ['rapid', 'spread', 'slow']) this.fxBars[k] = this.el['fx-' + k].querySelector('i');
 
@@ -28,7 +30,7 @@ const UI = {
       this.action(el.dataset.action, el);
     });
     document.addEventListener('mouseover', e => {
-      const b = e.target.closest && e.target.closest('.btn, .up-card');
+      const b = e.target.closest && e.target.closest('.btn, .up-card, .proto-card');
       if (b && b !== this.hovered) Sound.hover();
       this.hovered = b || null;
     });
@@ -44,6 +46,16 @@ const UI = {
     this.hud.classList.toggle('visible', st === 'playing' || st === 'dying' || st === 'paused');
     document.body.classList.toggle('in-game', st === 'playing');
     if (name === 'help') this.buildHelp();
+    if (name === 'pause') this.$('pause-protos').innerHTML = this.protoList();
+  },
+
+  // Aktywne protokoły jako lista chipów (pauza, koniec gry)
+  protoList(ids = [...this.g.mods]) {
+    if (!ids.length) return '';
+    return ids.map(id => {
+      const P = PROTOCOLS.find(p => p.id === id);
+      return `<span class="proto-chip" title="${P.plus} · ${P.minus}">${ICONS[P.icon]}${P.name}</span>`;
+    }).join('');
   },
 
   action(a, el) {
@@ -61,8 +73,18 @@ const UI = {
       case 'pause': g.pause(); break;
       case 'resume': Sound.click(); g.resume(); break;
       case 'menu': Sound.click(); g.toMenu(); break;
-      case 'next': Sound.click(); g.nextWave(); break;
+      case 'next':
+        // najpierw wybór protokołu – inaczej łatwo go przeoczyć
+        if (g.offer) { Sound.deny(); this.denyCard('protos'); break; }
+        Sound.click(); g.nextWave(); break;
       case 'buy': g.buy(el.dataset.id); break;
+      case 'proto': g.chooseProtocol(+el.dataset.i); break;
+      case 'reroll': g.rerollOffer(); break;
+      case 'auto':
+        g.autoFire = !g.autoFire; Store.set('tz_auto', g.autoFire); this.updateSoundLabels();
+        if (g.state === 'playing') this.callout(g.autoFire ? 'AUTO-OGIEŃ: WŁ.' : 'AUTO-OGIEŃ: WYŁ.', '94,242,255');
+        break;
+      case 'shake': g.shakeOn = !g.shakeOn; Store.set('tz_shake', g.shakeOn); this.updateSoundLabels(); Sound.click(); break;
       case 'emp': g.triggerEMP(); break;
     }
   },
@@ -70,6 +92,9 @@ const UI = {
   updateSoundLabels() {
     document.querySelectorAll('[data-sound-label]').forEach(b => { b.textContent = 'Dźwięk: ' + (Sound.muted ? 'wył.' : 'wł.'); });
     document.querySelectorAll('[data-music-label]').forEach(b => { b.textContent = 'Muzyka: ' + (Sound.musicOn ? 'wł.' : 'wył.'); });
+    if (!this.g) return;
+    document.querySelectorAll('[data-auto-label]').forEach(b => { b.textContent = 'Auto-ogień: ' + (this.g.autoFire ? 'wł.' : 'wył.'); });
+    document.querySelectorAll('[data-shake-label]').forEach(b => { b.textContent = 'Wstrząsy: ' + (this.g.shakeOn ? 'wł.' : 'wył.'); });
   },
 
   updateBest() {
@@ -77,10 +102,11 @@ const UI = {
     this.$('menu-wave').textContent = Store.get('tz_bestwave', 0);
   },
 
-  banner(title, sub, cls = '') {
+  banner(title, sub, cls = '', ev = '') {
     const b = this.$('banner');
     this.$('banner-title').textContent = title;
     this.$('banner-sub').textContent = sub;
+    this.$('banner-ev').textContent = ev;
     b.className = '';
     void b.offsetWidth;
     b.className = 'show ' + cls;
@@ -138,12 +164,21 @@ const UI = {
     this.cls('hud-combo', 'show', g.combo >= 3);
     this.txt('hud-combo-n', String(g.combo));
     this.txt('hud-mult', '×' + fmt1(g.multiplier));
-    this.css('hud-combo-bar', 'transform', `scaleX(${clamp(g.comboTimer / COMBO_TIME, 0, 1).toFixed(3)})`);
+    this.css('hud-combo-bar', 'transform', `scaleX(${clamp(g.comboTimer / g.comboTime, 0, 1).toFixed(3)})`);
 
     const total = g.waveTotal || 1;
     const p = clamp((total - g.spawnQueue.length) / total, 0, 1);
     this.css('hud-wave-bar', 'transform', `scaleX(${p.toFixed(3)})`);
     this.txt('hud-left', `Wrogie obiekty: ${g.spawnQueue.length + g.meteors.length}`);
+    this.txt('hud-event', g.event ? g.event.name : '');
+    const mk = [...g.mods].join();
+    if (this.cache.mods !== mk) {
+      this.cache.mods = mk;
+      this.el['hud-protos'].innerHTML = [...g.mods].map(id => {
+        const P = PROTOCOLS.find(p => p.id === id);
+        return `<i title="${P.name}">${ICONS[P.icon]}</i>`;
+      }).join('');
+    }
 
     const ep = g.empTimer > 0 ? 1 - g.empTimer / g.empCd : 1;
     this.css('emp-btn', '--p', ep.toFixed(3));
@@ -157,7 +192,10 @@ const UI = {
 
     const boss = g.boss && !g.boss.dead ? g.boss : null;
     this.cls('hud-boss', 'show', !!boss);
-    if (boss) this.css('hud-boss-bar', 'transform', `scaleX(${clamp(boss.hp / boss.maxHp, 0, 1).toFixed(3)})`);
+    if (boss) {
+      this.css('hud-boss-bar', 'transform', `scaleX(${clamp(g.bossFrac(), 0, 1).toFixed(3)})`);
+      this.txt('hud-boss-name', '⚠ ' + g.bossName);
+    }
     this.cls('hud-auto', 'on', g.autoFire);
   },
 
@@ -173,8 +211,12 @@ const UI = {
     const nw = sum.wave + 1;
     const warn = nw % 5 === 0;
     const nt = this.$('shop-next');
+    const ev = this.g.nextEvent;
     nt.classList.toggle('danger', warn);
-    nt.textContent = warn ? `Następnie: fala ${nw} — wykryto PLANETOIDĘ!` : `Następnie: fala ${nw}${WAVE_INTRO[nw] ? ' — ' + WAVE_INTRO[nw].toLowerCase() : ''}`;
+    nt.classList.toggle('event', !!ev);
+    nt.innerHTML = warn ? `Następnie: fala ${nw} — wykryto ${(nw / 5) % 2 === 0 ? 'BLIŹNIĘTA' : 'PLANETOIDĘ'}!`
+      : ev ? `Następnie: fala ${nw} — <b>${ev.name}</b>: ${ev.desc}`
+      : `Następnie: fala ${nw}${WAVE_INTRO[nw] ? ' — ' + WAVE_INTRO[nw].toLowerCase() : ''}`;
     this.renderShop();
     this.show('shop');
   },
@@ -184,17 +226,19 @@ const UI = {
     this.$('shop-credits').textContent = formatNum(g.credits);
     this.$('shop-planet').textContent = `${Math.ceil(g.hp)} / ${g.maxHp}`;
     this.$('shop-shield').textContent = `${Math.floor(g.shieldMax)}`;
+    this.$('shop-mods').innerHTML = g.mods.size ? 'Protokoły: ' + this.protoList() : '';
+    // Naprawa to usługa, nie ulepszenie – siedzi w stopce obok „Następnej fali”
     this.$('upgrade-grid').innerHTML = UPGRADES.map((u, i) => {
+      if (u.id === 'repair') return '';
       const lvl = g.up[u.id], maxed = lvl >= u.max, cost = u.cost(lvl);
-      const blocked = u.id === 'repair' && g.hp >= g.maxHp;
-      const poor = !maxed && (g.credits < cost || blocked);
-      const pips = u.max === Infinity ? '' :
-        `<div class="pips">${Array.from({ length: u.max }, (_, k) => `<i class="${k < lvl ? 'on' : ''}"></i>`).join('')}</div>`;
-      const stat = maxed ? 'Poziom maksymalny' : blocked ? 'Planeta w pełni sprawna' : u.stat(g, lvl);
+      const poor = !maxed && g.credits < cost;
+      const np = u.pips || u.max, over = lvl - np;
+      const pips = `<div class="pips">${Array.from({ length: np }, (_, k) => `<i class="${k < lvl ? 'on' : ''}"></i>`).join('')}${over > 0 ? `<em>+${over}</em>` : ''}</div>`;
+      const stat = maxed ? 'Poziom maksymalny' : u.stat(g, lvl);
       return `<button class="up-card${maxed ? ' maxed' : ''}${poor ? ' poor' : ''}" data-action="buy" data-id="${u.id}">
         <div class="up-icon">${ICONS[u.id]}</div>
         <div class="up-body">
-          <div class="up-name">${u.name}<kbd>${(i + 1) % 10}</kbd></div>
+          <div class="up-name"><span>${u.name}</span><kbd>${(i + 1) % 10}</kbd></div>
           <div class="up-desc">${u.desc}</div>
           <div class="up-stat">${stat}</div>
           ${pips}
@@ -202,10 +246,31 @@ const UI = {
         <div class="up-cost">${maxed ? '✓' : formatNum(cost) + '<small>¢</small>'}</div>
       </button>`;
     }).join('');
+    const R = UPGRADES.find(u => u.id === 'repair'), rc = R.cost(g.up.repair);
+    const full = g.hp >= g.maxHp;
+    const rb = this.$('repair-btn');
+    rb.classList.toggle('poor', full || g.credits < rc);
+    rb.innerHTML = full ? 'Planeta w pełni sprawna' : `${ICONS.repair}Naprawa +25 · ${formatNum(rc)}¢ <kbd>0</kbd>`;
+    // Oferta protokołów: wybór 1 z 3 (Q/W/E), ponowne losowanie za kredyty (R)
+    const box = this.$('shop-protos');
+    box.classList.toggle('show', !!g.offer);
+    this.$('next-btn').classList.toggle('locked', !!g.offer);
+    if (g.offer) {
+      const rr = g.rerollCost;
+      box.innerHTML = `<div class="proto-head"><span class="kicker">Wybierz protokół obrony · na resztę gry (${g.mods.size + 1}/${PROTOCOL_MAX})</span>
+          <button class="btn reroll${g.credits < rr ? ' poor' : ''}" data-action="reroll" data-id="reroll">Losuj ponownie · ${formatNum(rr)}¢ <kbd>R</kbd></button></div>
+        <div class="proto-grid">${g.offer.map((P, i) => `<button class="proto-card" data-action="proto" data-i="${i}">
+          <div class="up-icon">${ICONS[P.icon]}</div>
+          <div class="up-body">
+            <div class="up-name"><span>${P.name}</span><kbd>${'QWE'[i]}</kbd></div>
+            <div class="proto-plus">+ ${P.plus}</div>
+            <div class="proto-minus">− ${P.minus}</div>
+          </div></button>`).join('')}</div>`;
+    } else box.innerHTML = '';
   },
 
   denyCard(id) {
-    const c = document.querySelector(`.up-card[data-id="${id}"]`);
+    const c = id === 'protos' ? this.$('shop-protos') : document.querySelector(`[data-id="${id}"]`);
     if (!c) return;
     c.classList.remove('deny');
     void c.offsetWidth;
@@ -216,17 +281,31 @@ const UI = {
   showGameOver(d) {
     this.$('over-title').textContent = d.record ? 'Nowy rekord!' : 'Ziemia upadła';
     this.$('over-title').classList.toggle('record', d.record);
-    const lines = [
-      `Ludzkość przetrwała ${d.wave} ${d.wave === 1 ? 'falę' : (d.wave % 10 >= 2 && d.wave % 10 <= 4 && (d.wave % 100 < 10 || d.wave % 100 >= 20)) ? 'fale' : 'fal'} bombardowania.`,
-    ];
-    this.$('over-sub').textContent = lines[0];
+    const kick = this.$('over-kicker');
+    kick.textContent = d.record ? 'Rekord obrony' : 'Transmisja przerwana';
+    kick.classList.toggle('gold-text', d.record);
+    kick.classList.toggle('danger-text', !d.record);
+    // przetrwane fale = pełne fale przed tą, w której padła planeta
+    const n = d.wave - 1;
+    const word = n === 1 ? 'falę' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 'fale' : 'fal';
+    this.$('over-sub').textContent = n > 0 ? `Ludzkość przetrwała ${n} ${word} bombardowania.` : 'Ziemia padła już w pierwszej fali.';
+    const CAUSE = {
+      boss: ['planetoida', 'Planetoidę trzeba zestrzelić, zanim dotrze do tarczy – postaw na Moc działa i Szybkostrzelność.'],
+      fast: ['szybki odłamek', 'Szybkie odłamki łatwiej złapać z Naprowadzaniem i satelitami.'],
+      iron: ['meteoryt żelazny', 'Żelazne mają dużo życia – pomaga Moc działa i Przebicie.'],
+      volatile: ['meteoryt wybuchowy', 'Wybuchowe zestrzeliwuj z daleka – ich eksplozja rani sąsiadów.'],
+      comet: ['kometa', 'Komety są szybkie – większa tarcza daje czas na reakcję.'],
+      ice: ['lodowy odłamek', 'Rozbita kometa sypie lodem – EMP czyści okolice planety.'],
+    };
+    const c = CAUSE[d.lastHit] || ['meteoryt skalny', 'Mocniejsza tarcza i regeneracja dają czas na reakcję. Nie zapominaj o EMP.'];
+    this.$('over-cause').innerHTML = `Ostatni cios: <b>${c[0]}</b>. ${c[1]}${d.mods.length ? `<span class="over-mods">${this.protoList(d.mods)}</span>` : ''}`;
     this.$('over-score').textContent = formatNum(d.score);
     this.$('over-stats').innerHTML = `
       <div><span>Fala</span><b>${d.wave}</b></div>
-      <div><span>Zniszczone meteoryty</span><b>${formatNum(d.kills)}</b></div>
+      <div><span>Zestrzelone</span><b>${formatNum(d.kills)}</b></div>
       <div><span>Celność</span><b>${Math.round(d.acc * 100)}%</b></div>
       <div><span>Najwyższe combo</span><b>${d.maxCombo}</b></div>
-      <div><span>Pokonane planetoidy</span><b>${d.bosses}</b></div>
+      <div><span>Planetoidy</span><b>${d.bosses}</b></div>
       <div><span>Perfekcyjne fale</span><b>${d.perfect}</b></div>`;
     this.$('over-best').textContent = formatNum(d.best);
     this.show('over');
