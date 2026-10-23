@@ -14,6 +14,7 @@ Autor: Bartłomiej Borowczyk · [vibemaster.pl](https://vibemaster.pl)
 | 2 | [Sejsmo·Lab](2-trzesienie-ziemi-interaktywne-opus5_5/) | [jeden-prompt/2-trzesienie-ziemi-interaktywne-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/2-trzesienie-ziemi-interaktywne-opus5_5) |
 | 3 | [Kapibara Kombat](3-kapibary-bijatyka-opus5_5/) | [jeden-prompt/3-kapibary-bijatyka-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/3-kapibary-bijatyka-opus5_5) |
 | 4 | [Oczami innych](4-zaburzenia-wzroku-symulator-opus5_5/) | [jeden-prompt/4-zaburzenia-wzroku-symulator-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/4-zaburzenia-wzroku-symulator-opus5_5) |
+| 5 | [Absurdoro](5-pomodoro-absurdalny-timer-opus5_5/) | [jeden-prompt/5-pomodoro-absurdalny-timer-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/5-pomodoro-absurdalny-timer-opus5_5) |
 
 ## Jak to działa
 
