@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e5432f">
+  <title>Absurdoro – pomodoro, które mierzy czas wszystkim, tylko nie minutami</title>
+  <meta name="description" content="Timer pomodoro, który odlicza czas na 12 absurdalnych sposobów: gąsienica zjada pomidora, kot zrzuca rzeczy ze stołu, ślimak ściga się z leniwcem, zegar Dalego się topi, a foton leci przez Układ Słoneczny.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='36' rx='26' ry='24' fill='%23e5432f' stroke='%232a1d17' stroke-width='3'/%3E%3Cpath d='M32 14l-9-6 4 9-11 1 11 4-3 7 8-8 8 8-3-7 11-4-11-1 4-9z' fill='%233c8d3a'/%3E%3Ccircle cx='24' cy='34' r='3.5' fill='%232a1d17'/%3E%3Ccircle cx='40' cy='34' r='3.5' fill='%232a1d17'/%3E%3Cellipse cx='32' cy='46' rx='5' ry='6' fill='%232a1d17'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Special+Elite&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="#" id="logo" title="Strona główna">
+      <span class="logo-tomato" aria-hidden="true"></span>
+      <span class="logo-text">Absurd<span>oro</span></span>
+    </a>
+    <div class="logo-sub">Ministerstwo Czasu Nadmiernie Mierzonego</div>
+    <nav class="top-nav">
+      <button class="btn ghost" id="b-archive" title="Archiwum">📚 <span>Archiwum</span></button>
+      <button class="btn ghost" id="b-settings" title="Ustawienia">⚙️ <span>Ustawienia</span></button>
+    </nav>
+  </header>
+
+  <!-- ============ EKRAN GŁÓWNY: WNIOSEK ============ -->
+  <section class="screen active" id="scr-home">
+    <div class="home-grid">
+      <form class="paper form-a38" id="form" autocomplete="off">
+        <div class="form-head">
+          <div><b>FORMULARZ A-38</b><span>Wniosek o przydział czasu na zadanie</span></div>
+          <div class="form-no" id="form-no"></div>
+        </div>
+
+        <div class="field">
+          <label for="f-name"><i>1.</i> Nazwa zadania</label>
+          <input id="f-name" maxlength="80" placeholder="np. odpisać na maile, których się boję" required>
+        </div>
+
+        <div class="analyzer">
+          <div class="an-head"><span class="an-led"></span> Analizator Zadań <small>wersja beta od 2009 r.</small></div>
+          <div class="an-out" id="an-out"></div>
+          <div class="an-metrics" id="an-metrics"></div>
+        </div>
+
+        <div class="field">
+          <label><i>2.</i> Czas trwania</label>
+          <div class="presets" id="presets"></div>
+          <div class="dur-row">
+            <input type="range" id="f-min" min="1" max="120" value="25">
+            <output id="f-min-out"></output>
+          </div>
+        </div>
+
+        <div class="convert">
+          <div class="cv-head"><span id="cv-title"></span><button type="button" class="btn tiny" id="cv-roll" title="Wylosuj inne przeliczenia">🎲 inne</button></div>
+          <ul id="cv-list"></ul>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="f-reason"><i>3.</i> Powód podjęcia zadania</label>
+            <select id="f-reason"></select>
+          </div>
+          <div class="field">
+            <label for="f-break"><i>4.</i> Przerwa po zadaniu</label>
+            <select id="f-break">
+              <option value="0">bez przerwy (heroicznie)</option>
+              <option value="3">3 min – herbata</option>
+              <option value="5" selected>5 min – klasycznie</option>
+              <option value="10">10 min – z ciastkiem</option>
+              <option value="15">15 min – kocia drzemka</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="f-level"><i>5.</i> Poziom absurdu: <b id="level-name"></b></label>
+          <input type="range" id="f-level" min="1" max="5" value="4">
+          <div class="level-desc" id="level-desc"></div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn big primary">Złóż wniosek i zacznij</button>
+          <button type="button" class="btn" id="b-queue">+ Do kolejki</button>
+        </div>
+        <p class="form-legal">Składając wniosek, oświadczasz, że czas istnieje, płynie w jedną stronę i nie masz z tym nic wspólnego. Klauzula informacyjna: Twoje dane zostają w Twojej przeglądarce. Ministerstwo i tak nie umie ich czytać.</p>
+      </form>
+
+      <aside class="side">
+        <div class="paper card" id="queue-card">
+          <h3>Kolejka zadań</h3>
+          <ul class="queue" id="queue"></ul>
+          <p class="empty" id="queue-empty">Pusto. Podejrzanie pusto. Dodaj coś przyciskiem „+ Do kolejki”.</p>
+        </div>
+        <div class="paper card">
+          <h3>Twój dorobek</h3>
+          <div id="totals"></div>
+        </div>
+        <div class="paper card">
+          <h3>12 sposobów odliczania</h3>
+          <ul class="mode-list" id="mode-list"></ul>
+          <p class="hint">Zmieniają się same w trakcie zadania. Im wyższy poziom absurdu, tym częściej.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ ZADANIE W TOKU ============ -->
+  <section class="screen" id="scr-run">
+    <div class="run-top">
+      <div class="run-task">
+        <small id="run-kind">ZADANIE W TOKU</small>
+        <b id="run-name"></b>
+      </div>
+      <div class="run-real" title="Prawdziwy pozostały czas, dla porządku">
+        <small>po ludzku</small><b id="run-real">25:00</b>
+      </div>
+    </div>
+    <div class="run-progress"><span id="run-bar"></span></div>
+    <div class="stage" id="stage"></div>
+    <div class="paused-veil" id="paused-veil" hidden>
+      <div><b>PAUZA</b><span>Czas stoi. Tylko u Ciebie. Wszechświat leci dalej.</span></div>
+    </div>
+    <div class="run-bottom">
+      <div class="mode-info">
+        <span class="mode-icon" id="mode-icon"></span>
+        <div><b id="mode-name"></b><small id="mode-tag"></small></div>
+      </div>
+      <div class="mode-rot">
+        <span id="rot-label"></span>
+        <div class="rot-bar"><span id="rot-bar"></span></div>
+      </div>
+      <div class="run-ctrl">
+        <div class="ctrl-group">
+          <button class="btn icon" id="b-prev" title="Poprzedni sposób (←)">◀</button>
+          <button class="btn icon" id="b-pin" title="Zostań przy tym sposobie (P)">📌</button>
+          <button class="btn icon" id="b-next" title="Następny sposób (→)">▶</button>
+          <button class="btn" id="b-modes" title="Wszystkie sposoby (M)">☰ Sposoby</button>
+        </div>
+        <div class="ctrl-group">
+          <button class="btn" id="b-pause" title="Pauza (spacja)">⏸ Pauza</button>
+          <button class="btn" id="b-done">✓ Skończone</button>
+          <button class="btn danger" id="b-quit">🏳️ Poddaj się</button>
+        </div>
+      </div>
+    </div>
+    <div class="mode-menu" id="mode-menu" hidden></div>
+  </section>
+
+  <!-- ============ RAPORT KOŃCOWY ============ -->
+  <section class="screen" id="scr-final"></section>
+
+  <!-- ============ NAKŁADKI ============ -->
+  <div class="overlay" id="ovl-process" hidden>
+    <div class="process paper">
+      <h2>Rozpatrywanie wniosku</h2>
+      <ol class="steps" id="steps"></ol>
+      <div class="cert" id="cert" hidden></div>
+    </div>
+  </div>
+
+  <div class="final10" id="final10" hidden>
+    <div class="f10-num" id="f10-num"></div>
+    <div class="f10-sub" id="f10-sub"></div>
+  </div>
+
+  <div class="overlay" id="ovl-dialog" hidden>
+    <div class="dialog paper" id="dialog"></div>
+  </div>
+
+  <canvas id="confetti"></canvas>
+  <div class="toasts" id="toasts"></div>
+
+  <script src="js/util.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/modes/jednostki.js"></script>
+  <script src="js/modes/pomidor.js"></script>
+  <script src="js/modes/slimak.js"></script>
+  <script src="js/modes/kot.js"></script>
+  <script src="js/modes/tablica.js"></script>
+  <script src="js/modes/kopiowanie.js"></script>
+  <script src="js/modes/boss.js"></script>
+  <script src="js/modes/dali.js"></script>
+  <script src="js/modes/urzedowe.js"></script>
+  <script src="js/modes/swiat.js"></script>
+  <script src="js/modes/foton.js"></script>
+  <script src="js/modes/gielda.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/creator.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/finale.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
