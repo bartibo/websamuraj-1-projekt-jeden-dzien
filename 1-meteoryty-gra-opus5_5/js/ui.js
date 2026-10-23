@@ -18,9 +18,9 @@ const UI = {
     for (const id of ['hud-score', 'hud-wave', 'hud-credits', 'hud-combo', 'hud-combo-n', 'hud-mult', 'hud-combo-bar',
       'hud-wave-bar', 'hud-left', 'hud-hp', 'hud-hp-t', 'bar-hp', 'hud-sh', 'hud-sh-t', 'bar-sh', 'emp-btn',
       'hud-boss', 'hud-boss-bar', 'hud-boss-name', 'hud-auto', 'hud-event', 'hud-protos',
-      'fx-rapid', 'fx-spread', 'fx-slow']) this.el[id] = $(id);
+      'fx-rapid', 'fx-spread', 'fx-slow', 'fx-gold', 'fx-support', 'fx-weapon', 'fx-weapon-name']) this.el[id] = $(id);
     this.fxBars = {};
-    for (const k of ['rapid', 'spread', 'slow']) this.fxBars[k] = this.el['fx-' + k].querySelector('i');
+    for (const k of ['rapid', 'spread', 'slow', 'gold', 'support', 'weapon']) this.fxBars[k] = this.el['fx-' + k].querySelector('i');
 
     document.addEventListener('click', e => {
       const el = e.target.closest('[data-action]');
@@ -184,10 +184,19 @@ const UI = {
     this.css('emp-btn', '--p', ep.toFixed(3));
     this.cls('emp-btn', 'ready', g.empTimer <= 0);
 
-    for (const k of ['rapid', 'spread', 'slow']) {
+    for (const k of ['rapid', 'spread', 'slow', 'gold']) {
       const v = g.effects[k];
       this.cls('fx-' + k, 'on', v > 0);
       if (v > 0) this.bar(this.fxBars[k], 'fxb-' + k, v / POWERUPS[k].dur);
+    }
+    this.cls('fx-support', 'on', g.supportT > 0);
+    if (g.supportT > 0) this.bar(this.fxBars.support, 'fxb-support', g.supportT / POWERUPS.support.dur);
+    this.cls('fx-weapon', 'on', !!g.weapon);
+    if (g.weapon) {
+      const W = WEAPONS[g.weapon.id];
+      this.txt('fx-weapon-name', W.name);
+      this.css('fx-weapon', '--c', W.color);
+      this.bar(this.fxBars.weapon, 'fxb-weapon', g.weapon.t / g.weapon.dur);
     }
 
     const boss = g.boss && !g.boss.dead ? g.boss : null;
@@ -296,6 +305,10 @@ const UI = {
       volatile: ['meteoryt wybuchowy', 'Wybuchowe zestrzeliwuj z daleka – ich eksplozja rani sąsiadów.'],
       comet: ['kometa', 'Komety są szybkie – większa tarcza daje czas na reakcję.'],
       ice: ['lodowy odłamek', 'Rozbita kometa sypie lodem – EMP czyści okolice planety.'],
+      bolt: ['pocisk Łowcy', 'Łowców zestrzeliwuj od razu po pojawieniu – świetnie sprawdza się działo łukowe i rakiety.'],
+      zig: ['wirujący odłamek', 'Zygzaki łatwiej trafić z Naprowadzaniem albo wiązką lasera.'],
+      shielded: ['meteoryt ekranowany', 'Tarczę energetyczną zrywa EMP – odpal je, gdy ekranowane są blisko.'],
+      cluster: ['odłamek gromady', 'Gromady rozbijaj daleko od planety – odłamki lecą we wszystkie strony.'],
     };
     const c = CAUSE[d.lastHit] || ['meteoryt skalny', 'Mocniejsza tarcza i regeneracja dają czas na reakcję. Nie zapominaj o EMP.'];
     this.$('over-cause').innerHTML = `Ostatni cios: <b>${c[0]}</b>. ${c[1]}${d.mods.length ? `<span class="over-mods">${this.protoList(d.mods)}</span>` : ''}`;
@@ -320,10 +333,10 @@ const UI = {
       const art = MeteorArt.make(type, r);
       return `<img src="${art.canvas.toDataURL()}" alt="">`;
     };
-    const list = [['rock', 2], ['fast', 0], ['iron', 2], ['volatile', 1], ['comet', 1], ['boss', 0]];
+    const list = [['rock', 2], ['fast', 0], ['iron', 2], ['volatile', 1], ['comet', 1], ['zig', 1], ['hunter', 1], ['shielded', 2], ['cluster', 2], ['boss', 0]];
     this.$('threat-list').innerHTML = list.map(([t]) => {
       const T = METEOR_TYPES[t];
-      return `<li><span class="thumb">${thumb(t, 20)}</span><div><b style="color:${T.color}">${T.name}</b><small>${T.desc}</small></div></li>`;
+      return `<li><span class="thumb">${thumb(T.art || t, t === 'hunter' ? 14 : 20)}</span><div><b style="color:${T.color}">${T.name}</b><small>${T.desc}</small></div></li>`;
     }).join('');
     this.$('bonus-list').innerHTML = Object.entries(POWERUPS).map(([k, P]) => {
       const c = document.createElement('canvas');
@@ -343,5 +356,7 @@ const UI = {
       drawPowerIcon(g, k, 10);
       return `<li><span class="thumb"><img src="${c.toDataURL()}" alt=""></span><div><b style="color:rgb(${P.color})">${P.name}</b><small>${P.desc}</small></div></li>`;
     }).join('');
+    this.$('weapon-list').innerHTML = Object.entries(WEAPONS).map(([k, W]) =>
+      `<li><span class="thumb weapon-thumb" style="color:rgb(${W.color})">${ICONS[k]}</span><div><b style="color:rgb(${W.color})">${W.name}</b><small>${W.desc} · ${W.dur} s</small></div></li>`).join('');
   },
 };

@@ -233,6 +233,32 @@ const Sound = (() => {
       tone('square', 660, 0, 0.07, 0.045);
       tone('square', 990, 0, 0.12, 0.045, { delay: 0.07 });
     },
+    laser() {
+      if (!ok('laser', 110)) return;
+      tone('sawtooth', 170 + Math.random() * 25, 150, 0.13, 0.022);
+      tone('sine', 1250, 1150, 0.1, 0.012);
+    },
+    zap() {
+      if (!ok('zap', 60)) return;
+      noise(0.09, 0.07, 7000, 2200, { type: 'bandpass', q: 4 });
+      tone('square', 900 + Math.random() * 300, 260, 0.07, 0.018);
+    },
+    rocket() {
+      if (!ok('rocket', 90)) return;
+      noise(0.3, 0.08, 900, 160);
+      tone('sawtooth', 180, 520, 0.16, 0.03);
+    },
+    metal() {
+      if (!ok('metal', 55)) return;
+      tone('square', 480 + Math.random() * 90, 360, 0.06, 0.025);
+      tone('triangle', 1700, 1550, 0.08, 0.018);
+    },
+    alienShot() { if (ok('alien', 120)) tone('sine', 620, 1500, 0.18, 0.045); },
+    weapon() {
+      if (!ok('weapon', 200)) return;
+      [62, 69, 74, 81].forEach((m, i) => tone('sawtooth', mtof(m), 0, 0.3, 0.05, { delay: i * 0.07 }));
+      noise(0.4, 0.1, 400, 4000, { type: 'bandpass', q: 1.2 });
+    },
     deny() { if (ok('deny', 120)) tone('sawtooth', 150, 100, 0.2, 0.06); },
     click() { if (ok('click', 30)) tone('sine', 1300, 700, 0.05, 0.05); },
     hover() { if (ok('hover', 40)) tone('sine', 2200, 1800, 0.025, 0.012); },

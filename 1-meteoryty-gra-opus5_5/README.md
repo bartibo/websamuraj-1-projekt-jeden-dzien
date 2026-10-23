@@ -37,18 +37,26 @@ Nie trzeba niczego instalować ani budować. Działa też na telefonie i tableci
 ## Co jest w grze
 
 - **Nieskończone fale** z rosnącą trudnością, a co 5. fala nadlatuje **Planetoida** (boss z paskiem życia), która wyrzuca z siebie odłamki. Co druga planetoida to **Bliźnięta**: dwie mniejsze z przeciwnych stron.
-- **Wydarzenia fal** od fali 3: deszcz kapsuł, rój Perseidów, ostrzał salwami, pole żelaza, niestabilny rój, burza słoneczna, deszcz komet, dwa fronty. Sklep zapowiada wydarzenie następnej fali.
+- **Wydarzenia fal** od fali 3: deszcz kapsuł, rój Perseidów, ostrzał salwami, pole żelaza, niestabilny rój, burza słoneczna, deszcz komet, dwa fronty, konwój zaopatrzenia (3 kontenery), polowanie (dodatkowi Łowcy). Sklep zapowiada wydarzenie następnej fali.
 - **Protokoły obrony**: po falach 2, 4, 7, 10, 14, 18 (i dalej co 4) wybierasz 1 z 3 kart na resztę gry, najwyżej 4. Każda ma plus i minus, np. Działo szynowe, Reakcja łańcuchowa, Tarcza zwierciadlana, Kriopociski, Rój. Ofertę można przelosować za kredyty.
-- **6 rodzajów meteorytów**:
+- **10 rodzajów przeciwników**:
   - skalne, które rozpadają się na mniejsze,
   - szybkie odłamki,
   - pancerne żelazne,
   - wybuchowe, które wywołują reakcje łańcuchowe,
   - komety, które rozpadają się na lód,
+  - wirujące odłamki, które lecą zygzakiem (od fali 7),
+  - Łowcy, obce statki krążące po orbicie i ostrzeliwujące tarczę pociskami, które da się zestrzelić (od fali 8),
+  - ekranowane meteoryty z odnawiającą się tarczą energetyczną, którą zrywa EMP (od fali 9),
+  - gromady, które po rozbiciu rozsypują się na 7 szybkich odłamków (od fali 11),
   - Planetoida.
+- **Kontenery z bronią** (od fali 3): przelatują obok planety i trzeba je trafić ok. 30 razy. W środku broń na kilkanaście sekund:
+  - lanca laserowa – ciągła wiązka, która tnie wszystko na linii ognia,
+  - wyrzutnia rakiet – samonaprowadzające rakiety z wybuchem obszarowym,
+  - działo łukowe – błyskawica przeskakująca między pobliskimi celami.
 - **Tarcza** pochłania uderzenia i sama się regeneruje. Gdy padnie, obrywa planeta, a na jej powierzchni zostają żarzące się kratery.
 - **Combo i mnożnik punktów** (do ×5) za szybkie, następujące po sobie zestrzelenia.
-- **Bonusy** w kapsułach (trzeba je zestrzelić): szał ognia, salwa, spowolnienie czasu, odnowienie tarczy, bomba orbitalna, naprawa planety.
+- **Bonusy** w kapsułach (trzeba je zestrzelić): szał ognia, salwa, spowolnienie czasu, odnowienie tarczy, bomba orbitalna, naprawa planety. **Pancerne kapsuły** wymagają 6–8 trafień: przeciążenie tarczy (do 160%), satelity wsparcia (+3 na 20 s) i złoty deszcz (podwójne kredyty i punkty przez 12 s).
 - **Sklep między falami** z 9 ulepszeniami: obrażenia, szybkostrzelność, wielolufowość, przebicie, pociski samonaprowadzające, tarcza, regeneracja, satelity obronne i EMP, plus naprawa planety. Moc działa i szybkostrzelność można podkręcać ponad 10. poziom, coraz drożej.
 - Premia za falę bez uszkodzeń planety. Ekipy naprawcze odbudowują planetę między falami.
 - Rekord i najdalsza fala są zapisywane w przeglądarce. Ekran końca gry podaje, co zadało ostatni cios, i podpowiada, co zmienić.

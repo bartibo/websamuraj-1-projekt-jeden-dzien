@@ -463,6 +463,8 @@ kbd {
 .fx-chip span { font-family: var(--display); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: rgb(var(--c)); }
 .fx-track { margin-top: 4px; height: 3px; border-radius: 2px; background: rgba(var(--c), 0.2); overflow: hidden; }
 .fx-track i { background: rgb(var(--c)); }
+.fx-chip.weapon { min-width: 160px; border-width: 2px; }
+.weapon-thumb svg { width: 26px; height: 26px; }
 @keyframes chipIn { from { opacity: 0; transform: translateY(8px); } }
 
 .hud-auto {

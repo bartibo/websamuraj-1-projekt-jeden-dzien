@@ -156,6 +156,8 @@ const ART_PAL = {
   volatile: ['#74503a', '#3e2519', '#150a05'],
   comet:    ['#f4fcff', '#a9d9f6', '#3c74a3'],
   ice:      ['#f4fcff', '#b8e3fa', '#5a90bb'],
+  zig:      ['#e2c8ff', '#8a5cc8', '#2c1648'],
+  cluster:  ['#9a7a86', '#5a3c4a', '#1e1016'],
   boss:     ['#8f6a54', '#4f362a', '#170e09'],
 };
 
@@ -176,6 +178,7 @@ const MeteorArt = {
   },
 
   make(type, r) {
+    if (type === 'hunter' || type === 'bolt') return this.makeAlien(type, r);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const pad = 4, half = r + pad, S = Math.ceil(half * 2 * dpr);
     const c = document.createElement('canvas');
@@ -249,6 +252,25 @@ const MeteorArt = {
       }
       g.shadowBlur = 0;
     }
+    if (type === 'zig') {
+      // kryształowe ściany
+      g.strokeStyle = 'rgba(240,220,255,0.45)';
+      g.lineWidth = 1;
+      for (let k = 0; k < 5; k++) {
+        const a = rand(0, TAU);
+        g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * r, Math.sin(a) * r); g.stroke();
+      }
+    }
+    if (type === 'cluster') {
+      // świecące zarodki odłamków
+      for (let k = 0; k < 7; k++) {
+        const a = k / 7 * TAU + rand(-0.2, 0.2), d = r * rand(0.25, 0.6), cr = r * rand(0.1, 0.16);
+        const gr = g.createRadialGradient(Math.cos(a) * d, Math.sin(a) * d, 0, Math.cos(a) * d, Math.sin(a) * d, cr * 1.8);
+        gr.addColorStop(0, 'rgba(255,190,240,1)'); gr.addColorStop(0.45, 'rgba(255,80,200,0.8)'); gr.addColorStop(1, 'rgba(255,80,200,0)');
+        g.fillStyle = gr;
+        g.beginPath(); g.arc(Math.cos(a) * d, Math.sin(a) * d, cr * 1.8, 0, TAU); g.fill();
+      }
+    }
     if (type === 'iron') {
       g.strokeStyle = 'rgba(255,255,255,0.2)';
       g.lineWidth = 1;
@@ -294,7 +316,100 @@ const MeteorArt = {
 
     return { canvas: c, white: w, half };
   },
+
+  // Statek Łowcy (spodek) i jego pocisk plazmowy
+  makeAlien(type, r) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const half = r * 1.5 + 4, S = Math.ceil(half * 2 * dpr);
+    const mk = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = S;
+      const g = c.getContext('2d');
+      g.scale(S / (half * 2), S / (half * 2));
+      g.translate(half, half);
+      return [c, g];
+    };
+    const [c, g] = mk(), [w, wg] = mk();
+    if (type === 'bolt') {
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, r * 1.5);
+      gr.addColorStop(0, '#f4fff0'); gr.addColorStop(0.35, '#8dff9a'); gr.addColorStop(1, 'rgba(60,255,110,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, r * 1.5, 0, TAU); g.fill();
+      wg.fillStyle = '#fff'; wg.beginPath(); wg.arc(0, 0, r, 0, TAU); wg.fill();
+      return { canvas: c, white: w, half };
+    }
+    const hull = new Path2D();
+    hull.ellipse(0, 0, r * 1.35, r * 0.62, 0, 0, TAU);
+    const hg = g.createLinearGradient(0, -r, 0, r);
+    hg.addColorStop(0, '#b9c7d4'); hg.addColorStop(0.5, '#5b6b7a'); hg.addColorStop(1, '#1d2730');
+    g.fillStyle = hg; g.fill(hull);
+    g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 1.2; g.stroke(hull);
+    // kopuła
+    const dome = g.createRadialGradient(-r * 0.15, -r * 0.55, 0, 0, -r * 0.3, r * 0.75);
+    dome.addColorStop(0, '#eaffef'); dome.addColorStop(0.4, '#6cff8a'); dome.addColorStop(1, '#0f5a2a');
+    g.fillStyle = dome;
+    g.beginPath(); g.ellipse(0, -r * 0.25, r * 0.6, r * 0.5, 0, Math.PI, TAU); g.fill();
+    // światła wokół kadłuba
+    for (let k = 0; k < 6; k++) {
+      const a = k / 6 * TAU;
+      g.fillStyle = k % 2 ? '#8dff9a' : '#ffe27a';
+      g.beginPath(); g.arc(Math.cos(a) * r * 1.05, Math.sin(a) * r * 0.42, r * 0.11, 0, TAU); g.fill();
+    }
+    wg.fillStyle = '#fff'; wg.fill(hull);
+    wg.beginPath(); wg.ellipse(0, -r * 0.25, r * 0.6, r * 0.5, 0, Math.PI, TAU); wg.fill();
+    return { canvas: c, white: w, half };
+  },
 };
+
+/* Kontener z bronią – grafika generowana raz na rozmiar */
+const CrateArt = {
+  cache: new Map(),
+  get(s) {
+    const key = Math.round(s * 100);
+    let c = this.cache.get(key);
+    if (c) return c;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = 46 * s, H = 30 * s, pad = 4;
+    c = document.createElement('canvas');
+    c.width = Math.ceil((W + pad * 2) * dpr); c.height = Math.ceil((H + pad * 2) * dpr);
+    const g = c.getContext('2d');
+    g.scale(dpr, dpr); g.translate(pad, pad);
+    const body = g.createLinearGradient(0, 0, 0, H);
+    body.addColorStop(0, '#c9b48a'); body.addColorStop(0.5, '#7d6a48'); body.addColorStop(1, '#3a3022');
+    g.fillStyle = body;
+    g.beginPath(); g.roundRect(0, 0, W, H, 4 * s); g.fill();
+    // ostrzegawcze pasy
+    g.save();
+    g.beginPath(); g.rect(0, H * 0.36, W, H * 0.28); g.clip();
+    for (let x = -H; x < W + H; x += 9 * s) {
+      g.fillStyle = '#ffcf3a';
+      g.beginPath(); g.moveTo(x, H * 0.64); g.lineTo(x + 4.5 * s, H * 0.64); g.lineTo(x + 4.5 * s + H * 0.28, H * 0.36); g.lineTo(x + H * 0.28, H * 0.36); g.fill();
+    }
+    g.restore();
+    g.strokeStyle = 'rgba(30,22,10,0.9)'; g.lineWidth = 1.4;
+    g.beginPath(); g.roundRect(0, 0, W, H, 4 * s); g.stroke();
+    g.strokeStyle = 'rgba(255,240,200,0.35)'; g.lineWidth = 1;
+    for (const x of [W * 0.2, W * 0.8]) { g.beginPath(); g.moveTo(x, 2); g.lineTo(x, H - 2); g.stroke(); }
+    c.w = W; c.h = H; c.pad = pad;
+    this.cache.set(key, c);
+    return c;
+  },
+};
+
+/* Ikony broni z kontenerów */
+function drawWeaponIcon(ctx, id, s) {
+  ctx.beginPath();
+  if (id === 'laser') {
+    ctx.moveTo(-s, s); ctx.lineTo(s, -s); ctx.stroke();
+    ctx.beginPath(); ctx.arc(s * 0.6, -s * 0.6, s * 0.3, 0, TAU); ctx.fill();
+  } else if (id === 'rockets') {
+    ctx.moveTo(0, -s); ctx.quadraticCurveTo(s * 0.55, -s * 0.2, s * 0.35, s * 0.55); ctx.lineTo(-s * 0.35, s * 0.55);
+    ctx.quadraticCurveTo(-s * 0.55, -s * 0.2, 0, -s); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-s * 0.35, s * 0.3); ctx.lineTo(-s * 0.7, s); ctx.moveTo(s * 0.35, s * 0.3); ctx.lineTo(s * 0.7, s); ctx.stroke();
+  } else {
+    ctx.moveTo(s * 0.25, -s); ctx.lineTo(-s * 0.5, s * 0.1); ctx.lineTo(0, s * 0.1); ctx.lineTo(-s * 0.25, s);
+    ctx.lineTo(s * 0.5, -s * 0.1); ctx.lineTo(0, -s * 0.1); ctx.closePath(); ctx.fill();
+  }
+}
 
 /* Ikony bonusów rysowane wektorowo na canvasie */
 function drawPowerIcon(ctx, type, s) {
@@ -334,6 +449,21 @@ function drawPowerIcon(ctx, type, s) {
     case 'repair':
       ctx.fillRect(-s * 0.24, -s * 0.85, s * 0.48, s * 1.7);
       ctx.fillRect(-s * 0.85, -s * 0.24, s * 1.7, s * 0.48);
+      break;
+    case 'over':
+      ctx.moveTo(0, -s); ctx.lineTo(s * 0.8, -s * 0.62); ctx.lineTo(s * 0.72, s * 0.25);
+      ctx.quadraticCurveTo(s * 0.45, s * 0.78, 0, s); ctx.quadraticCurveTo(-s * 0.45, s * 0.78, -s * 0.72, s * 0.25);
+      ctx.lineTo(-s * 0.8, -s * 0.62); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -s * 0.45); ctx.lineTo(0, s * 0.45); ctx.moveTo(-s * 0.4, 0); ctx.lineTo(s * 0.4, 0); ctx.stroke();
+      break;
+    case 'support':
+      ctx.strokeRect(-s * 0.3, -s * 0.3, s * 0.6, s * 0.6);
+      ctx.strokeRect(-s, -s * 0.22, s * 0.5, s * 0.44);
+      ctx.strokeRect(s * 0.5, -s * 0.22, s * 0.5, s * 0.44);
+      break;
+    case 'gold':
+      ctx.arc(0, 0, s * 0.85, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, s * 0.4, 0.6, TAU - 0.6); ctx.stroke();
       break;
   }
 }

@@ -28,6 +28,31 @@ const METEOR_TYPES = {
     radius: [0, 19], hp: [0, 34], impact: [0, 8], score: [0, 50], credits: [0, 6],
     speed: 1.55, spin: 0.3, trail: 'comet', palette: 'comet', color: '#8fdcff',
   },
+  zig: {
+    name: 'Wirujący odłamek', desc: 'Leci zygzakiem – trudno go trafić. Od fali 7.',
+    radius: [0, 16], hp: [0, 30], impact: [0, 7], score: [0, 55], credits: [0, 6],
+    speed: 1.2, spin: 2.2, trail: 'zig', palette: 'zig', color: '#c98bff', wobble: 3.2,
+  },
+  shielded: {
+    name: 'Ekranowany', desc: 'Tarcza energetyczna pochłania pociski i się odnawia. EMP zrywa ją od razu. Od fali 9.',
+    radius: [0, 22, 30], hp: [0, 50, 90], impact: [0, 9, 13], score: [0, 70, 110], credits: [0, 8, 12],
+    speed: 0.8, spin: 0.3, trail: 'dust', palette: 'iron', color: '#7fd7ff', shield: 0.9, art: 'iron', drop: 0.1,
+  },
+  hunter: {
+    name: 'Łowca', desc: 'Obcy statek. Krąży po orbicie i ostrzeliwuje tarczę – jego pociski da się zestrzelić. Od fali 8.',
+    radius: [0, 19], hp: [0, 110], impact: [0, 10], score: [0, 150], credits: [0, 15],
+    speed: 1.1, spin: 0, trail: 'alien', palette: 'alien', color: '#8dff9a', ship: true, noPush: true, drop: 0.35,
+  },
+  bolt: {
+    name: 'Pocisk plazmowy', desc: '',
+    radius: [6], hp: [3], impact: [4], score: [5], credits: [0],
+    speed: 2.4, spin: 0, trail: 'alien', palette: 'alien', color: '#8dff9a', noPush: true,
+  },
+  cluster: {
+    name: 'Gromada', desc: 'Po rozbiciu rozsypuje się na 7 szybkich odłamków – niszcz ją z dala od planety. Od fali 11.',
+    radius: [0, 0, 34], hp: [0, 0, 70], impact: [0, 0, 12], score: [0, 0, 90], credits: [0, 0, 10],
+    speed: 0.75, spin: 0.4, trail: 'ember', palette: 'cluster', color: '#ff7ad9',
+  },
   ice: {
     name: 'Lodowy odłamek', desc: '',
     radius: [9], hp: [6], impact: [3], score: [10], credits: [1],
@@ -52,6 +77,10 @@ const PALETTES = {
   boss:     { spark: '255,180,100', glow: '255,90,40',   smoke: '60,40,35',   debris: '#6a4a36' },
   shield:   { spark: '160,255,255', glow: '60,220,255',  smoke: '40,90,110',  debris: '#8ff' },
   planet:   { spark: '255,210,110', glow: '255,110,30',  smoke: '55,42,36',   debris: '#5a4a3a' },
+  zig:      { spark: '225,180,255', glow: '170,90,255',  smoke: '60,40,80',   debris: '#7a5a9a' },
+  cluster:  { spark: '255,170,230', glow: '255,80,200',  smoke: '70,40,60',   debris: '#6a4a5a' },
+  alien:    { spark: '190,255,170', glow: '90,255,120',  smoke: '40,70,50',   debris: '#5a7a6a' },
+  crate:    { spark: '255,230,150', glow: '255,200,80',  smoke: '70,65,55',   debris: '#b09060' },
 };
 
 const POWERUPS = {
@@ -61,6 +90,18 @@ const POWERUPS = {
   shield: { name: 'TARCZA ODNOWIONA',   desc: 'Natychmiast ładuje tarczę do pełna', color: '70,255,210',  dur: 0, w: 2 },
   nuke:   { name: 'BOMBA ORBITALNA',    desc: 'Fala uderzeniowa na cały ekran', color: '255,80,60',   dur: 0, w: 1 },
   repair: { name: 'NAPRAWA PLANETY',    desc: 'Przywraca 15 pkt integralności planety', color: '120,255,120', dur: 0, w: 1.5 },
+  // Pancerne kapsuły: trzeba je trafić kilka razy (hits)
+  over:    { name: 'PRZECIĄŻENIE TARCZY', desc: 'Tarcza ładuje się do 160% pojemności. Pancerna: 6 trafień', color: '120,230,255', dur: 0, w: 0.8, hits: 6 },
+  support: { name: 'SATELITY WSPARCIA',   desc: '+3 satelity na 20 s. Pancerna: 8 trafień', color: '150,255,170', dur: 20, w: 0.8, hits: 8 },
+  gold:    { name: 'ZŁOTY DESZCZ',        desc: 'Podwójne kredyty i punkty przez 12 s. Pancerna: 6 trafień', color: '255,200,60', dur: 12, w: 0.8, hits: 6 },
+};
+
+/* Bronie z kontenerów: zestrzel przelatujący kontener (ok. 30 trafień), a broń zastąpi działo na kilkanaście sekund. */
+const CRATE_HITS = 30;
+const WEAPONS = {
+  laser:   { name: 'LANCA LASEROWA',   desc: 'Ciągła wiązka tnąca wszystko na linii ognia', color: '255,90,130', dur: 12 },
+  rockets: { name: 'WYRZUTNIA RAKIET', desc: 'Samonaprowadzające rakiety z wybuchem obszarowym', color: '255,150,60', dur: 14 },
+  tesla:   { name: 'DZIAŁO ŁUKOWE',    desc: 'Błyskawica przeskakuje między pobliskimi celami', color: '150,175,255', dur: 13 },
 };
 
 const HOMING_NAMES = ['brak', 'słabe', 'średnie', 'silne'];
@@ -97,6 +138,10 @@ const WAVE_INTRO = {
   3: 'Nowe zagrożenie: meteoryty żelazne',
   4: 'Nowe zagrożenie: meteoryty wybuchowe',
   6: 'Nowe zagrożenie: komety',
+  7: 'Nowe zagrożenie: wirujące odłamki',
+  8: 'Nowe zagrożenie: Łowcy – obce statki na orbicie',
+  9: 'Nowe zagrożenie: meteoryty z tarczą – EMP ją zrywa',
+  11: 'Nowe zagrożenie: gromady – nie rozbijaj ich przy planecie',
 };
 const WAVE_FLAVOR = [
   'Czujniki wykrywają gęsty rój',
@@ -132,6 +177,8 @@ const WAVE_EVENTS = [
   { id: 'storm',    name: 'Burza słoneczna',    desc: 'tarcza się nie odnawia, EMP ładuje się 2× szybciej', from: 6, noRegen: true, emp: 0.5 },
   { id: 'comets',   name: 'Deszcz komet',       desc: 'komety rozpadające się na lód', from: 7, weights: { comet: 7 } },
   { id: 'fronts',   name: 'Dwa fronty',         desc: 'meteoryty nadlatują z dwóch przeciwnych stron', from: 8, fronts: true },
+  { id: 'convoy',   name: 'Konwój zaopatrzenia', desc: 'trzy kontenery z bronią do zestrzelenia', from: 4, crates: 3 },
+  { id: 'hunters',  name: 'Polowanie',          desc: 'dodatkowi Łowcy na orbicie, kredyty ×1,3', from: 10, hunters: 2, credits: 1.3 },
 ];
 
 const ICONS = (() => {
@@ -152,5 +199,8 @@ const ICONS = (() => {
     cryo: s('<path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/><path d="M9 4l3 2 3-2M9 20l3-2 3 2"/>'),
     scrap: s('<circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2a3.4 3.4 0 1 0 0 5.6M8 12h5"/>'),
     cascade: s('<path d="M4 18l4-4 4 3 8-9"/><path d="M15 8h5v5"/>'),
+    laser: s('<path d="M3 21L21 3"/><path d="M14 3h7v7"/><circle cx="5" cy="19" r="1.5"/>'),
+    rockets: s('<path d="M12 2c3 3 4 7 3 12H9C8 9 9 5 12 2z"/><path d="M9 14l-3 3v3l3-2M15 14l3 3v3l-3-2M11 18h2v3h-2z"/>'),
+    tesla: s('<path d="M13 2L5 13h6l-2 9 10-13h-6l2-7z"/>'),
   };
 })();
