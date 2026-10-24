@@ -204,7 +204,7 @@ const Game = {
     UI.show('menu');
   },
 
-  newGame() {
+  newGame(save = null) {
     this.demo = false;
     this.resetWorld();
     this.up = this.freshUpgrades();
@@ -218,10 +218,41 @@ const Game = {
     this.mods.clear(); this.event = null; this.nextEvent = null; this.offer = null; this.rerolls = 0;
     this.lastHit = null; this.empHintWave = 0;
     this.empTimer = 0; this.fireTimer = 0; this.slowmo = 0; this.flash = 0; this.dmgFlash = 0;
+    if (save) this.loadRun(save);
     this.planet.reset();
     this.syncDrones();
     this.startWave();
     UI.show(null);
+  },
+
+  /* ---------- zapis: początek fali, po zakupach w sklepie – zostaje po wyjściu z gry i po porażce ---------- */
+  saveRun() {
+    Store.set('tz_save', {
+      wave: this.wave, score: this.score, credits: this.credits, hp: this.hp,
+      up: this.up, mods: [...this.mods], next: this.nextEvent ? this.nextEvent.id : null,
+      stats: this.stats, maxCombo: this.maxCombo, endless: this.endless, rerolls: this.rerolls,
+      empHint: this.empHintWave, diff: this.diffId,
+    });
+  },
+
+  get savedRun() { return Store.get('tz_save', null); },
+
+  continueRun() {
+    const s = this.savedRun;
+    if (!s) return;
+    if (DIFFICULTIES[s.diff]) this.setDifficulty(s.diff);
+    this.newGame(s);
+  },
+
+  loadRun(s) {
+    this.wave = s.wave; this.score = s.score; this.credits = s.credits;
+    this.hp = Math.min(this.maxHp, s.hp);
+    Object.assign(this.up, s.up);
+    for (const id of s.mods) if (PROTOCOLS.some(p => p.id === id)) this.mods.add(id);
+    this.nextEvent = WAVE_EVENTS.find(e => e.id === s.next) || null;
+    Object.assign(this.stats, s.stats);
+    this.maxCombo = s.maxCombo; this.endless = s.endless; this.rerolls = s.rerolls; this.empHintWave = s.empHint;
+    this.shield = this.shieldMax;
   },
 
   buildWave(n) {
@@ -306,6 +337,8 @@ const Game = {
   },
 
   startWave() {
+    // od 2. fali – pierwszej nie ma czego zapisywać
+    if (this.wave >= 1) this.saveRun();
     this.wave++;
     this.event = this.nextEvent; this.nextEvent = null; this.offer = null;
     this.spawnQueue = this.buildWave(this.wave);

@@ -82,6 +82,7 @@ const UI = {
         Sound.click();
         g.newGame();
         break;
+      case 'continue': Sound.click(); g.continueRun(); break;
       case 'help': Sound.click(); this.show('help'); break;
       case 'back': Sound.click(); this.show('menu'); break;
       case 'sound': Sound.toggleMute(); this.updateSoundLabels(); Sound.click(); break;
@@ -138,6 +139,18 @@ const UI = {
   updateBest() {
     this.$('menu-best').textContent = formatNum(Store.get('tz_best', 0));
     this.$('menu-wave').textContent = Store.get('tz_bestwave', 0);
+    this.updateContinue();
+  },
+
+  // Przyciski „Kontynuuj od fali N” w menu i na ekranie porażki – tylko gdy jest zapis
+  updateContinue() {
+    const s = this.g.savedRun;
+    document.querySelectorAll('[data-action="continue"]').forEach(b => {
+      b.hidden = !s;
+      if (s) b.textContent = `Kontynuuj od fali ${s.wave + 1}`;
+    });
+    // przy zapisie nowa gra schodzi na drugi plan
+    document.querySelectorAll('[data-action="play"], [data-action="restart"]').forEach(b => b.classList.toggle('primary', !s));
   },
 
   banner(title, sub, cls = '', ev = '') {
@@ -332,6 +345,7 @@ const UI = {
 
   /* ---------- koniec gry ---------- */
   showGameOver(d) {
+    this.updateContinue();
     this.$('over-title').textContent = d.record ? 'Nowy rekord!' : 'Ziemia upadła';
     this.$('over-title').classList.toggle('record', d.record);
     const kick = this.$('over-kicker');

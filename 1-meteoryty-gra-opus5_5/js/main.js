@@ -93,8 +93,8 @@
     } else if (k === 'Enter' || k === 'NumpadEnter') {
       if (e.repeat) return;
       if (Game.state === 'shop') UI.action('next');
-      else if (Game.state === 'menu' && UI.current === 'menu') UI.action('play');
-      else if (Game.state === 'gameover') UI.action('restart');
+      else if (Game.state === 'menu' && UI.current === 'menu') UI.action(Game.savedRun ? 'continue' : 'play');
+      else if (Game.state === 'gameover') UI.action(Game.savedRun ? 'continue' : 'restart');
       else if (Game.state === 'won') UI.action('endless');
     } else if (Game.state === 'shop') {
       const proto = { KeyQ: 0, KeyW: 1, KeyE: 2 }[k];
