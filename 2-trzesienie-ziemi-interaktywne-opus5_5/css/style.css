@@ -260,6 +260,8 @@ select option { background: #121826; color: #e8eef8; }
 .card ol li { margin-bottom: 8px; }
 .card .tip { font-size: 13px; color: #cfe6ff; background: rgba(79,181,255,0.1); border: 1px solid rgba(79,181,255,0.3); border-radius: 12px; padding: 9px 12px; margin: 0 0 18px; }
 .card .loading { text-align: center; color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+.card .back-link { display: block; width: fit-content; margin: 12px auto 0; color: var(--muted); font-size: 12px; text-decoration: none; transition: color .2s; }
+.card .back-link:hover, .card .back-link:focus-visible { color: var(--accent2); }
 .card.help { width: min(600px, 100%); }
 .card.help h2 { text-align: left; }
 .card.help h3 { margin: 18px 0 6px; }

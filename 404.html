@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nie ma takiej strony – Projekty</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#12110f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ffb547'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='700' font-size='19' text-anchor='middle' fill='%2312110f'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* GitHub Pages pokazuje ten plik pod dowolnym błędnym adresem, więc wszystkie linki są od korzenia (/). */
+  :root {
+    color-scheme: dark;
+    --bg: #12110f;
+    --surface: #1c1b18;
+    --line-2: #3d3a33;
+    --text: #f3f0e9;
+    --muted: #a7a297;
+    --accent: #ffb547;
+    --sans: "Space Grotesk", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; min-height: 100dvh;
+    display: grid; place-items: center;
+    padding: 40px max(16px, env(safe-area-inset-left));
+    background:
+      radial-gradient(900px 520px at 80% -10%, rgba(255, 181, 71, .14), transparent 62%),
+      var(--bg);
+    color: var(--text);
+    font: 17px/1.6 var(--sans);
+  }
+  main { width: min(720px, 100%); }
+  .kicker { display: inline-flex; align-items: center; gap: 10px; font: 500 13px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .kicker::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(255, 181, 71, .18); }
+  h1 { margin: 14px 0 12px; font-size: clamp(44px, 9vw, 96px); line-height: .92; letter-spacing: -.05em; }
+  p { margin: 0 0 28px; max-width: 560px; font-size: 19px; color: var(--muted); }
+  .btn {
+    display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px;
+    border-radius: 12px; background: var(--accent); color: #111; text-decoration: none; font-weight: 500;
+    transition: filter .2s;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 36px 0 0; padding: 0; list-style: none; }
+  ul a {
+    display: inline-flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 16px 0 12px;
+    border: 1px solid var(--line-2); border-radius: 999px; color: var(--muted); text-decoration: none; font-size: 15px;
+    transition: color .2s, border-color .2s, background .2s;
+  }
+  ul a:hover { color: var(--text); border-color: var(--muted); background: var(--surface); }
+  ul b { font: 500 12px var(--mono); color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">Błąd 404</div>
+  <h1>Tu nic nie ma</h1>
+  <p>Sejsmograf nic pod tym adresem nie wykrył. Może link ma literówkę, a może projekt zmienił adres. Wszystkie projekty są na stronie głównej.</p>
+  <a class="btn" href="/">Wszystkie projekty</a>
+  <ul aria-label="Projekty">
+    <li><a href="/1-meteoryty-gra-opus5_5/"><b>01</b>Tarcza Ziemi</a></li>
+    <li><a href="/2-trzesienie-ziemi-interaktywne-opus5_5/"><b>02</b>Sejsmo·Lab</a></li>
+    <li><a href="/3-kapibary-bijatyka-opus5_5/"><b>03</b>Kapibara Kombat</a></li>
+    <li><a href="/4-zaburzenia-wzroku-symulator-opus5_5/"><b>04</b>Oczami innych</a></li>
+    <li><a href="/5-pomodoro-absurdalny-timer-opus5_5/"><b>05</b>Absurdoro</a></li>
+  </ul>
+</main>
+</body>
+</html>

@@ -111,6 +111,8 @@ kbd {
 }
 @keyframes blink { 50% { opacity: 0.35; } }
 .title-foot { position: absolute; bottom: 22px; color: var(--muted); font-size: 14px; letter-spacing: 0.06em; text-align: center; }
+.back-link { position: absolute; top: max(18px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); padding: 6px 10px; color: var(--muted); font-size: 14px; letter-spacing: 0.04em; text-decoration: none; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); transition: color 0.2s; }
+.back-link:hover, .back-link:focus-visible { color: var(--orange-2); }
 
 /* ============ PRZYCISKI ============ */
 .menu-list { display: flex; flex-direction: column; gap: 10px; min-width: min(420px, 92vw); }

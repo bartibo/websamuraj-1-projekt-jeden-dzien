@@ -28,7 +28,11 @@ Strona z projektami: **[projekty.vibemaster.pl](https://projekty.vibemaster.pl)*
 
 Na [projekty.vibemaster.pl](https://projekty.vibemaster.pl) albo lokalnie: wejdź do folderu projektu i kliknij dwa razy `index.html`.
 
-Nowy projekt na stronie: skopiuj w `index.html` jedną sekcję `<section class="proj">`, zmień teksty i dodaj zrzut `galeria/projekt-N.jpg` (1920×1080) oraz `galeria/projekt-N-960.jpg`.
+Nowy projekt na stronie: skopiuj w `index.html` jedną sekcję `<section class="proj">`, zmień teksty i dodaj zrzut `galeria/projekt-N.jpg` (1920×1080) i `galeria/projekt-N-960.jpg`, każdy także jako `.webp`.
+
+Klip w tle zdjęcia jest opcjonalny: `galeria/projekt-N.mp4` (H.264, 1280×720, kilka sekund bez dźwięku, zapętlony), wskazany w `data-clip` sekcji. Strona wczytuje go dopiero przy przewijaniu i gra tylko wtedy, gdy projekt jest na ekranie. Przy ograniczeniu ruchu albo oszczędzaniu danych zostaje samo zdjęcie.
+
+Nowy projekt dopisz też do `sitemap.xml` i do listy w `404.html`. W grze dodaj link powrotu `../index.html#id-sekcji` na ekranie startowym, nie w trakcie rozgrywki. Do `<head>` gry dodaj tagi `og:` ze zrzutem, żeby link wysłany komuś miał podgląd.
 
 ## Agenci oceniający
 

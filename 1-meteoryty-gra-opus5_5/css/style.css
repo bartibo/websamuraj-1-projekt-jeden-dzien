@@ -205,6 +205,8 @@ kbd {
 .records { font-family: var(--display); font-size: 12px; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; }
 .records b { color: var(--gold); font-weight: 700; }
 .records .sep { margin: 0 12px; opacity: 0.5; }
+.back-link { margin-top: 2px; font-family: var(--display); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); text-decoration: none; opacity: 0.75; transition: color 0.2s, opacity 0.2s; }
+.back-link:hover, .back-link:focus-visible { color: var(--cyan); opacity: 1; }
 
 /* ============ POMOC ============ */
 .help-panel { width: 980px; padding-top: 22px; padding-bottom: 22px; }

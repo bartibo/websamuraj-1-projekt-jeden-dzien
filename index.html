@@ -9,10 +9,13 @@
 <link rel="canonical" href="https://projekty.vibemaster.pl/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="pl_PL">
+<meta property="og:site_name" content="Projekty – 1 prompt, 1 zdanie">
 <meta property="og:title" content="Projekty – 1 prompt, 1 zdanie">
 <meta property="og:description" content="Gry, symulacje i aplikacje, które zaczęły się od jednego zdania, a potem były dalej rozwijane.">
 <meta property="og:url" content="https://projekty.vibemaster.pl/">
 <meta property="og:image" content="https://projekty.vibemaster.pl/galeria/projekt-2.jpg">
+<meta property="og:image:width" content="1920">
+<meta property="og:image:height" content="1080">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ffb547'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='700' font-size='19' text-anchor='middle' fill='%2312110f'%3EP%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -85,8 +88,11 @@
   /* ---------- projekt na całą szerokość ---------- */
   .proj { --acc: var(--accent); position: relative; padding-bottom: 104px; scroll-margin-top: 0; }
   .shot { position: relative; display: block; height: min(56.25vw, 86vh); min-height: 240px; overflow: hidden; background: #000; }
+  .shot picture { display: contents; }
   .shot img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.4s var(--ease); }
-  .shot:hover img { transform: scale(1.025); }
+  .shot video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .8s var(--ease), transform 1.4s var(--ease); }
+  .shot video.on { opacity: 1; }
+  .shot:hover img, .shot:hover video { transform: scale(1.025); }
   .shot::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
     background: linear-gradient(180deg, rgba(18, 17, 15, .35) 0, transparent 18%, transparent 55%, rgba(18, 17, 15, .75) 84%, var(--bg));
@@ -188,11 +194,15 @@
 </div>
 
 <main>
-  <!-- Nowy projekt: skopiuj całą sekcję. Grafika: galeria/projekt-N.jpg (1920×1080) i projekt-N-960.jpg. -->
+  <!-- Nowy projekt: skopiuj całą sekcję. Grafika: galeria/projekt-N.jpg (1920×1080), projekt-N-960.jpg i to samo w .webp.
+       Klip (opcjonalny): galeria/projekt-N.mp4, 1280×720, kilka sekund bez dźwięku, w data-clip. -->
 
   <section class="proj" id="tarcza-ziemi" style="--acc:#4fe3ff" aria-labelledby="h1p">
-    <a class="shot" href="1-meteoryty-gra-opus5_5/" tabindex="-1" aria-hidden="true">
-      <img src="galeria/projekt-1.jpg" srcset="galeria/projekt-1-960.jpg 960w, galeria/projekt-1.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" fetchpriority="high">
+    <a class="shot" href="1-meteoryty-gra-opus5_5/" tabindex="-1" aria-hidden="true" data-clip="galeria/projekt-1.mp4">
+      <picture>
+        <source type="image/webp" srcset="galeria/projekt-1-960.webp 960w, galeria/projekt-1.webp 1920w" sizes="100vw">
+        <img src="galeria/projekt-1.jpg" srcset="galeria/projekt-1-960.jpg 960w, galeria/projekt-1.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" fetchpriority="high">
+      </picture>
     </a>
     <div class="wrap info">
       <div class="rv">
@@ -217,8 +227,11 @@
   </section>
 
   <section class="proj" id="sejsmo-lab" style="--acc:#ffb547" aria-labelledby="h2p">
-    <a class="shot" href="2-trzesienie-ziemi-interaktywne-opus5_5/" tabindex="-1" aria-hidden="true">
-      <img src="galeria/projekt-2.jpg" srcset="galeria/projekt-2-960.jpg 960w, galeria/projekt-2.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+    <a class="shot" href="2-trzesienie-ziemi-interaktywne-opus5_5/" tabindex="-1" aria-hidden="true" data-clip="galeria/projekt-2.mp4">
+      <picture>
+        <source type="image/webp" srcset="galeria/projekt-2-960.webp 960w, galeria/projekt-2.webp 1920w" sizes="100vw">
+        <img src="galeria/projekt-2.jpg" srcset="galeria/projekt-2-960.jpg 960w, galeria/projekt-2.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+      </picture>
     </a>
     <div class="wrap info">
       <div class="rv">
@@ -243,8 +256,11 @@
   </section>
 
   <section class="proj" id="kapibara-kombat" style="--acc:#ff7a45" aria-labelledby="h3p">
-    <a class="shot" href="3-kapibary-bijatyka-opus5_5/" tabindex="-1" aria-hidden="true">
-      <img src="galeria/projekt-3.jpg" srcset="galeria/projekt-3-960.jpg 960w, galeria/projekt-3.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+    <a class="shot" href="3-kapibary-bijatyka-opus5_5/" tabindex="-1" aria-hidden="true" data-clip="galeria/projekt-3.mp4">
+      <picture>
+        <source type="image/webp" srcset="galeria/projekt-3-960.webp 960w, galeria/projekt-3.webp 1920w" sizes="100vw">
+        <img src="galeria/projekt-3.jpg" srcset="galeria/projekt-3-960.jpg 960w, galeria/projekt-3.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+      </picture>
     </a>
     <div class="wrap info">
       <div class="rv">
@@ -268,8 +284,11 @@
   </section>
 
   <section class="proj" id="oczami-innych" style="--acc:#2fd3b0" aria-labelledby="h4p">
-    <a class="shot" href="4-zaburzenia-wzroku-symulator-opus5_5/" tabindex="-1" aria-hidden="true">
-      <img src="galeria/projekt-4.jpg" srcset="galeria/projekt-4-960.jpg 960w, galeria/projekt-4.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+    <a class="shot" href="4-zaburzenia-wzroku-symulator-opus5_5/" tabindex="-1" aria-hidden="true" data-clip="galeria/projekt-4.mp4">
+      <picture>
+        <source type="image/webp" srcset="galeria/projekt-4-960.webp 960w, galeria/projekt-4.webp 1920w" sizes="100vw">
+        <img src="galeria/projekt-4.jpg" srcset="galeria/projekt-4-960.jpg 960w, galeria/projekt-4.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+      </picture>
     </a>
     <div class="wrap info">
       <div class="rv">
@@ -293,8 +312,11 @@
   </section>
 
   <section class="proj" id="absurdoro" style="--acc:#ff5a45" aria-labelledby="h5p">
-    <a class="shot" href="5-pomodoro-absurdalny-timer-opus5_5/" tabindex="-1" aria-hidden="true">
-      <img src="galeria/projekt-5.jpg" srcset="galeria/projekt-5-960.jpg 960w, galeria/projekt-5.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+    <a class="shot" href="5-pomodoro-absurdalny-timer-opus5_5/" tabindex="-1" aria-hidden="true" data-clip="galeria/projekt-5.mp4">
+      <picture>
+        <source type="image/webp" srcset="galeria/projekt-5-960.webp 960w, galeria/projekt-5.webp 1920w" sizes="100vw">
+        <img src="galeria/projekt-5.jpg" srcset="galeria/projekt-5-960.jpg 960w, galeria/projekt-5.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+      </picture>
     </a>
     <div class="wrap info">
       <div class="rv">
@@ -332,6 +354,29 @@
   else {
     const obs = new IntersectionObserver(w => w.forEach(x => { if (x.isIntersecting) { x.target.classList.add('in'); obs.unobserve(x.target); } }), { rootMargin: '0px 0px -6% 0px' });
     el.forEach(e => obs.observe(e));
+  }
+}
+// Klipy w tle zdjęć: ładują się, gdy projekt się zbliża, grają tylko w widoku.
+// Przy ograniczeniu ruchu albo oszczędzaniu danych zostaje samo zdjęcie.
+{
+  const quiet = matchMedia('(prefers-reduced-motion: reduce)').matches || (navigator.connection && navigator.connection.saveData);
+  if (!quiet && 'IntersectionObserver' in window) {
+    const obs = new IntersectionObserver(w => w.forEach(x => {
+      const shot = x.target;
+      let v = shot.querySelector('video');
+      if (x.isIntersecting) {
+        if (!v) {
+          v = document.createElement('video');
+          v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+          v.setAttribute('aria-hidden', 'true');
+          v.addEventListener('playing', () => v.classList.add('on'), { once: true });
+          v.src = shot.dataset.clip;
+          shot.appendChild(v);
+        }
+        v.play().catch(() => {});
+      } else if (v) v.pause();
+    }), { rootMargin: '150px 0px' });
+    document.querySelectorAll('.shot[data-clip]').forEach(e => obs.observe(e));
   }
 }
 </script>
