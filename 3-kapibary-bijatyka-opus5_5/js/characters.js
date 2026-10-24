@@ -188,7 +188,7 @@ const KAPI = {
       [14, { hx: -12, torso: -10, aF: [-8, 18], aB: [-16, 16], eye: 2 }],
       [17, { hx: 18, torso: 22, aF: [66, -4], aB: [62, 6], as: 1.25, mouth: 1, eye: 2, lF: [38, 0] }],
       [50, { hx: 18, torso: 22, aF: [64, -4], aB: [60, 6], as: 1.25, mouth: 1, eye: 2, lF: [38, 0] }], [70]]),
-    proj: [{ f: 17, kind: 'megaOrange', x: 120, y: 120, vx: 9, w: 150, h: 150, hits: 5, interval: 6, life: 160, super: true,
+    proj: [{ f: 17, kind: 'megaOrange', x: 120, y: 120, vx: 9, w: 150, h: 150, hits: 5, interval: 6, life: 160, super: true, carry: true,
       hit: H({ dmg: 55, chip: 12, hs: 28, bs: 14, kb: 2, lvl: 'S', airLaunch: [2, 4] }),
       lastHit: H({ dmg: 70, chip: 15, hs: 30, bs: 14, kb: 8, lvl: 'S', launch: [7, 12] }) }],
     sfx: [[16, 'throwOrange'], [16, 'superHit']],
@@ -210,6 +210,8 @@ const KAPI = {
   ],
   zoning: ['sp:k_orange:LP', 'sp:k_orange:HP'],
   antiAir: 'sp:k_rise:HP',
+  // przycisk specjalny: sam, z →, z ←, z ↓ (w powietrzu: sam, z ↓)
+  easy: { n: 'k_orange', f: 'k_rise', b: 'k_wind', d: 'k_bomb' },
   quotes: ['Pomarańcza dziennie trzyma przeciwnika z daleka.', 'Spokój. Woda. Karate.', 'Ukłoń się rzece, nie mnie.'],
 };
 const FLOP = mkPose({ hy: -46, rot: 78, torso: 0, head: -70, aF: [58, -26], aB: [50, -22], lF: [-18, -34], lB: [-34, -26], eye: 2, mouth: 1 });
@@ -376,6 +378,7 @@ const YUZU = {
   ],
   zoning: ['sp:y_wave:LP', 'sp:y_wave:HP', 'sp:y_geyser:HP', 'sp:y_geyser:LP'],
   antiAir: 'sp:y_towel:HP',
+  easy: { n: 'y_wave', f: 'y_towel', b: 'y_geyser', d: 'y_soap' },
   quotes: ['Ciepła kąpiel i wszystko przechodzi.', 'Następnym razem przynieś ręcznik.', 'Uspokój się, kochanie. Już po wszystkim.'],
 };
 
@@ -384,9 +387,9 @@ const CIEN = {
   id: 'cien', name: 'Cień Trzciny', title: 'Ninja z Bagien Pantanalu', style: 'Szybki i podstępny', diff: 3,
   color: '#a98bff',
   desc: 'Nikt nie widział, jak się porusza. Rzuca liśćmi ostrymi jak brzytwa, znika w trzcinach i spada z nieba kopniakiem. Dla cierpliwych i szybkich.',
-  hp: 920, walkF: 4.0, walkB: 3.4, jumpV: 17.2, jumpX: 5.0,
+  hp: 960, walkF: 4.0, walkB: 3.4, jumpV: 17.2, jumpX: 5.0,
   look: lookOf({
-    fur: '#6b4a30', furDark: '#4a3120', belly: '#9c7552', paw: '#2a1a10', nose: '#2e1c12', outline: '#140b06', voice: 1.08,
+    fur: '#7d5a3c', furDark: '#5a3d27', belly: '#9c7552', paw: '#2a1a10', nose: '#2e1c12', outline: '#140b06', voice: 1.08,
     scale: 0.98, girth: 0.9, head: 0.88, upperArm: '#2d2340', thigh: '#2d2340', wrist: '#c9c2dc',
     bodyDeco(ctx, G) {
       const rx = G.rx, ry = G.ry;
@@ -556,7 +559,7 @@ const CIEN = {
           const la = rand(0, Math.PI);
           g.fx.add({ type: 'slash', x: cx - Math.cos(la) * 120, y: cy - Math.sin(la) * 120, x2: cx + Math.cos(la) * 120, y2: cy + Math.sin(la) * 120, life: 12, size: 10, color: '#ffffff' }, true);
           g.fx.leaves(cx, cy, 6, 6);
-          g.directDamage(me, opp, 20, 'S');
+          g.directDamage(me, opp, 24, 'S');
           g.sfx(i % 2 ? 'swingH' : 'hitM');
         }
         me.hidden = c < 80 && c % 8 > 4;
@@ -596,6 +599,7 @@ const CIEN = {
   ],
   zoning: ['sp:c_shur:LP', 'sp:c_shur:HP', 'sp:c_tele:LP'],
   antiAir: 'sp:c_crane:HK',
+  easy: { n: 'c_shur', f: 'c_crane', b: 'c_tele', d: 'c_rush', airN: 'c_shur', airD: 'c_dive' },
   quotes: ['Nie widziałeś mnie. Nikt mnie nie widzi.', 'Trzcina się ugina, ale nie łamie.', 'Za wolno. Zdecydowanie za wolno.'],
 };
 
@@ -790,7 +794,7 @@ const BRUNO = {
         if (k >= 56 && k < 66) me.y = 950 * (1 - easeIn((k - 56) / 10));
         if (k === 66) {
           me.y = 0;
-          g.releaseHeld(v, me, { dmg: 380, launch: [1.5, 6], lvl: 'S' });
+          g.releaseHeld(v, me, { dmg: 310, launch: [1.5, 6], lvl: 'S' });
           g.shake(24); g.flashScreen('#ffffff', 0.7);
           g.fx.shock(me.x, 0, '#fff2c4'); g.fx.shock(me.x, 0, '#e8d3a8'); g.fx.dust(me.x, 0, 36, 0);
           g.sfx('slam'); g.sfx('superHit');
@@ -819,6 +823,7 @@ const BRUNO = {
   ],
   zoning: ['sp:b_charge:HP', 'sp:b_splash:HK', 'sp:b_stomp:HK'],
   antiAir: 'sp:b_lariat:HP',
+  easy: { n: 'b_splash', f: 'b_lariat', b: 'b_charge', d: 'b_grab' },
   cmdGrab: 'sp:b_grab:HP',
   quotes: ['Mniej gadania, więcej jedzenia.', 'Grawitacja to mój najlepszy przyjaciel.', 'Uważaj na brzuch. Wszyscy uważają na brzuch.'],
 };

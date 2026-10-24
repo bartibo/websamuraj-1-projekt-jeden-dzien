@@ -6,7 +6,8 @@ const GROUND_SY = 668;
 const LAYER_TOP = -980, LAYER_H = 1120;
 
 // Widz: kapibara w tle, która kibicuje po mocnych ciosach
-const SPECTATOR_LOOK = lookOf({ fur: '#93653a', furDark: '#6e4824', belly: '#bf915e', paw: '#4b2f1c', nose: '#4a2c1a' });
+// przygaszone, szarawe futro: kibic stojący na wysokości głów walczących nie zlewa się z nimi
+const SPECTATOR_LOOK = lookOf({ fur: '#75604b', furDark: '#57473a', belly: '#958069', paw: '#3a2c22', nose: '#3a2c22' });
 
 function spectatorLook(extra) { return Object.assign({}, SPECTATOR_LOOK, extra); }
 

@@ -7,6 +7,19 @@ const JUGGLE_MAX = 10;
 const MIRROR = { 1: 3, 2: 2, 3: 1, 4: 6, 5: 5, 6: 4, 7: 9, 8: 8, 9: 7 };
 const NO_INPUT = { l: false, r: false, u: false, d: false, press: [], hold: {} };
 
+// Błysk trafienia: rozjaśnione kolory liczone raz (ctx.filter kosztował osobną warstwę na cały canvas)
+const FLASH_LOOK = new WeakMap();
+function flashLook(L) {
+  let b = FLASH_LOOK.get(L);
+  if (b) return b;
+  b = Object.assign({}, L);
+  for (const k of ['fur', 'furDark', 'furBack', 'belly', 'paw', 'nose', 'upperArm', 'forearm', 'thigh', 'shin', 'wrist']) {
+    if (typeof L[k] === 'string' && L[k][0] === '#') b[k] = shade(L[k], 0.55);
+  }
+  FLASH_LOOK.set(L, b);
+  return b;
+}
+
 // Sekwencja rzutu po udanym chwycie
 const THROW_SEQ = defMove({
   id: 'throwSeq', name: 'Bagienny rzut', type: 'throw', str: 9, total: 46, cancel: false,
@@ -26,9 +39,12 @@ const THROW_SEQ = defMove({
 });
 
 class Fighter {
-  constructor(g, idx, ch, ctrl) {
-    this.g = g; this.idx = idx; this.ch = ch; this.look = ch.look; this.ctrl = ctrl;
-    this.maxHp = ch.hp;
+  // variant: { tint, k, name?, hpMul? } – inny kolor futra (Złoty boss turnieju, walka lustrzana)
+  constructor(g, idx, ch, ctrl, variant) {
+    this.g = g; this.idx = idx; this.ch = ch; this.ctrl = ctrl;
+    this.look = variant ? altLook(ch.look, variant.tint, variant.k) : ch.look;
+    this.name = (variant && variant.name) || ch.name;
+    this.maxHp = Math.round(ch.hp * ((variant && variant.hpMul) || 1));
     this.meter = 0; this.wins = 0;
     this.normals = Object.assign({}, NORMALS, ch.normals || {});
     this.specials = ch.specials.map(s => {
@@ -37,6 +53,8 @@ class Fighter {
       if (s.makeAir) o.mkAir = { L: s.makeAir('L'), H: s.makeAir('H') };
       return o;
     });
+    // ↓↘→ sprawdzane przed →↓↘: rzut kulą w marszu (→ jeszcze w historii) nie może wyjść jako podbródkowy
+    this.specials.sort((a, b) => (a.motion === 'qcf' ? 0 : 1) - (b.motion === 'qcf' ? 0 : 1));
     this.superMove = ch.superMove();
     this.stats = { maxCombo: 0, dmg: 0, specials: 0, supers: 0, blocked: 0, throws: 0 };
     this.reset(0, 1);
@@ -64,6 +82,7 @@ class Fighter {
     this.t = 0; this.blink = 0; this.nextBlink = randInt(90, 240);
     this.walkPh = 0; this.trail = []; this.shakeT = 0;
     this.dashReq = null; this.lastAttacker = null;
+    this.lowSaid = false;
   }
 
   get opp() { return this.g.fighters[1 - this.idx]; }
@@ -102,11 +121,21 @@ class Fighter {
         if (a.d === d && b.d === 5 && now - b.t <= 10 && b.t - a.t <= 14) this.dashReq = { dir: d === 6 ? 1 : -1, t: now };
       }
     }
-    for (const b of raw.press) this.btnBuf.push({ b, t: now });
+    // rt – prawdziwy krok (biegnie też w zamrożeniu po trafieniu), do sprawdzania przycisków wciśniętych naraz
+    for (const b of raw.press) this.btnBuf.push({ b, t: now, rt: this.g.ticks });
     while (this.btnBuf.length && now - this.btnBuf[0].t > 6) this.btnBuf.shift();
   }
 
   has(b) { return this.btnBuf.some(e => e.b === b); }
+
+  // dwa przyciski naraz: oba w buforze i wciśnięte najwyżej 4 prawdziwe kroki od siebie
+  pair(a, b) {
+    const ea = this.btnBuf.filter(e => e.b === a), eb = this.btnBuf.filter(e => e.b === b);
+    return ea.some(x => eb.some(y => Math.abs(x.rt - y.rt) <= 4));
+  }
+
+  // przycisk b wciśnięty najwyżej 4 prawdziwe kroki od przycisku, którym zaczął się bieżący cios
+  near(b) { return this.btnBuf.some(e => e.b === b && Math.abs(e.rt - this.btnRT) <= 4); }
 
   // ---------------- akcje ----------------
   // poziom: 0 – neutralnie na ziemi, 'air' – w powietrzu, 1 – anulowanie ciosu naziemnego,
@@ -128,12 +157,25 @@ class Fighter {
     }
 
     if (!air && level !== 1.5 && this.meter >= SUPER_COST) {
-      if ((has('HP') && has('HK')) || ((has('LP') || has('HP')) && matchMotion(this.hist, 'qcf2', now))) {
+      if (this.pair('HP', 'HK') || ((has('LP') || has('HP')) && matchMotion(this.hist, 'qcf2', now))) {
         this.doSuper();
         return true;
       }
     }
     if (level === 2) return false;
+
+    // przycisk specjalny: ruch wybrany kierunkiem, zawsze w mocnej wersji
+    if (has('SP') && this.ch.easy) {
+      const e = this.ch.easy, inp = this.inp;
+      const id = air ? (inp.v < 0 ? e.airD : e.airN)
+        : inp.v < 0 ? e.d : inp.fwd > 0 ? e.f : inp.fwd < 0 ? e.b : e.n;
+      const s = id && this.specials.find(x => x.id === id);
+      if (s && (air ? s.air : s.air !== 'only') && (!s.can || s.can(this))) {
+        this.startMove(air && s.mkAir ? s.mkAir.H : s.mk.H);
+        this.stats.specials++;
+        return true;
+      }
+    }
 
     for (const s of this.specials) {
       if (s.air === 'only' && !air) continue;
@@ -150,7 +192,7 @@ class Fighter {
       return true;
     }
 
-    if (!air && level === 0 && has('LP') && has('LK')) {
+    if (!air && level === 0 && this.pair('LP', 'LK')) {
       this.throwBack = this.inp.fwd < 0;
       this.startMove(THROW);
       return true;
@@ -185,6 +227,10 @@ class Fighter {
     this.chainCount = chain ? this.chainCount + 1 : 0;
     if (!chain) this.chainUsed = new Set();
     this.chainUsed.add(m);
+    // chwila wciśnięcia przycisku tego ciosu: rzut i skrót super liczą się od niej, a nie od startu ciosu z bufora
+    const pressed = this.btnBuf.filter(e => e.b === m.btn).pop();
+    this.btnRT = pressed ? pressed.rt : this.g.ticks;
+    this.contactF = 0;
     this.move = m; this.mf = -1; this.mv = {};
     this.moveSerial = (this.moveSerial || 0) + 1;
     this.setState('move');
@@ -196,7 +242,8 @@ class Fighter {
     if (m.air && m.type === 'normal') this.airActs--;
     this.btnBuf.length = 0;
     this.trail.length = 0;
-    if (m.type === 'special' || m.type === 'super') Sfx.squeak(this.look.voice * rand(0.95, 1.1), 0.12, 0.12);
+    if (m.type === 'super') CapyVoice.say(this, 'super');
+    else if (m.type === 'special' && !CapyVoice.say(this, 'atk', 0.45)) Sfx.squeak(this.look.voice * rand(0.95, 1.1), 0.12, 0.12);
     if (m.onStart) m.onStart(this, this.opp, this.g);
   }
 
@@ -326,7 +373,7 @@ class Fighter {
       case 'held':
         if (this.techWindow > 0) {
           this.techWindow--;
-          if (this.has('LP') && this.has('LK') && this.heldBy) g.techThrow(this.heldBy, this);
+          if (this.pair('LP', 'LK') && this.heldBy) g.techThrow(this.heldBy, this);
         }
         break;
       case 'dizzy': this.vx *= 0.8; break;
@@ -335,7 +382,7 @@ class Fighter {
   }
 
   tryBreaker() {
-    if (this.meter >= BREAK_COST && this.has('HP') && this.has('HK') && this.comboHits >= 2 && !this.koPending) {
+    if (this.meter >= BREAK_COST && this.pair('HP', 'HK') && this.comboHits >= 2 && !this.koPending) {
       this.doBreaker();
       return true;
     }
@@ -354,7 +401,8 @@ class Fighter {
       this.guarding = inp.fwd < 0 && this.threatened();
       return;
     }
-    if (this.dashReq && this.g.frame - this.dashReq.t <= 3) {
+    const finishing = this.g.finishWindow && this.g.finishWindow.active;   // ←← w Kapiprzyjaźni to nie odskok
+    if (this.dashReq && this.g.frame - this.dashReq.t <= 3 && !finishing) {
       this.dashDir = this.dashReq.dir * (this.dashReq.dir === inp.fwd ? 1 : 1);
       this.dashReq = null;
       this.setState('dash');
@@ -381,13 +429,13 @@ class Fighter {
     this.mf++;
     const f = this.mf;
     if (f <= 3 && m.type === 'normal' && !m.air && !this.airborne) {
-      if ((m.btn === 'LP' && this.has('LK')) || (m.btn === 'LK' && this.has('LP'))) {
+      if ((m.btn === 'LP' && this.near('LK')) || (m.btn === 'LK' && this.near('LP'))) {
         this.throwBack = this.inp.fwd < 0;
         this.startMove(THROW);
         this.mf = 0;
         return;
       }
-      if (((m.btn === 'HP' && this.has('HK')) || (m.btn === 'HK' && this.has('HP'))) && this.meter >= SUPER_COST) {
+      if (((m.btn === 'HP' && this.near('HK')) || (m.btn === 'HK' && this.near('HP'))) && this.meter >= SUPER_COST) {
         this.doSuper();
         return;
       }
@@ -395,7 +443,9 @@ class Fighter {
     if (this.contact && !this.mv.noCancel) {
       if (m.type === 'normal' && m.cancel) {
         if (this.tryActions(m.air ? 1.5 : 1)) return;
-        if (m.jc && this.contactHit && this.inp.v > 0 && !this.airborne) { this.superJump(); return; }
+        // ↑ wciśnięte w czasie zamrożenia po trafieniu też się liczy (historia kierunków od chwili kontaktu)
+        const up = this.inp.v > 0 || this.hist.some(h => h.d >= 7 && h.t >= this.contactF);
+        if (m.jc && this.contactHit && up && !this.airborne) { this.superJump(); return; }
       } else if (m.type === 'special' && m.superCancel !== false) {
         if (this.tryActions(2)) return;
       }
@@ -613,9 +663,7 @@ class Fighter {
     ctx.scale(this.facing, 1);
     if (this.extraScale) ctx.scale(this.extraScale[0], this.extraScale[1]);
     if (this.state === 'airhit' && this.juggle >= JUGGLE_MAX && this.t % 4 < 2) ctx.globalAlpha = 0.55;
-    if (this.flash > 0) ctx.filter = 'brightness(1.9) saturate(0.6)';
-    drawCapy(ctx, L, this.pose, { t: this.t, blink: this.blink > 0, vx: this.vx * this.facing });
-    ctx.filter = 'none';
+    drawCapy(ctx, this.flash > 0 ? flashLook(L) : L, this.pose, { t: this.t, blink: this.blink > 0, vx: this.vx * this.facing });
     if (this.move && this.move.drawExtra && this.state === 'move') this.move.drawExtra(ctx, this, this.mf);
     ctx.restore();
     if (this.state === 'dizzy') this.drawDizzy(ctx);

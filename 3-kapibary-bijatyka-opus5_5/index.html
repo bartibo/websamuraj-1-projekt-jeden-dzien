@@ -34,7 +34,7 @@
       <div class="logo-sub">Bagienne Mistrzostwa Świata w Spokojnym Mordobiciu</div>
     </div>
     <div class="press">Naciśnij <kbd>Enter</kbd> albo kliknij</div>
-    <div class="title-foot">Dwóch graczy na jednej klawiaturze · 4 kapibary · ponad 80 ciosów</div>
+    <div class="title-foot">Dwóch graczy na jednej klawiaturze · 4 kapibary · ponad 80 ciosów<span class="touch-note"><br>Najlepiej na komputerze z klawiaturą albo padem</span></div>
     <a class="back-link" href="../index.html#kapibara-kombat" onclick="event.stopPropagation()">← Wszystkie projekty</a>
   </section>
 
@@ -47,6 +47,7 @@
     <nav class="menu-list">
       <button class="btn big" data-act="versus">Walka 2 graczy <small>jedna klawiatura</small></button>
       <button class="btn big" data-act="cpu">Walka z komputerem</button>
+      <button class="btn big" data-act="arcade">Bagienne Mistrzostwa <small>turniej · 4 walki</small></button>
       <button class="btn big" data-act="training">Trening</button>
       <button class="btn" data-act="movelist">Lista ciosów i combosów</button>
       <button class="btn" data-act="controls">Sterowanie</button>
@@ -71,6 +72,11 @@
     <div class="menu-hint" id="sel-hint"></div>
   </section>
 
+  <!-- ============ BAGIENNE MISTRZOSTWA ============ -->
+  <section class="screen" id="scr-ladder">
+    <div class="lad-box" id="lad-body"></div>
+  </section>
+
   <!-- ============ LISTA CIOSÓW ============ -->
   <section class="screen" id="scr-movelist">
     <h1 class="scr-title">Lista ciosów</h1>
@@ -87,7 +93,9 @@
     <div class="ctrl-notes">
       <p><b>Kierunki są względem twojej kapibary:</b> „→” znaczy „do rywala”, „←” – „od rywala”. Gdy postacie zamienią się stronami, zamieniają się też kierunki.</p>
       <p><b>Blok:</b> trzymaj kierunek od rywala. Stojąc blokujesz ciosy z góry i średnie, kucając – niskie i średnie.</p>
-      <p><b>Ruchy specjalne</b> (np. <span class="inp">↓↘→+Ł</span>): przeciągnij kierunki po kolei, a na końcu naciśnij przycisk. Gra wybacza pominięcie skosu.</p>
+      <p><b>Ruchy specjalne</b> (np. <span class="inp">↓↘→+Ł</span>): przeciągnij kierunki po kolei, a na końcu naciśnij przycisk. Gra wybacza pominięcie skosu. Podbródkowy <span class="inp">→↓↘</span> kończ na skosie ↘.</p>
+      <p><b>Łatwe sterowanie:</b> przycisk <b>SP</b> sam albo z kierunkiem (<span class="inp">→</span>, <span class="inp">←</span>, <span class="inp">↓</span>) wykonuje ruch specjalny bez kręcenia kierunków. Pełna lista jest w liście ciosów.</p>
+      <p><b>Pad:</b> krzyżak albo gałka – ruch, X/□ LŁ, Y/△ MŁ, A/✕ LK, B/○ MK, RB – SP, LB – rzut, RT – super, Start – pauza. Pierwszy pad steruje graczem 1, drugi graczem 2.</p>
       <p><b>Uwaga na klawiaturę:</b> wiele klawiatur nie rejestruje więcej niż 3–4 klawiszy naraz. Jeśli jakiś cios „nie wchodzi”, spróbuj klawiszy z klawiatury numerycznej dla gracza 2.</p>
     </div>
     <div class="menu-hint"><kbd>Esc</kbd> wróć</div>
@@ -133,6 +141,7 @@
   </section>
 
   <div id="toast"></div>
+  <div id="rotate">Obróć telefon poziomo.<br>Gra wymaga klawiatury albo pada.</div>
 
   <script src="js/util.js"></script>
   <script src="js/input.js"></script>
@@ -147,6 +156,7 @@
   <script src="js/ai.js"></script>
   <script src="js/game.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/ladder.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

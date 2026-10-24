@@ -2,10 +2,14 @@
 /* Walka: rundy, czas, kolizje i trafienia, pociski, kamera, wykończenia oraz HUD. */
 
 const WALL_L = 40, WALL_R = STAGE_W - 40, MAX_SEP = 880;
+const MOTION_K = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.25 : 1;
 
 function overlap(a, b) { return a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]; }
 
-const PRAISE = [[14, 'KAPIBARALNIE!!!', '#ff5df0'], [10, 'BAGIENNIE!', '#7ff6ff'], [7, 'KAPITALNIE!', '#ffd23f'], [5, 'ŚWIETNIE!', '#9dff7a'], [3, 'NIEŹLE!', '#ffffff']];
+const PRAISE = [[14, 'KAPIBARALNIE!!!', '#ff5df0', 'pr_kapibaralnie'], [10, 'BAGIENNIE!', '#7ff6ff', 'pr_bagiennie'],
+  [7, 'KAPITALNIE!', '#ffd23f', 'pr_kapitalnie'], [5, 'ŚWIETNIE!', '#9dff7a', 'pr_swietnie'], [3, 'NIEŹLE!', '#ffffff', 'pr_niezle']];
+// luźne komentarze po mocnych ciosach (nagrania kom_react_*)
+const REACTIONS = ['react_1', 'react_2', 'react_3', 'react_4', 'react_5', 'react_8'];
 const ROUND_WORDS = ['pierwsza', 'druga', 'trzecia', 'czwarta', 'piąta', 'szósta', 'siódma', 'ósma', 'dziewiąta'];
 
 class Projectile {
@@ -35,8 +39,9 @@ class Game {
     this.stageDef = opts.stage;
     this.stage = new Stage(opts.stage);
     this.fighters = [];
-    this.fighters.push(new Fighter(this, 0, opts.chars[0], opts.ctrls[0]));
-    this.fighters.push(new Fighter(this, 1, opts.chars[1], opts.ctrls[1]));
+    const vr = opts.variants || [];
+    this.fighters.push(new Fighter(this, 0, opts.chars[0], opts.ctrls[0], vr[0]));
+    this.fighters.push(new Fighter(this, 1, opts.chars[1], opts.ctrls[1], vr[1]));
     this.cam = { x: STAGE_W / 2, zoom: 1.3, lift: 0, shake: 0 };
     this.winsNeeded = opts.winsNeeded || 2;
     this.roundTime = opts.time === undefined ? 99 : opts.time;
@@ -67,6 +72,8 @@ class Game {
     this.phase = 'intro'; this.phaseT = 0;
     this.combo = [null, null];
     if (this.mode === 'training' || this.mode === 'demo') this.phaseT = 80;
+    // legenda klawiszy w pierwszej rundzie: intro i pierwsze 6 s walki
+    this.legendT = this.round === 1 && this.mode !== 'demo' ? 105 + 360 : 0;
   }
 
   setPhase(p) { this.phase = p; this.phaseT = 0; }
@@ -81,12 +88,12 @@ class Game {
         if (this.phaseT === 20) {
           const fin = this.isFinalRound();
           this.announce(fin ? 'RUNDA FINAŁOWA' : `RUNDA ${this.round}`, null, '#ffffff', 70);
-          Voice.say(fin ? 'Runda finałowa!' : `Runda ${ROUND_WORDS[this.round - 1] || this.round}!`);
+          Voice.line(fin ? 'rfinal' : 'r' + this.round, fin ? 'Runda finałowa!' : `Runda ${ROUND_WORDS[this.round - 1] || this.round}!`);
           this.sfx('gong');
         }
         if (this.phaseT === 92) {
           this.announce('WALCZ!', null, '#ffd23f', 45, 1.3);
-          if (this.mode !== 'training') Voice.say('Walcz!', 0.7, 1.1);
+          if (this.mode !== 'training') Voice.line('fight', 'Walcz!', { pitch: 0.7, rate: 1.1 });
         }
         if (this.phaseT >= 105) {
           this.fighters.forEach(f => { if (f.state === 'intro') f.toNeutral(); });
@@ -116,7 +123,7 @@ class Game {
         if (this.phaseT === 100) {
           const w = this.roundWinner;
           if (w) { w.setState('win'); w.move = null; this.sayWinner(w); }
-          else { this.announce('REMIS', null, '#ffffff', 90); Voice.say('Remis!'); }
+          else { this.announce('REMIS', null, '#ffffff', 90); Voice.line('draw', 'Remis!'); }
         }
         if (this.phaseT > 220) this.endRound();
         break;
@@ -127,7 +134,7 @@ class Game {
           if (w.state === 'win') w.toNeutral();
           const txt = l.ch.she ? 'DOKOŃCZ JĄ!' : 'DOKOŃCZ GO!';
           this.announce(txt, null, '#ff4d4d', 110, 1.1);
-          Voice.say(l.ch.she ? 'Dokończ ją!' : 'Dokończ go!', 0.5, 0.95);
+          Voice.line(l.ch.she ? 'finishHer' : 'finishHim', l.ch.she ? 'Dokończ ją!' : 'Dokończ go!', { pitch: 0.5, rate: 0.95 });
           this.setPhase('finish');
         }
         break;
@@ -135,6 +142,7 @@ class Game {
       case 'finish': {
         const fw = this.finishWindow;
         if (!fw) break;
+        if (fw.t === 75) CapyVoice.say(fw.loser, 'dizzy');
         if (++fw.t > 420) {
           const l = fw.loser;
           this.finishWindow = null;
@@ -157,15 +165,15 @@ class Game {
   sayWinner(w) {
     this.winSaid = true;
     const perfect = w.hp >= w.maxHp;
-    this.announce(`${w.ch.name.toUpperCase()} WYGRYWA!`, perfect ? 'PERFEKCYJNIE!' : null, w.ch.color, 150, 0.85);
-    Voice.say(perfect ? `${w.ch.name} wygrywa! Perfekcyjnie!` : `${w.ch.name} wygrywa!`);
+    this.announce(`${w.name.toUpperCase()} WYGRYWA!`, perfect ? 'PERFEKCYJNIE!' : null, w.ch.color, 150, 0.85);
+    Voice.line('win_' + w.ch.id, perfect ? `${w.ch.name} wygrywa! Perfekcyjnie!` : `${w.ch.name} wygrywa!`, { then: perfect ? 'perfect' : null });
     if (this.mode !== 'demo') this.sfx('fanfare');
   }
 
   timeUp() {
     const [a, b] = this.fighters;
     this.announce('CZAS!', null, '#ffd23f', 80, 1.2);
-    Voice.say('Koniec czasu!');
+    Voice.line('timeup', 'Koniec czasu!');
     this.roundWinner = a.hp > b.hp ? a : b.hp > a.hp ? b : null;
     this.roundLoser = this.roundWinner ? this.roundWinner.opp : null;
     if (this.roundWinner) this.roundWinner.wins++;
@@ -207,8 +215,10 @@ class Game {
     this.shake(14);
     this.sfx('ko');
     this.announce('K.O.', null, '#ff3b3b', 110, 1.6);
-    Voice.say('Nokaut!', 0.5, 0.9);
+    Voice.line('ko', 'Nokaut!', { pitch: 0.5, rate: 0.9 });
+    CapyVoice.say(d, 'ko');
     this.stage.hype(80);
+    this.crowd('crowd', true);
     if (bothDown) {
       this.roundWinner = null; this.roundLoser = null;
       this.setPhase('ko');
@@ -245,8 +255,9 @@ class Game {
     c.t++;
     if (c.t >= c.fin.dur) {
       this.announce(c.fin.title, c.fin.name.toUpperCase(), c.fin.id === 'friend' ? '#ff8fd0' : '#ff3b3b', 150, 1.3);
-      Voice.say(c.fin.id === 'friend' ? 'Kapiprzyjaźń!' : 'Kapibality!', 0.45, 0.85);
+      Voice.line(c.fin.id === 'friend' ? 'friendship' : 'fatality', c.fin.id === 'friend' ? 'Kapiprzyjaźń!' : 'Kapibality!', { pitch: 0.45, rate: 0.85 });
       this.sfx('ko');
+      this.crowd('crowd', true);
       this.setPhase('cineEnd');
     }
   }
@@ -259,6 +270,7 @@ class Game {
   }
 
   step() {
+    this.ticks = (this.ticks || 0) + 1;   // prawdziwe kroki, także w zamrożeniu (frame wtedy stoi)
     const locked = this.inputLocked();
     this.fighters.forEach(f => f.readInput(locked || f.state === 'win' || (this.phase === 'finishPending' || this.phase === 'finish') && f.koPending));
     this.stage.update(this);
@@ -282,6 +294,7 @@ class Game {
     }
     this.fighters.forEach(f => { f.shakeT = 0; });
     this.frame++;
+    if (this.legendT > 0) this.legendT--;
     if (this.phase !== 'cine') this.fighters.forEach(f => f.update());
     else this.fighters.forEach(f => { f.t++; f.sf++; });
     this.updateProjectiles();
@@ -397,6 +410,7 @@ class Game {
     d.techWindow = 9;
     a.stats.throws++;
     this.sfx('grab');
+    CapyVoice.say(a, 'throw', 0.8);
   }
 
   hold(v, holder, pose) {
@@ -445,6 +459,8 @@ class Game {
     }
     this.fx.text((holder.x + victim.x) / 2, -230, 'WYRWANIE!', '#8fd8ff', 30);
     this.sfx('tech');
+    CapyVoice.stop(holder);
+    Voice.line('tech');
   }
 
   instantHit(me, h) {
@@ -562,11 +578,24 @@ class Game {
     this.hitstop = proj ? Math.round(hs * 0.7) : hs;
     this.fx.hitSpark(cx, -cy, h.lvl, dir);
     this.sfx(h.lvl === 'L' ? 'hitL' : h.lvl === 'M' ? 'hitM' : 'hitH');
-    if (h.lvl === 'H' || h.lvl === 'S') { this.shake(h.lvl === 'S' ? 8 : 5); if (chance(0.5)) Sfx.squeak(d.look.voice * 1.35, 0.15, 0.13); }
-    if (counter) { this.fx.text(d.x, -d.y - 230 * d.look.scale, 'KONTRA!', '#ff6b6b', 30); this.sfx('counter'); }
-    if (h.lvl === 'S' || d.comboHits >= 6) this.stage.hype(30);
+    const big = h.lvl === 'H' || h.lvl === 'S' || !!L;
+    if (h.lvl === 'H' || h.lvl === 'S') this.shake(h.lvl === 'S' ? 8 : 5);
+    if (h.dmg > 0 && d.hp > 0) this.hurtVoice(d, big);
+    if (counter) {
+      this.fx.text(d.x, -d.y - 230 * d.look.scale, 'KONTRA!', '#ff6b6b', 30); this.sfx('counter');
+      if (chance(0.35)) Voice.line('counter', null, { ifQuiet: true });
+    }
+    if (h.lvl === 'S' || d.comboHits >= 6) { this.stage.hype(30); this.crowd(d.comboHits >= 6 ? 'crowdOoh' : 'crowd'); }
+    if (big && h.dmg > 0 && this.mode !== 'training' && this.frame - (this.reactF || -999) > 420 && chance(0.18)) {
+      this.reactF = this.frame;
+      Voice.line(pick(REACTIONS), null, { ifQuiet: true });
+    }
+    if (d.hp > 0 && d.hp < d.maxHp * 0.15 && !d.lowSaid && this.mode !== 'training') {
+      d.lowSaid = true;
+      Voice.line('react_7', null, { ifQuiet: true });
+    }
     if (!proj && a.airborne && a.move && a.move.air && L && L[1] > 0) { a.vy = Math.max(a.vy, 4); d.vy = Math.max(L[1], a.vy + 1); d.vx = dir * 1.6; }
-    if (!proj) { a.contact = true; a.contactHit = true; }
+    if (!proj) { a.contact = true; a.contactHit = true; a.contactF = a.contactF || this.frame; }
     else if (a.state === 'move' && a.move.proj) { a.contact = true; }
     if (h.onContact) h.onContact(a, d, this, false);
     if (d.hp <= 0) this.onKO(d, a);
@@ -637,8 +666,23 @@ class Game {
 
   // ---------------- efekty globalne ----------------
   sfx(name) { Sfx.play(name); }
-  shake(n) { this.cam.shake = Math.max(this.cam.shake, n); }
-  flashScreen(color, a) { this.flash = { color, a }; }
+
+  // Krzyk trafionej kapibary: mocny cios – zabawna kwestia, lekki – krótkie „au!”, a bez nagrania pisk
+  hurtVoice(d, big) {
+    const said = big ? CapyVoice.say(d, 'hitH', 0.5) || CapyVoice.say(d, 'hitL', 0.4) : CapyVoice.say(d, 'hitL', 0.22);
+    if (!said && big && chance(0.5)) Sfx.squeak(d.look.voice * 1.35, 0.15, 0.13);
+  }
+
+  // Doping kibiców (nagranie), najwyżej co 2,5 s; force – nokaut i wykończenie
+  crowd(name, force) {
+    if (!Sfx.ok() || this.mode === 'training') return;
+    if (!force && this.frame - (this.crowdF || -999) < 150) return;
+    this.crowdF = this.frame;
+    Rec.play(name, Sfx.sfxGain, force ? 0.75 : 0.5);
+  }
+  // przy ustawieniu systemu „ogranicz ruch” wstrząsy i błyski są cztery razy słabsze
+  shake(n) { this.cam.shake = Math.max(this.cam.shake, n * MOTION_K); }
+  flashScreen(color, a) { this.flash = { color, a: a * MOTION_K }; }
 
   announce(text, sub, color = '#fff', dur = 90, size = 1) {
     this.ann = { text, sub, color, dur, t: 0, size };
@@ -651,6 +695,7 @@ class Game {
     this.stage.hype(50);
     this.fx.add({ type: 'ring', x: f.x, y: -f.y - 110, size: 20, grow: 14, life: 26, color: f.ch.color }, true);
     this.fx.text(f.x, -f.y - 270 * f.look.scale, f.superMove.name.toUpperCase(), f.ch.color, 34);
+    this.crowd('crowd');
   }
 
   breakerFx(f) {
@@ -659,6 +704,7 @@ class Game {
     this.fx.add({ type: 'ring', x: f.x, y: -f.y - 100, size: 20, grow: 16, life: 22, color: '#7ff6ff' }, true);
     this.fx.text(f.x, -f.y - 250, 'PRZERYWNIK!', '#7ff6ff', 34);
     this.sfx('breaker');
+    Voice.line('breaker');
   }
 
   updateCombos() {
@@ -668,10 +714,9 @@ class Game {
       const d = this.fighters[1 - i];
       if (c.live && d.comboHits === 0) {
         c.live = false; c.t = 0;
-        for (const [n, word, col] of PRAISE) if (c.n >= n) {
-          this.fx.text(i === 0 ? 230 : VW - 230, 0, word, col, 34);
+        for (const [n, word, col, key] of PRAISE) if (c.n >= n) {
           c.praise = { word, col };
-          if (n >= 10) Voice.say(word.toLowerCase().replace(/!/g, '') + '!', 0.7, 1.1);
+          if (n >= 5) Voice.line(key, word.toLowerCase().replace(/!/g, '') + '!', { pitch: 0.7, rate: 1.1 });
           break;
         }
       }
@@ -844,16 +889,21 @@ class Game {
       ctx.textAlign = i === 0 ? 'left' : 'right';
       ctx.textBaseline = 'alphabetic';
       ctx.lineJoin = 'round';
-      ctx.font = "64px 'Lilita One', sans-serif";
-      ctx.lineWidth = 10; ctx.strokeStyle = '#1b0f08';
-      ctx.strokeText(String(c.n), x, 260);
-      ctx.fillStyle = '#ffd23f'; ctx.fillText(String(c.n), x, 260);
-      const w = ctx.measureText(String(c.n)).width;
-      ctx.font = "26px 'Lilita One', sans-serif";
+      // po obu stronach „3 CIOSY”: liczba, potem słowo; po prawej całość dosunięta do krawędzi
       const word = plural(c.n, 'CIOS', 'CIOSY', 'CIOSÓW');
-      const wx = i === 0 ? x + w + 10 : x - w - 10;
-      ctx.lineWidth = 7; ctx.strokeText(word, wx, 252);
-      ctx.fillStyle = '#ffffff'; ctx.fillText(word, wx, 252);
+      ctx.font = "26px 'Lilita One', sans-serif";
+      const ww = ctx.measureText(word).width;
+      ctx.font = "64px 'Lilita One', sans-serif";
+      const w = ctx.measureText(String(c.n)).width;
+      const nx = i === 0 ? x : x - ww - 10 - w;
+      ctx.textAlign = 'left';
+      ctx.lineWidth = 10; ctx.strokeStyle = '#1b0f08';
+      ctx.strokeText(String(c.n), nx, 260);
+      ctx.fillStyle = '#ffd23f'; ctx.fillText(String(c.n), nx, 260);
+      ctx.font = "26px 'Lilita One', sans-serif";
+      ctx.lineWidth = 7; ctx.strokeText(word, nx + w + 10, 252);
+      ctx.fillStyle = '#ffffff'; ctx.fillText(word, nx + w + 10, 252);
+      ctx.textAlign = i === 0 ? 'left' : 'right';
       ctx.font = "20px 'Rubik', sans-serif";
       ctx.lineWidth = 5; ctx.strokeText(`${c.dmg} obrażeń`, x, 288);
       ctx.fillStyle = '#ffb3b3'; ctx.fillText(`${c.dmg} obrażeń`, x, 288);
@@ -866,6 +916,26 @@ class Game {
     }
 
     if (this.training) this.drawTraining(ctx);
+    if (this.legendT > 0) this.drawLegend(ctx);
+  }
+
+  drawLegend(ctx) {
+    const al = clamp(this.legendT / 40, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = al;
+    ctx.font = "16px 'Rubik', sans-serif";
+    ctx.textBaseline = 'middle';
+    this.fighters.forEach((f, i) => {
+      if (!f.ctrl.human) return;
+      const k = b => keyName(BINDINGS[i][b][0]);
+      const txt = `${k('LP')} łapa · ${k('HP')} mocna łapa · ${k('LK')} kopnięcie · ${k('HK')} mocne · ${k('SP')} + kierunek – cios specjalny`;
+      const w = ctx.measureText(txt).width + 28, x = i === 0 ? 36 : VW - 36 - w, y = VH - 62;
+      rrect(ctx, x, y - 15, w, 30, 10);
+      ctx.fillStyle = 'rgba(15,10,6,0.78)'; ctx.fill();
+      ctx.fillStyle = '#ffe9b0'; ctx.textAlign = 'left';
+      ctx.fillText(txt, x + 14, y + 1);
+    });
+    ctx.restore();
   }
 
   drawBar(ctx, f, side) {
@@ -879,7 +949,7 @@ class Game {
     ctx.fillStyle = shade(f.ch.color, -0.55); ctx.fill();
     ctx.lineWidth = 4; ctx.strokeStyle = f.ch.color; ctx.stroke();
     ctx.clip();
-    drawCapyHead(ctx, f.look, px - (side === 0 ? 26 : -26), 74, 0.62, side === 1, { eye: f.hp / f.maxHp < 0.25 ? 3 : 0, t: f.t });
+    drawCapyHead(ctx, f.look, px - (side === 0 ? 6 : -6), 66, 0.5, side === 1, { eye: f.hp / f.maxHp < 0.25 ? 3 : 0, t: f.t });
     ctx.restore();
     // pasek życia
     ctx.save();
@@ -903,7 +973,7 @@ class Game {
     ctx.textAlign = side === 0 ? 'left' : 'right'; ctx.textBaseline = 'alphabetic';
     ctx.lineWidth = 5; ctx.strokeStyle = '#1b0f08'; ctx.lineJoin = 'round';
     const nx = side === 0 ? x0 : x0 + W;
-    const label = f.ch.name.toUpperCase() + (f.ctrl.human ? '' : ' · CPU');
+    const label = f.name.toUpperCase() + (f.ctrl.human ? '' : ' · CPU');
     ctx.strokeText(label, nx, y + H + 28);
     ctx.fillStyle = '#ffffff'; ctx.fillText(label, nx, y + H + 28);
     // wygrane rundy
@@ -913,8 +983,8 @@ class Game {
       if (i < f.wins) drawOrange(ctx, ox, oy, 11, 0);
       else { ctx.beginPath(); ctx.arc(ox, oy, 10, 0, TAU); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.stroke(); }
     }
-    // pasek super
-    const MW = 300, MH = 16, my = VH - 40;
+    // pasek super (pod linią ziemi, żeby nie zasłaniał stóp)
+    const MW = 300, MH = 14, my = VH - 22;
     const mx0 = side === 0 ? 40 : VW - 40 - MW;
     rrect(ctx, mx0 - 3, my - 3, MW + 6, MH + 6, 6);
     ctx.fillStyle = 'rgba(20,12,8,0.85)'; ctx.fill();
@@ -955,11 +1025,13 @@ class Game {
     const p = this.fighters[0];
     const hist = p.hist.slice(-12);
     ctx.save();
-    ctx.font = "22px 'Rubik', sans-serif";
-    ctx.textAlign = 'left';
+    rrect(ctx, 28, 300, 40, 334, 10);
+    ctx.fillStyle = 'rgba(15,10,6,0.6)'; ctx.fill();
+    ctx.font = "bold 24px 'Segoe UI Symbol', 'Rubik', sans-serif";
+    ctx.textAlign = 'center';
     hist.forEach((h, i) => {
       ctx.fillStyle = `rgba(255,255,255,${0.35 + 0.65 * (i + 1) / hist.length})`;
-      ctx.fillText(DIR_GLYPH[h.d] || '', 40, 620 - (hist.length - 1 - i) * 26);
+      ctx.fillText(DIR_GLYPH[h.d] || '', 48, 620 - (hist.length - 1 - i) * 26);
     });
     ctx.restore();
   }

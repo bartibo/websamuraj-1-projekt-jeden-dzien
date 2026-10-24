@@ -30,16 +30,27 @@ Nie trzeba niczego instalować ani budować.
 | **MŁ** – mocna łapa | `Y` | `P` lub `Num5` |
 | **LK** – lekkie kopnięcie | `G` | `L` lub `Num1` |
 | **MK** – mocne kopnięcie | `H` | `;` lub `Num2` |
+| **SP** – cios specjalny (łatwe sterowanie) | `U` | `[` lub `Num6` |
 | Pauza | `Esc` | `Esc` |
 
 Kierunki liczą się względem postaci: „→” to zawsze „do rywala”. **Blok** to trzymanie kierunku od rywala. Stojąc blokujesz ciosy z góry i średnie, a kucając niskie i średnie.
 
-> Wiele klawiatur nie rejestruje więcej niż 3–4 klawiszy naraz. Jeśli jakiś cios „nie wchodzi”, gracz 2 może użyć klawiatury numerycznej.
+**Łatwe sterowanie:** przycisk SP sam albo z kierunkiem (`→`, `←`, `↓`) wykonuje ruch specjalny postaci bez kręcenia kierunków, zawsze w mocnej wersji. Lista ciosów pokazuje przy każdym ruchu jego łatwy odpowiednik.
+
+**Pady:** pierwszy pad steruje graczem 1, drugi graczem 2. Krzyżak albo lewa gałka to ruch, X/□ – LŁ, Y/△ – MŁ, A/✕ – LK, B/○ – MK, RB – SP, LB – rzut, RT – MŁ+MK, Start – pauza.
+
+> Wiele klawiatur nie rejestruje więcej niż 3–4 klawiszy naraz. Jeśli jakiś cios „nie wchodzi”, gracz 2 może użyć klawiatury numerycznej albo obaj gracze padów.
 
 ## Tryby
 
 - **Walka 2 graczy** – obaj gracze na jednej klawiaturze.
 - **Walka z komputerem** – 4 poziomy: Łatwy, Średni, Trudny, Mistrz. Komputer wykonuje te same ruchy co człowiek, łącznie z combosami i wykończeniami.
+- **Bagienne Mistrzostwa** – turniej dla jednego gracza:
+  - trzech rywali na kolejnych arenach (komputer Łatwy, Średni, Trudny),
+  - w finale Złota wersja twojej kapibary na poziomie Mistrz,
+  - punkty za obrażenia, combo, perfekcyjne rundy i wykończenia,
+  - po porażce można powtórzyć walkę,
+  - wygrany turniej daje medal na karcie postaci.
 - **Trening**:
   - manekin może stać, kucać, skakać, blokować albo walczyć,
   - życie się odnawia, a pasek super może być bez limitu,
@@ -94,11 +105,17 @@ Opcje są zapisywane w przeglądarce:
 - czas rundy (60 s, 99 s albo bez limitu),
 - poziom komputera,
 - wykończenia,
-- efekty dźwiękowe, muzyka i komentator,
+- efekty dźwiękowe, muzyka, komentator i głosy kapibar,
 - hitboxy,
 - pełny ekran.
 
-Dźwięk, muzyka i piski kapibar są syntezowane na żywo przez Web Audio, bez plików audio. Do każdej areny gra osobny utwór. Komentator mówi po polsku przez syntezę mowy przeglądarki, jeśli jest w niej polski głos.
+Muzyka jest syntezowana na żywo przez Web Audio, a do każdej areny gra osobny utwór. Głosy i odgłosy walki zostały nagrane w ElevenLabs (paczka `audio/dzwieki.js`, 143 nagrania, 1,7 MB, ładowana po starcie strony):
+
+- **Komentator** – lektor, który zapowiada rundy, nokauty, wykończenia, zwycięzców, nazwy postaci i chwali combosy.
+- **Kapibary** – każda ma swój głos i zabawne kwestie: „Ała, boli!”, „Aj, aj, moje pośladki!”, okrzyki przy ciosach specjalnych, nazwę super ciosu, krzyk przy nokaucie i cytat zwycięstwa.
+- **Odgłosy walki** – trafienia, bloki, zamachy, upadki, gong, plusk i doping kibiców.
+
+Gdy paczki nagrań nie ma, gra wraca do dźwięków syntezowanych i syntezy mowy przeglądarki.
 
 ## Struktura
 
@@ -118,5 +135,39 @@ js/stage.js         – areny z paralaksą, kibice, pogoda
 js/ai.js            – przeciwnik komputerowy
 js/game.js          – rundy, trafienia, kamera, HUD
 js/ui.js            – menu, wybór postaci, lista ciosów, opcje, wyniki
-js/main.js          – pętla gry 60 kl./s i dopasowanie do okna
+js/ladder.js        – Bagienne Mistrzostwa (turniej), odmiany wyglądu
+js/main.js          – pętla gry 60 kl./s z interpolacją obrazu i dopasowanie do okna
+audio/dzwieki.js    – nagrania z ElevenLabs (mp3 w base64, działa też z file://)
 ```
+
+## Rozwój po eksperymencie
+
+24.10.2026 grę oceniło czterech agentów z [`.claude/agents/`](../.claude/agents/): design, UX, wydajność i rozwój produktu. Wdrożone poprawki:
+
+- **Sterowanie:**
+  - przycisk SP i obsługa padów,
+  - Kula w marszu nie wychodzi już jako podbródkowy,
+  - blok i kucanie nie odpalają przypadkiem szarży ani Bomby,
+  - szybki łańcuch nie zjada paska super,
+  - ↑ wciśnięte w czasie zamrożenia po wyrzucie daje super skok,
+  - Kapiprzyjaźń nie zamienia się w odskok,
+  - legenda klawiszy w pierwszej rundzie.
+- **Płynność:** obraz interpolowany między krokami fizyki (koniec szarpnięć na monitorach 59, 75 i 144 Hz), pauza po Alt+Tab, Tab nie wynosi fokusu z gry.
+- **Rozgrywka:**
+  - Bagienne Mistrzostwa,
+  - komputer broni się także między decyzjami: losowe walenie w klawisze nie wygrywa już ze Średnim za każdym razem,
+  - balans: super Bruna 380 → 310 obrażeń, Cień 920 → 960 HP i mocniejsze Tysiąc Liści, super Kapiego trafia pełną serią z bliska,
+  - inny kolor futra w walce lustrzanej.
+- **Dźwięk:**
+  - nagrania z ElevenLabs,
+  - muzyka milknie w pauzie i w ukrytej karcie,
+  - dźwięki menu i komentator przy wyborze postaci w ogóle działają (wcześniej wyciszało je tło menu),
+  - pierwszy klawisz włącza dźwięk (wcześniej dopiero kliknięcie).
+- **Wygląd:**
+  - ekrany przewijają się na telefonie i niskich laptopach, tło menu wypełnia telefon w pionie,
+  - bez zdublowanych i nakładających się napisów,
+  - imiona w kolorze tekstu zamiast koloru, który mylił się z kolorem gracza,
+  - pasek super pod stopami postaci, licznik combo gracza 2 czytany we właściwej kolejności,
+  - przygaszeni kibice, jaśniejszy Cień na nocnej arenie, cała głowa w portretach,
+  - wstrząsy i błyski przygaszone przy ustawieniu „ogranicz ruch”.
+- **Wydajność:** pauza rysuje obraz raz, menu w połowie rozdzielczości pod rozmyciem, błysk trafienia bez `ctx.filter`, dźwięk wstrzymany w ukrytej karcie.

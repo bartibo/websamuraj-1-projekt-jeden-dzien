@@ -84,8 +84,10 @@ class FX {
     }
   }
 
+  // napisy w tym samym miejscu (np. PRZERYWNIK! i KONTRA!) układają się w stos zamiast nachodzić na siebie
   text(x, y, str, color = '#fff', size = 26) {
-    this.add({ type: 'txt', x, y, vy: -1.4, drag: 0.95, life: 50, str, size, color }, true);
+    const near = this.front.filter(q => q.type === 'txt' && q.t < q.life && Math.abs(q.x - x) < 220 && Math.abs(q.y - y) < 60).length;
+    this.add({ type: 'txt', x, y: y - near * (size + 8), vy: -1.4, drag: 0.95, life: 50, str, size, color }, true);
   }
 
   shock(x, y, color = '#fff2c4') {

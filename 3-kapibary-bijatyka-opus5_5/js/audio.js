@@ -20,7 +20,11 @@ const Sfx = {
     this.sfxGain.connect(this.master);
     this.musGain = this.ctx.createGain();
     this.musGain.gain.value = Music.enabled ? 0.42 : 0;
-    this.musGain.connect(this.master);
+    this.duck = this.ctx.createGain();      // przyciszanie muzyki, gdy mówi komentator
+    this.musGain.connect(this.duck).connect(this.master);
+    this.voGain = this.ctx.createGain();
+    this.voGain.gain.value = 1;
+    this.voGain.connect(this.master);
     const len = this.ctx.sampleRate * 1.5;
     this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
@@ -32,6 +36,7 @@ const Sfx = {
     const echoOut = this.ctx.createGain(); echoOut.gain.value = 0.35;
     this.echo.connect(fb).connect(this.echo);
     this.echo.connect(echoOut).connect(this.sfxGain);
+    Rec.load();
     if (Music.pending) Music.play(Music.pending);
   },
   setEnabled(on) {
@@ -88,6 +93,8 @@ const Sfx = {
 
   play(name, p = 1) {
     if (!this.ok()) return;
+    // nagrany efekt z ElevenLabs, jeśli jest w paczce; synteza zostaje jako zapas
+    if (REC_SFX.has(name) && Rec.play(name, this.sfxGain, 1, rand(0.94, 1.06))) return;
     const t = this.ctx.currentTime;
     switch (name) {
       case 'swingL': this.noise(0.1, 0.16, 'bandpass', 2200 * p, 700, 1.2); break;
@@ -241,6 +248,11 @@ const Music = {
     this.timer = setInterval(() => this.schedule(), 25);
   },
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; this.track = null; },
+  // pauza walki: muzyka milknie, po wznowieniu wraca utwór areny
+  setPaused(p) {
+    if (p) { this.resumeName = this.name; this.stop(); }
+    else if (this.resumeName) this.play(this.resumeName);
+  },
   schedule() {
     const tr = this.track; if (!tr) return;
     const ctx = Sfx.ctx;
@@ -318,10 +330,56 @@ const Music = {
   },
 };
 
+// ---------------- Nagrania z ElevenLabs ----------------
+// Paczka audio/dzwieki.js (window.KAPI_DZWIEKI: nazwa → mp3 w base64) ładuje się po starcie strony.
+// Warianty jednej kwestii mają końcówkę _1, _2…; grupa to nazwa bez końcówki.
+const REC_SFX = new Set(['hitL', 'hitM', 'hitH', 'block', 'swingL', 'swingH', 'fall', 'ko', 'gong', 'slam', 'splash',
+  'super', 'teleport', 'counter']);
+
+const Rec = {
+  buf: {}, groups: {}, last: {}, loading: false,
+  load() {
+    const src = window.KAPI_DZWIEKI;
+    if (!src || !Sfx.ctx || this.loading) return;
+    this.loading = true;
+    for (const [key, b64] of Object.entries(src)) {
+      const bin = atob(b64), u = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      Sfx.ctx.decodeAudioData(u.buffer).then(b => {
+        this.buf[key] = b;
+        const g = key.replace(/_\d+$/, '');
+        if (g !== key) (this.groups[g] = this.groups[g] || []).push(key);
+      }).catch(() => {});
+    }
+    window.KAPI_DZWIEKI = null;
+  },
+  // losowy wariant z grupy, bez powtórzenia poprzedniego
+  pick(name) {
+    const list = this.groups[name];
+    if (!list) return this.buf[name] ? name : null;
+    if (list.length === 1) return list[0];
+    let k;
+    do k = pick(list); while (k === this.last[name]);
+    return (this.last[name] = k);
+  },
+  has(name) { return !!this.pick(name); },
+  // zwraca źródło dźwięku albo null, gdy nagrania nie ma
+  play(name, out, vol = 1, rate = 1) {
+    const key = this.pick(name);
+    if (!key || !Sfx.ctx) return null;
+    const s = Sfx.ctx.createBufferSource(), g = Sfx.ctx.createGain();
+    s.buffer = this.buf[key]; s.playbackRate.value = rate; g.gain.value = vol;
+    s.connect(g).connect(out);
+    s.start();
+    return s;
+  },
+};
+
 // ---------------- Komentator ----------------
+// Kwestie nagrane lektorem (kom_*); gdy nagrania brak, mówi synteza mowy przeglądarki.
 const Voice = {
   enabled: Store.get('voice', true),
-  voice: null,
+  voice: null, src: null,
   init() {
     if (!('speechSynthesis' in window)) return;
     const pickVoice = () => {
@@ -333,6 +391,33 @@ const Voice = {
     speechSynthesis.onvoiceschanged = pickVoice;
   },
   setEnabled(on) { this.enabled = on; Store.set('voice', on); },
+  speaking() { return !!this.src; },
+  stop() {
+    if (this.src) { try { this.src.stop(); } catch (e) { /* już skończone */ } this.src = null; }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    this.unduck();
+  },
+  unduck() { if (Sfx.duck) Sfx.duck.gain.setTargetAtTime(1, Sfx.ctx.currentTime, 0.25); },
+  // key – nazwa nagrania bez „kom_”, text – to samo dla syntezy mowy
+  line(key, text, opts = {}) {
+    if (!this.enabled || Sfx.muted) return;
+    if (opts.ifQuiet && this.speaking()) return;
+    if (Sfx.ctx && Rec.has('kom_' + key)) {
+      this.stop();
+      const s = Rec.play('kom_' + key, Sfx.voGain, 1.1);
+      if (!s) return;
+      this.src = s;
+      Sfx.duck.gain.setTargetAtTime(0.45, Sfx.ctx.currentTime, 0.04);
+      s.onended = () => {
+        if (this.src !== s) return;
+        this.src = null; this.unduck();
+        if (opts.then) this.line(opts.then);
+      };
+      return;
+    }
+    // synteza mowy tylko wtedy, gdy paczki nagrań nie ma (a nie gdy jeszcze się dekoduje)
+    if (text && !Rec.loading && !window.KAPI_DZWIEKI) this.say(text, opts.pitch, opts.rate);
+  },
   say(text, pitch = 0.6, rate = 1.05) {
     if (!this.enabled || Sfx.muted || !('speechSynthesis' in window)) return;
     try {
@@ -344,4 +429,27 @@ const Voice = {
       speechSynthesis.speak(u);
     } catch (e) { /* brak syntezy */ }
   },
+};
+
+// ---------------- Głosy kapibar ----------------
+// Kwestie postaci: <id>_hitL, _hitH, _ko, _atk, _super, _throw, _dizzy, _win. Jedna kwestia naraz na postać,
+// ważniejsza przerywa mniej ważną.
+const CAPY_PRIO = { hitL: 1, atk: 2, hitH: 3, throw: 3, super: 4, dizzy: 4, ko: 5, win: 5 };
+const CapyVoice = {
+  enabled: Store.get('capyvo', true),
+  setEnabled(on) { this.enabled = on; Store.set('capyvo', on); },
+  // f – wojownik (albo obiekt { ch, vo }), zwraca true, gdy kwestia poszła
+  say(f, kind, prob = 1) {
+    if (!this.enabled || !Sfx.ok() || !f.ch) return false;
+    const now = Sfx.ctx.currentTime, cur = f.vo, busy = cur && now < cur.end;
+    if (busy && CAPY_PRIO[kind] <= cur.prio) return false;
+    if (!busy && cur && kind === 'hitL' && now < cur.end + 0.35) return false;   // chwila oddechu między kwestiami
+    if (Math.random() >= prob) return false;
+    const s = Rec.play(`${f.ch.id}_${kind}`, Sfx.voGain, kind === 'win' ? 1 : 0.95);
+    if (!s) return false;
+    if (busy) { try { cur.src.stop(); } catch (e) { /* już skończone */ } }
+    f.vo = { src: s, prio: CAPY_PRIO[kind], end: now + s.buffer.duration };
+    return true;
+  },
+  stop(f) { if (f.vo) { try { f.vo.src.stop(); } catch (e) { /* już skończone */ } f.vo = null; } },
 };

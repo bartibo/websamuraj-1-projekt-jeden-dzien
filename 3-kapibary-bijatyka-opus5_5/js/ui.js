@@ -26,15 +26,26 @@ function specialInput(s) {
   return `${motionGlyph(s.motion)}+${btnText(s.btn)}` + (s.air === true ? ' (też w powietrzu)' : '');
 }
 
+// ten sam ruch przyciskiem specjalnym (ch.easy: n, f, b, d, airN, airD)
+const EASY_GLYPH = { n: 'SP', f: '→+SP', b: '←+SP', d: '↓+SP' };
+function easyInput(ch, s) {
+  const e = ch.easy || {};
+  const k = Object.keys(EASY_GLYPH).find(k => e[k] === s.id);
+  if (k) return EASY_GLYPH[k];
+  if (e.airD === s.id) return 'w powietrzu ↓+SP';
+  return null;
+}
+
 const UI = {
   screen: null, prev: [], focus: 0, sel: null, mlTab: 0, t: 0,
 
   init() {
     document.querySelectorAll('[data-act]').forEach(b => {
       b.addEventListener('click', () => { Sfx.unlock(); this.act(b.dataset.act); });
-      b.addEventListener('mouseenter', () => this.setFocusEl(b));
+      // mousemove, nie mouseenter: przycisk pod ukrytym w walce kursorem nie łapie wyboru, gdy pojawia się pauza
+      b.addEventListener('mousemove', () => this.setFocusEl(b));
     });
-    $('scr-title').addEventListener('click', () => { Sfx.unlock(); this.go('menu'); });
+    $('scr-title').addEventListener('click', () => { Sfx.unlock(); this.go('menu'); this.greet(); });
     this.buildCards();
     this.buildStages();
     this.buildControls();
@@ -45,6 +56,7 @@ const UI = {
   show(name) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('show'));
     this.screen = name;
+    this.shownAt = performance.now();
     const el = $('scr-' + name);
     if (el) el.classList.add('show');
     document.body.classList.toggle('in-menu', name !== 'fight');
@@ -52,10 +64,12 @@ const UI = {
     this.focus = 0;
     this.updateFocus();
     if (name === 'menu' || name === 'title') { Music.play('menu'); App.ensureDemo(); }
-    Sfx.muted = !App.game && name !== 'fight';
   },
 
   go(name) { this.prev.push(this.screen); this.show(name); if (name === 'options') this.buildOptions(); if (name === 'movelist') this.buildMovelist(); },
+  // komentator wita przy pierwszym wejściu do menu
+  // (z opóźnieniem: dźwięk włącza się tym samym naciśnięciem, a nagrania potrzebują chwili na dekodowanie)
+  greet() { if (!this.greeted) { this.greeted = true; setTimeout(() => Voice.line('title', 'Kapibara Kombat!'), 450); } },
   back() {
     const p = this.prev.pop() || 'menu';
     this.show(p);
@@ -95,7 +109,7 @@ const UI = {
   act(a) {
     Sfx.play('confirm');
     switch (a) {
-      case 'versus': case 'cpu': case 'training': this.startSelect(a); break;
+      case 'versus': case 'cpu': case 'training': case 'arcade': this.startSelect(a); break;
       case 'movelist': this.mlTab = 0; this.go('movelist'); break;
       case 'controls': this.go('controls'); break;
       case 'options': this.go('options'); break;
@@ -118,19 +132,32 @@ const UI = {
     if (!App.game || App.game.over) return;
     this.prev = [];
     this.show('pause');
-    Music.setPaused && Music.setPaused(true);
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    Music.setPaused(true);
+    Voice.stop();
+    App.game.fighters.forEach(f => CapyVoice.stop(f));
   },
-  resume() { this.prev = []; this.show('fight'); },
+  resume() {
+    this.prev = []; this.show('fight');
+    Music.setPaused(false);
+    Keys.hit.clear();   // klawisz, którym wznowiono, nie zadaje od razu ciosu
+  },
 
   // ---------------- klawisze ----------------
   key(code) {
     const s = this.screen;
     const isUp = KEYS_UP.includes(code), isDown = KEYS_DOWN.includes(code);
     const isLeft = KEYS_LEFT.includes(code), isRight = KEYS_RIGHT.includes(code);
-    const isOk = KEYS_OK.includes(code), isBack = KEYS_BACK.includes(code);
+    let isOk = KEYS_OK.includes(code);
+    const isBack = KEYS_BACK.includes(code);
+    // Pauza i wyniki pojawiają się w środku walki, gdy obaj gracze jeszcze wciskają klawisze ciosów:
+    // przez chwilę nic nie reagują, a zatwierdza tylko Enter lub Spacja
+    if (s === 'ladder' && performance.now() - this.shownAt < 450) return;
+    if (s === 'pause' || s === 'results') {
+      if (performance.now() - this.shownAt < 450) return;
+      isOk = code === 'Enter' || code === 'Space' || code === 'NumpadEnter';
+    }
 
-    if (s === 'title') { if (isOk || isBack || code.startsWith('Key')) this.go('menu'); return; }
+    if (s === 'title') { if (isOk || isBack || code.startsWith('Key')) { this.go('menu'); this.greet(); } return; }
     if (s === 'fight') {
       if (code === 'Escape') this.pause();
       else if (App.game && App.game.training) App.game.trainingKey(code);
@@ -214,6 +241,7 @@ const UI = {
     $('sel-cards').style.display = '';
     this.show('select');
     this.updateSelect();
+    Voice.line('choose', null, { ifQuiet: true });
   },
 
   selActive() {
@@ -244,8 +272,9 @@ const UI = {
       s.done[p] = true;
       Sfx.play('confirm');
       Sfx.squeak(CHARACTERS[s.cur[p]].look.voice, 0.18, 0.2);
-      Voice.say(CHARACTERS[s.cur[p]].name, 0.7, 1.1);
+      Voice.line('name_' + CHARACTERS[s.cur[p]].id, CHARACTERS[s.cur[p]].name, { pitch: 0.7, rate: 1.1 });
       this.updateSelect();
+      if (s.mode === 'arcade') { setTimeout(() => Ladder.start(s.cur[0]), 350); return; }
       if (s.done[0] && s.done[1]) this.toStage();
     };
     const back = p => {
@@ -307,14 +336,19 @@ const UI = {
   },
 
   updateSelect() {
-    const s = this.sel;
+    const s = this.sel, arcade = s.mode === 'arcade', medals = Ladder.medals();
     this.cardCanvases.forEach((d, i) => {
       d.classList.toggle('c1', s.cur[0] === i);
-      d.classList.toggle('c2', s.cur[1] === i);
-      d.querySelectorAll('.tag').forEach(t => t.remove());
+      d.classList.toggle('c2', !arcade && s.cur[1] === i);
+      d.querySelectorAll('.tag, .medal').forEach(t => t.remove());
       if (s.cur[0] === i) d.insertAdjacentHTML('beforeend', '<span class="tag t1">1P</span>');
-      if (s.cur[1] === i) d.insertAdjacentHTML('beforeend', `<span class="tag t2">${s.mode === 'versus' ? '2P' : s.mode === 'cpu' ? 'CPU' : 'MAN'}</span>`);
+      if (!arcade && s.cur[1] === i) d.insertAdjacentHTML('beforeend', `<span class="tag t2">${s.mode === 'versus' ? '2P' : s.mode === 'cpu' ? 'CPU' : 'MAN'}</span>`);
+      const m = medals[CHARACTERS[i].id];
+      if (m) d.insertAdjacentHTML('beforeend', `<span class="medal" title="Bagienne Mistrzostwa wygrane: ${m} pkt">★</span>`);
     });
+    // w turnieju wybiera tylko gracz 1, rywali losuje drabinka
+    $('sel-p2').style.display = arcade ? 'none' : '';
+    document.querySelector('.sel-vs').style.display = arcade ? 'none' : '';
     const who = [
       'GRACZ 1',
       s.mode === 'versus' ? 'GRACZ 2' : s.mode === 'cpu' ? 'KOMPUTER' : 'MANEKIN',
@@ -323,12 +357,12 @@ const UI = {
       const ch = CHARACTERS[s.cur[p]];
       const panel = $(p === 0 ? 'sel-p1' : 'sel-p2');
       panel.className = `sel-panel p${p + 1}` + (s.done[p] ? ' ready' : '');
-      const stars = '★'.repeat(ch.diff) + '☆'.repeat(3 - ch.diff);
+      const stars = '★'.repeat(ch.diff) + `<span class="off">${'★'.repeat(3 - ch.diff)}</span>`;
       panel.querySelector('.sel-info').innerHTML = `
         <div class="sel-who">${who[p]}</div>
-        <div class="sel-name" style="color:${ch.color}">${ch.name}</div>
+        <div class="sel-name">${ch.name}</div>
         <div class="sel-sub">${ch.title}</div>
-        <div class="sel-meta">Styl: <b>${ch.style}</b> · Trudność: <b>${stars}</b> · Życie: <b>${ch.hp}</b></div>
+        <div class="sel-meta"><span>Styl: <b>${ch.style}</b></span> <span>· Trudność: <b>${stars}</b></span> <span>· Życie: <b>${ch.hp}</b></span></div>
         <div class="sel-desc">${ch.desc}</div>
         ${p === 1 && s.mode === 'cpu' ? `<div class="sel-cpu">Poziom komputera: <b>${AI_LEVELS[s.cpu]}</b> (↑/↓)</div>` : ''}
         ${s.done[p] ? '<div class="sel-ready">GOTOWY!</div>' : ''}`;
@@ -338,12 +372,13 @@ const UI = {
     else if (s.mode === 'versus') hint = 'Gracz 1: <kbd>A</kbd><kbd>D</kbd> wybór, <kbd>T</kbd> zatwierdź, <kbd>G</kbd> cofnij · Gracz 2: <kbd>←</kbd><kbd>→</kbd> wybór, <kbd>O</kbd> zatwierdź, <kbd>L</kbd> cofnij';
     else hint = s.done[0] ? `Wybierz ${s.mode === 'cpu' ? 'przeciwnika' : 'manekina'}: <kbd>←</kbd><kbd>→</kbd>, <kbd>Enter</kbd> zatwierdź${s.mode === 'cpu' ? ', <kbd>↑</kbd><kbd>↓</kbd> poziom' : ''}, <kbd>Esc</kbd> cofnij` : '<kbd>←</kbd><kbd>→</kbd> wybór · <kbd>Enter</kbd> zatwierdź · <kbd>Esc</kbd> wróć';
     $('sel-hint').innerHTML = hint;
-    $('sel-title').textContent = s.phase === 'stage' ? 'Gotowi do walki!' : s.mode === 'training' ? 'Trening – wybierz kapibary' : 'Wybierz kapibarę';
+    $('sel-title').textContent = s.phase === 'stage' ? 'Gotowi do walki!' : s.mode === 'training' ? 'Trening – wybierz kapibary'
+      : arcade ? 'Turniej – wybierz kapibarę' : 'Wybierz kapibarę';
   },
 
-  // podgląd animowanych kapibar na ekranie wyboru i wyników
+  // podgląd animowanych kapibar na ekranie wyboru i wyników (UI.t rośnie w kroku symulacji, 60 razy na sekundę
+  // przy każdym odświeżaniu ekranu)
   frame() {
-    this.t++;
     if (this.screen === 'select' && this.sel) this.drawSelect();
     if (this.screen === 'results' && this.res) this.drawResult();
   },
@@ -402,7 +437,8 @@ const UI = {
     $('ml-keys').innerHTML = this.keyLegend();
     const body = $('ml-body');
     body.scrollTop = 0;
-    const row = (name, inp, desc) => `<div class="ml-row"><div class="ml-name">${name}${desc ? `<span class="ml-desc">${desc}</span>` : ''}</div><div class="inp">${inp}</div></div>`;
+    const row = (name, inp, desc, easy) => `<div class="ml-row"><div class="ml-name">${name}${desc ? `<span class="ml-desc">${desc}</span>` : ''}</div>` +
+      `<div class="inp">${inp}${easy ? `<span class="easy">łatwo: ${easy}</span>` : ''}</div></div>`;
     if (this.mlTab >= CHARACTERS.length) {
       body.innerHTML = COMMON_MOVES.map(([title, rows]) => `<div class="ml-sec"><h3>${title}</h3>${rows.map(r => row(r[0], r[1])).join('')}</div>`).join('');
       return;
@@ -411,7 +447,7 @@ const UI = {
     const fin = ch.finishers[0], fr = FRIENDSHIP[0];
     body.innerHTML = `
       <div class="ml-sec"><h3 style="color:${ch.color}">${ch.name} – ciosy specjalne</h3>
-        ${ch.specials.map(s => row(s.name, specialInput(s), s.desc)).join('')}
+        ${ch.specials.map(s => row(s.name, specialInput(s), s.desc, easyInput(ch, s))).join('')}
       </div>
       <div class="ml-sec"><h3>Super cios (2 paski)</h3>
         ${row(ch.superInfo.name, '↓↘→↓↘→+Ł', ch.superInfo.desc)}
@@ -420,7 +456,7 @@ const UI = {
       <div class="ml-sec"><h3>Combosy do nauki</h3>
         ${ch.combos.map(c => row(c[0], c[1])).join('')}
       </div>
-      <div class="ml-sec hl"><h3>Wykończenia (po napisie „Dokończ!”)</h3>
+      <div class="ml-sec hl"><h3>Wykończenia (po napisie „Dokończ go/ją!”)</h3>
         ${row('Kapibality: ' + fin.name, `${fin.glyph}+${BTN_LABEL[fin.btn]}`, fin.range ? 'z bliska' : 'z każdej odległości')}
         ${row('Kapiprzyjaźń', `${fr.glyph}+${BTN_LABEL[fr.btn]}`, 'z każdej odległości')}
       </div>`;
@@ -428,7 +464,7 @@ const UI = {
 
   keyLegend() {
     const k = (p, b) => BINDINGS[p][b].map(keyName).join('/');
-    return `Gracz 1: LŁ <kbd>${k(0, 'LP')}</kbd> MŁ <kbd>${k(0, 'HP')}</kbd> LK <kbd>${k(0, 'LK')}</kbd> MK <kbd>${k(0, 'HK')}</kbd> &nbsp;·&nbsp; Gracz 2: LŁ <kbd>${k(1, 'LP')}</kbd> MŁ <kbd>${k(1, 'HP')}</kbd> LK <kbd>${k(1, 'LK')}</kbd> MK <kbd>${k(1, 'HK')}</kbd><br>Ł – dowolna łapa (mocniejsza = MŁ), K – dowolne kopnięcie. Strzałki pokazują kierunki dla postaci zwróconej w prawo.`;
+    return `Gracz 1: LŁ <kbd>${k(0, 'LP')}</kbd> MŁ <kbd>${k(0, 'HP')}</kbd> LK <kbd>${k(0, 'LK')}</kbd> MK <kbd>${k(0, 'HK')}</kbd> SP <kbd>${k(0, 'SP')}</kbd> &nbsp;·&nbsp; Gracz 2: LŁ <kbd>${k(1, 'LP')}</kbd> MŁ <kbd>${k(1, 'HP')}</kbd> LK <kbd>${k(1, 'LK')}</kbd> MK <kbd>${k(1, 'HK')}</kbd> SP <kbd>${k(1, 'SP')}</kbd><br>Ł – dowolna łapa (mocniejsza = MŁ), K – dowolne kopnięcie, SP – przycisk specjalny: ruch specjalny bez kręcenia kierunków. Strzałki pokazują kierunki dla postaci zwróconej w prawo.`;
   },
 
   // ---------------- sterowanie ----------------
@@ -442,6 +478,7 @@ const UI = {
         ${r('MŁ – mocna łapa', B.HP)}
         ${r('LK – lekkie kopnięcie', B.LK)}
         ${r('MK – mocne kopnięcie', B.HK)}
+        ${r('SP – cios specjalny (łatwy)', B.SP)}
         ${r('Pauza', ['Escape'])}</div>`;
     };
     $('ctrl-grid').innerHTML = card(0, 'Gracz 1 (lewa strona)') + card(1, 'Gracz 2 (prawa strona)');
@@ -460,7 +497,9 @@ const UI = {
       { name: 'Wykończenia (Kapibality)', val: () => onoff(Settings.finishers), ch: () => { Settings.finishers = !Settings.finishers; Store.set('fin', Settings.finishers); } },
       { name: 'Efekty dźwiękowe', val: () => onoff(Sfx.enabled), ch: () => Sfx.setEnabled(!Sfx.enabled) },
       { name: 'Muzyka', val: () => onoff(Music.enabled), ch: () => Music.setEnabled(!Music.enabled) },
-      { name: 'Komentator (głos)', val: () => onoff(Voice.enabled), ch: () => { Voice.setEnabled(!Voice.enabled); if (Voice.enabled) Voice.say('Kapibara Kombat!'); } },
+      { name: 'Komentator (głos)', val: () => onoff(Voice.enabled), ch: () => { Voice.setEnabled(!Voice.enabled); if (Voice.enabled) Voice.line('title', 'Kapibara Kombat!'); } },
+      { name: 'Głosy kapibar', val: () => onoff(CapyVoice.enabled), ch: () => {
+        CapyVoice.setEnabled(!CapyVoice.enabled); if (CapyVoice.enabled) CapyVoice.say({ ch: pick(CHARACTERS) }, 'hitH'); } },
       { name: 'Pokazuj hitboxy', val: () => onoff(Store.get('boxes', false)), ch: () => Store.set('boxes', !Store.get('boxes', false)) },
       { name: 'Pełny ekran', val: () => document.fullscreenElement ? 'wł.' : 'wył.', ch: () => {
         if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } },
@@ -494,11 +533,13 @@ const UI = {
 
   // ---------------- wyniki ----------------
   showResults(res, game) {
-    this.res = { ch: res.winner.ch, t: 0 };
+    this.res = { ch: res.winner.ch, t: 0, t0: this.t };
     const w = res.winner, l = res.loser;
-    $('res-name').textContent = w.ch.name;
-    $('res-name').style.color = w.ch.color;
-    $('res-quote').textContent = `„${pick(w.ch.quotes)}”` + (res.finisher ? ` – ${res.finisher.id === 'friend' ? 'Kapiprzyjaźń' : 'Kapibality'}: ${res.finisher.name}` : '');
+    $('res-name').textContent = w.name;
+    const qi = randInt(0, w.ch.quotes.length - 1);
+    $('res-quote').textContent = `„${w.ch.quotes[qi]}”` + (res.finisher ? ` – ${res.finisher.id === 'friend' ? 'Kapiprzyjaźń' : 'Kapibality'}: ${res.finisher.name}` : '');
+    // zwycięzca mówi swój cytat (nagranie tej samej kwestii)
+    setTimeout(() => { if (this.screen === 'results' && CapyVoice.enabled && Sfx.ok()) Rec.play(`${w.ch.id}_win_${qi + 1}`, Sfx.voGain); }, 700);
     const [a, b] = game.fighters;
     const rows = [
       ['Wygrane rundy', a.wins, b.wins],
@@ -509,7 +550,7 @@ const UI = {
       ['Rzuty', a.stats.throws, b.stats.throws],
       ['Zablokowane ciosy', a.stats.blocked, b.stats.blocked],
     ];
-    $('res-stats').innerHTML = `<tr><th></th><th style="color:${a.ch.color}">${a.ch.name}</th><th style="color:${b.ch.color}">${b.ch.name}</th></tr>` +
+    $('res-stats').innerHTML = `<tr><th></th><th style="color:${a.ch.color}">${a.name}</th><th style="color:${b.ch.color}">${b.name}</th></tr>` +
       rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
     this.prev = [];
     this.show('results');
@@ -518,7 +559,7 @@ const UI = {
 
   drawResult() {
     const r = this.res;
-    r.t++;
+    r.t = this.t - r.t0;
     const ch = r.ch;
     const pose = ch.winPoseFn ? ch.winPoseFn(r.t, clonePose(STANCE)) : POSES.win;
     this.drawPreview($('res-canvas'), ch, false, 1.45, pose);

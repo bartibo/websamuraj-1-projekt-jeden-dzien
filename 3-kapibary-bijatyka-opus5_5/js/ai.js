@@ -67,6 +67,31 @@ class CpuController {
     });
   }
 
+  // Nadchodzący cios albo pocisk: { move, proj, dir } (dir 1 – blok nisko, 4 – blok stojąc) albo null
+  threat(me, opp, g) {
+    const dist = Math.abs(opp.x - me.x);
+    const move = opp.state === 'move' && opp.move.hits.length && opp.mf <= opp.move.lastActive && dist < 300;
+    const proj = g.projectiles.find(p => p.owner === opp && Math.abs(p.x - me.x) < 330 && sign(me.x - p.x) === p.dir);
+    if (!move && !proj) return null;
+    const low = move && opp.move.hits.some(h => h.guard === 'low') || proj && proj.hit.guard === 'low';
+    const high = move && opp.move.hits.some(h => h.guard === 'high');
+    return { move, proj, dir: low && !high ? 1 : 4 };
+  }
+
+  // Czujność między decyzjami: atak zauważony w czasie odliczania – blok po czasie reakcji poziomu
+  watch(me, opp, g) {
+    if (me.state !== 'neutral') { this.seen = false; return; }
+    const th = this.threat(me, opp, g);
+    if (!th) { this.seen = false; return; }
+    if (this.seen) return;
+    this.seen = true;
+    if (!chance(AI_TUNE.block[this.level])) return;
+    const r = AI_TUNE.react[this.level];
+    this.wait(randInt(r >> 2, r >> 1));
+    this.push(th.dir, 16);
+    this.cool = 0;
+  }
+
   // ---- decyzje ----
   think(me, opp, g) {
     const L = this.level, T = AI_TUNE, ch = me.ch;
@@ -91,13 +116,10 @@ class CpuController {
 
     if (me.state !== 'neutral') return;
 
-    const threatMove = opp.state === 'move' && opp.move.hits.length && opp.mf <= opp.move.lastActive && dist < 300;
-    const proj = g.projectiles.find(p => p.owner === opp && Math.abs(p.x - me.x) < 330 && sign(me.x - p.x) === p.dir);
-    if ((threatMove || proj) && chance(T.block[L])) {
-      if (proj && !threatMove && L >= 1 && chance(0.25) && dist < 500) { this.push(9, 3); this.wait(10); this.normal('j.HK'); return; }
-      const low = threatMove && opp.move.hits.some(h => h.guard === 'low') || proj && proj.hit.guard === 'low';
-      const high = threatMove && opp.move.hits.some(h => h.guard === 'high');
-      this.push(low && !high ? 1 : 4, 16);
+    const th = this.threat(me, opp, g);
+    if (th && chance(T.block[L])) {
+      if (th.proj && !th.move && L >= 1 && chance(0.25) && dist < 500) { this.push(9, 3); this.wait(10); this.normal('j.HK'); return; }
+      this.push(th.dir, 16);
       return;
     }
 
@@ -150,7 +172,7 @@ class CpuController {
     if (me.state === 'hit' || me.state === 'airhit' || me.state === 'knockdown') { this.q.length = 0; this.dir = 5; }
 
     if (!this.q.length) {
-      if (this.cool > 0) this.cool--;
+      if (this.cool > 0) { this.cool--; this.watch(me, opp, g); }
       else {
         this.think(me, opp, g);
         this.cool = randInt(AI_TUNE.react[L] >> 1, AI_TUNE.react[L]);
