@@ -5,8 +5,9 @@ const VIEWS = [
   { name: 'Panorama', target: [-5, 10, -55], radius: 400, theta: 0.7, phi: 1.02 },
   { name: 'Centrum', target: [0, 22, -75], radius: 150, theta: 0.85, phi: 1.2 },
   { name: 'Ulica', target: [20, 9, -50], radius: 52, theta: 1.5708, phi: 1.4 },
-  { name: 'Wybrzeże', target: [-30, 4, 70], radius: 250, theta: 2.25, phi: 1.22 },
-  { name: 'Z góry', target: [0, 0, -65], radius: 430, theta: 0.0, phi: 0.18 }
+  { name: 'Wybrzeże', target: [-40, 4, 30], radius: 270, theta: 1.05, phi: 1.2 },
+  { name: 'Z góry', target: [0, 0, -65], radius: 430, theta: 0.0, phi: 0.18 },
+  { name: 'Fala', target: [0, 4, 75], radius: 250, theta: 0.7, phi: 1.02, follow: true }
 ];
 
 const Main = {
@@ -38,6 +39,8 @@ const Main = {
     this.camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 1, 9000);
     FX.init(this.scene);
     City.build(this.scene);
+    Flood.init(this.scene);
+    Flood.bindBuildings();
     this.controls = new OrbitCam(this.camera, canvas);
     this.controls.radius = 720;
     this.controls.phi = 0.7;
@@ -119,6 +122,7 @@ const Main = {
   },
 
   view(i) {
+    this.follow = !!VIEWS[i].follow;
     this.controls.flyTo(VIEWS[i]);
     document.querySelectorAll('#viewSeg button').forEach((b, k) => b.classList.toggle('on', k === i));
   },
@@ -158,6 +162,9 @@ const Main = {
     Quake.stopAll();
     FX.clear();
     City.build(this.scene);
+    Flood.reset();
+    Flood.bindBuildings();
+    Flood.setWall(Flood.wallH);
     this.setTOD(World.tod);
     World.updateGround();
     World.seaColorsDirty = true;
@@ -195,8 +202,26 @@ const Main = {
       const t = performance.now();
       if (!this.lastColToast || t - this.lastColToast > 2500) {
         this.lastColToast = t;
-        UI.toast(`💥 Zawalił się: ${b.name.toLowerCase()}`, 'alert');
+        const what = b.washed ? '🌊 Woda porwała' : b.byWater ? '🌊 Woda zburzyła' : '💥 Zawalił się';
+        UI.toast(`${what}: ${b.name.toLowerCase()}`, 'alert');
       }
+    }
+  },
+
+  /* Komunikaty o kolejnych falach tsunami. */
+  waveNews(ts) {
+    const seen = ts.news || (ts.news = new Set());
+    const n = ts.wavesArrived(), all = ts.crests.length;
+    if (n > 0 && !seen.has('w' + n)) {
+      seen.add('w' + n);
+      const big = n > 1 && ts.crests[n - 1].amp > ts.crests[n - 2].amp;
+      UI.toast(n === 1 ? '🌊 Pierwsza fala uderza w wybrzeże' : `🌊 Fala ${n} z ${all}${big ? ' – większa od poprzedniej!' : ''}`, 'alert');
+      if (n > 1) UI.banner(`🌊 FALA ${n}`, big ? 'kolejna fala bywa groźniejsza od pierwszej' : 'woda znów wdziera się do miasta', '#6fd3ff');
+    }
+    const c = ts.crests[n - 1];
+    if (c && n < all && ts.tau > c.e + Tsunami.TRAVEL + 4 && !seen.has('r' + n)) {
+      seen.add('r' + n);
+      UI.toast('⚠ Woda się cofa. Nie wracaj na brzeg – kolejna fala już płynie', 'info');
     }
   },
 
@@ -209,7 +234,7 @@ const Main = {
       if ((k === 'arrowup' || k === 'arrowdown') && !inRange) {
         e.preventDefault();
         const d = (k === 'arrowup' ? 1 : -1) * (e.shiftKey ? 0.5 : 0.1);
-        UI.params.M = U.clamp(Math.round((UI.params.M + d) * 10) / 10, 1, 9.5);
+        UI.params.M = U.clamp(Math.round((UI.params.M + d) * 10) / 10, 1, 9.9);
         UI.apply(UI.params);
         UI.markScenario(-1);
         return;
@@ -225,7 +250,7 @@ const Main = {
       else if (k === 't') {
         const order = ['day', 'sunset', 'night'];
         this.setTOD(order[(order.indexOf(World.tod) + 1) % 3]);
-      } else if (k >= '1' && k <= '5') this.view(+k - 1);
+      } else if (k >= '1' && k <= '6') this.view(+k - 1);
     });
   },
 
@@ -265,11 +290,14 @@ const Main = {
     this.time += dtS;
 
     Quake.update(dtS);
+    Flood.update(dtS, this.time);
+    Debris.idle(dtS, this.time);
     if (Quake.events.length) this.peakI = Math.max(this.peakI, City.maxIeff);
     World.updateGround();
     City.update(dtS, this.time);
     FX.update(dtS, this.time, this.camera);
     World.updateSea(this.time);
+    Flood.updateMesh(this.time);
 
     // ostrzeżenia: system wczesnego ostrzegania i tsunami
     for (const ev of Quake.events) {
@@ -290,10 +318,8 @@ const Main = {
       Sound.setSiren(true);
     }
     Sound.setSiren(!!(ts && ts.tau >= 0 && !ts.done));
-    if (ts && ts.tau >= 0 && !ts.done) {
-      const on = ts.tau > ts.tShore - 5 ? U.clamp(ts.H / 9, 0.3, 1) * ts.levelK : 0.15;
-      Sound.setWater(on);
-    } else Sound.setWater(0);
+    Sound.setWater(Flood.roarLevel());
+    if (ts && ts.tau >= 0) this.waveNews(ts);
 
     // sejsmogram i dudnienie
     const st = Quake.station();
@@ -304,7 +330,12 @@ const Main = {
     Sound.setShake(lvl, U.clamp((7 - Mx) / 5, 0, 1));
     Sound.update(this.time);
 
-    // kamera
+    // kamera (widok „Fala” prowadzi za czołem wody)
+    if (this.follow) {
+      const f = Flood.focus;
+      _v1.set(f.ok ? f.x * 0.4 : 0, 4, f.ok ? U.clamp(f.z, -90, 420) : Flood.SHORE);
+      this.controls.goal.target.lerp(_v1, Math.min(1, dt * 1.5));
+    }
     this.controls.update(dt);
     if (this.shakeOn && (Quake.events.length || this.kick > 0.01)) {
       const g = Quake.sample(this.controls.target.x, this.controls.target.z, _gs, false);
@@ -322,10 +353,11 @@ const Main = {
     this.kick *= Math.exp(-dt * 3);
 
     // mapa cieni odświeżana tylko, gdy coś się rusza
-    const busy = Quake.active || this.kick > 0.05 || City.trees.moving || City.lamps.moving ||
+    const busy = Quake.active || Flood.active || World.shadowDirty || this.kick > 0.05 || City.trees.moving || City.lamps.moving ||
       FX.bodies.list.some(b => !b.sleep) || FX.rubble.list.some(c => !c.rest) ||
       City.buildings.some(b => b.mode === 'pancake' || b.mode === 'topple' || Math.abs(b.ux) + Math.abs(b.uz) > 1e-3);
     if (busy) this.shadowFrames = 3;
+    World.shadowDirty = false;
     if (this.shadowFrames > 0) { this.renderer.shadowMap.needsUpdate = true; this.shadowFrames--; }
 
     UI.update(dtS, now);

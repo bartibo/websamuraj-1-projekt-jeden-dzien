@@ -33,12 +33,13 @@
       <button data-tod="sunset" class="on">🌇 Zachód</button>
       <button data-tod="night">🌙 Noc</button>
     </div>
-    <div class="seg" id="viewSeg" title="Widoki kamery (1–5)">
+    <div class="seg" id="viewSeg" title="Widoki kamery (1–6)">
       <button data-view="0" title="Panorama (1)">Panorama</button>
       <button data-view="1" title="Centrum (2)">Centrum</button>
       <button data-view="2" title="Ulica (3)">Ulica</button>
       <button data-view="3" title="Wybrzeże (4)">Wybrzeże</button>
       <button data-view="4" title="Z góry (5)">Z góry</button>
+      <button data-view="5" title="Kamera leci za czołem tsunami (6)">🌊 Fala</button>
     </div>
     <div class="seg toggles">
       <button id="tSlow" title="Zwolnione tempo (S)">🐢 <span>Zwolnij</span></button>
@@ -59,9 +60,9 @@
           <span class="chip" id="magClass">Silne</span>
         </div>
         <div class="mag-value"><small>M</small><b id="magVal">6,6</b></div>
-        <input type="range" id="mag" min="1" max="9.5" step="0.1" value="6.6" aria-label="Magnituda">
+        <input type="range" id="mag" min="1" max="9.9" step="0.1" value="6.6" aria-label="Magnituda">
         <div class="ticks"><span>1</span><span>3</span><span>5</span><span>7</span><span>9</span></div>
-        <p class="hint">Każdy stopień więcej to <b>10×</b> większe drgania i ok. <b>32×</b> więcej energii.</p>
+        <p class="hint" id="magHint">Każdy stopień więcej to <b>10×</b> większe drgania i ok. <b>32×</b> więcej energii.</p>
       </section>
 
       <section>
@@ -83,6 +84,8 @@
           <button data-sea="0" class="on">⛰ Pod lądem</button>
           <button data-sea="1">🌊 Pod morzem</button>
         </div>
+        <div class="row-between"><span class="label">Falochron na plaży</span><b class="val" id="wallVal">brak</b></div>
+        <input type="range" id="wall" min="0" max="15" step="1" value="0" aria-label="Wysokość falochronu">
       </section>
 
       <section>
@@ -172,11 +175,11 @@
       <h2>Sejsmo·Lab</h2>
       <p class="lead">Nadmorskie miasto stoi na uskoku tektonicznym. Ty decydujesz, jak silnie zatrzęsie się ziemia.</p>
       <ol>
-        <li><b>Ustaw magnitudę</b> od 1 (nieodczuwalne) do 9,5 (najsilniejsze w historii). Możesz też zmienić głębokość, odległość i rodzaj gruntu.</li>
+        <li><b>Ustaw magnitudę</b> od 1 (nieodczuwalne) do 9,5 (najsilniejsze w historii), a nawet do 9,9 – takiego trzęsienia jeszcze nie było. Możesz też zmienić głębokość, odległość i rodzaj gruntu.</li>
         <li><b>Wywołaj trzęsienie</b> przyciskiem albo <kbd>Spacją</kbd>. Najpierw przyjdzie fala P, potem silniejsza fala S, a przy dużych wstrząsach fale powierzchniowe.</li>
         <li><b>Obserwuj miasto.</b> Lewy przycisk myszy obraca widok, prawy go przesuwa, a kółko przybliża. Najedź na budynek, żeby zobaczyć jego stan.</li>
       </ol>
-      <p class="tip">Wskazówka: ustaw epicentrum <b>pod morzem</b> i magnitudę powyżej 8, a potem przełącz kamerę na <b>Wybrzeże</b>.</p>
+      <p class="tip">Wskazówka: ustaw epicentrum <b>pod morzem</b> i magnitudę powyżej 8, a potem przełącz kamerę na <b>Wybrzeże</b> albo <b>🌊 Fala</b>. Spróbuj też zbudować falochron.</p>
       <button class="go" id="start">Zaczynamy</button>
       <p class="loading" id="loading">Budowanie miasta…</p>
     </div>
@@ -190,7 +193,7 @@
         <tr><td><kbd>Spacja</kbd></td><td>wywołaj trzęsienie (kolejne nałoży się na trwające)</td></tr>
         <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>magnituda ±0,1 (z <kbd>Shift</kbd> ±0,5)</td></tr>
         <tr><td><kbd>R</kbd></td><td>odbuduj miasto</td></tr>
-        <tr><td><kbd>1</kbd>–<kbd>5</kbd></td><td>widoki kamery</td></tr>
+        <tr><td><kbd>1</kbd>–<kbd>6</kbd></td><td>widoki kamery (6 – kamera leci za falą tsunami)</td></tr>
         <tr><td><kbd>T</kbd></td><td>pora dnia</td></tr>
         <tr><td><kbd>S</kbd></td><td>zwolnione tempo</td></tr>
         <tr><td><kbd>C</kbd> / <kbd>K</kbd></td><td>obrót kamery / drżenie kamery</td></tr>
@@ -200,6 +203,7 @@
       </table>
       <h3>Jak to działa</h3>
       <p><b>Magnituda</b> mówi, ile energii uwolniło się w ognisku. <b>Intensywność</b> (skala Mercallego I–XII) opisuje skutki w konkretnym miejscu. Zależy od magnitudy, odległości, głębokości i gruntu: miękkie osady wzmacniają drgania i mogą ulec upłynnieniu.</p>
+      <p><b>Tsunami</b> to seria fal: najpierw morze się cofa, potem przychodzą kolejne fale, a druga bywa największa. Woda w mieście jest symulowana: płynie ulicami, omija budynki, porywa auta i łodzie, a falochron zatrzymuje ją tylko do swojej wysokości.</p>
       <p>Każdy budynek ma własny okres drgań i odporność. Kamienice z niezbrojonej cegły padają pierwsze. Wieżowiec z tłumikiem masowym kołysze się, ale wytrzymuje bardzo silne wstrząsy.</p>
       <p class="small">Wzory są uproszczone (Atkinson &amp; Wald 2007, Wald i in. 1999, Wells &amp; Coppersmith 1994), a ruch gruntu jest przesadzony, żeby było go widać. To model edukacyjny, a nie prognoza.</p>
     </div>
@@ -213,6 +217,7 @@
   <script src="js/world.js"></script>
   <script src="js/city.js"></script>
   <script src="js/fx.js"></script>
+  <script src="js/flood.js"></script>
   <script src="js/seismo.js"></script>
   <script src="js/controls.js"></script>
   <script src="js/ui.js"></script>

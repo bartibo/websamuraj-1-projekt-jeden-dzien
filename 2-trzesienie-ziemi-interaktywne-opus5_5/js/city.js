@@ -815,18 +815,44 @@ class Building {
     }
   }
 
+  /* Tsunami: napór wody (głębokość i siła przepływu h·v²) z symulacji wokół budynku. */
   tsunamiCheck(dt) {
-    const ts = Quake.tsunami;
-    if (!ts || ts.tau < ts.tShore - 1) return;
-    const d = ts.depthAt(this.x, this.z);
-    this.flooded = Math.max(this.flooded, d);
-    if (d > 0.3 && Math.random() < dt * 3) FX.splash(this.x + U.rand(-this.fw / 2, this.fw / 2), this.z + this.fd / 2, World.G0 + d);
-    const limit = this.type === 'house' ? 2.4 : this.type === 'masonry' ? 5.5 : this.type === 'belfry' ? 7 : 99;
-    if (d > limit && !this.collapsed) {
-      this.tCol = 99;
+    if (!Flood.active || this.collapsed) return;
+    const L = Flood.buildingLoad(this);
+    if (L.d <= 0.05) return;
+    this.flooded = Math.max(this.flooded, L.d);
+    if (L.f > 3 && Math.random() < dt * Math.min(8, L.f * 0.12)) FX.splash(L.x, L.z, World.G0 + L.d, L.fx, L.fz, Math.min(2.5, L.f / 40));
+    const over = Math.max(L.d / this.fLimD, L.f / this.fLimF);
+    if (over > 0.65 && this.state < 2) {
       this.state = 2;
-      this.collapse(0, -1, 'pancake');
+      this.mat.color.copy(this.baseColor).lerp(new THREE.Color(0x6e675e), 0.38);
+      FX.facadeChunks(this, 6);
+      if (Main.liveDamage) Main.liveDamage(this);
     }
+    this.fLoadT = over > 1 ? this.fLoadT + dt : Math.max(0, this.fLoadT - dt);
+    if (this.fLoadT < 0.5) return;
+    this.byWater = true;
+    if (this.type === 'house') { this.washAway(); return; }
+    this.tCol = 99;
+    this.state = 2;
+    const sp = Math.hypot(L.fx, L.fz) || 1;
+    const tall = this.type === 'panel' || this.type === 'office' || this.type === 'tower' || this.type === 'belfry';
+    this.collapse(L.fx / sp, L.fz / sp, tall ? 'topple' : 'pancake');
+  }
+
+  /* Lekki dom porwany przez wodę: rozpada się na pływające deski i płaty dachu. */
+  washAway() {
+    this.collapsed = true;
+    this.washed = true;
+    this.state = 3;
+    this.mode = 'rubble';
+    for (const s of this.segs) { s.obj.visible = false; const k = City.pickables.indexOf(s.obj); if (k >= 0) City.pickables.splice(k, 1); }
+    for (const c of this.chimneys) c.obj.visible = false;
+    Debris.houseDebris(this);
+    _v1.set(this.x, World.G0 + 1, this.z);
+    FX.impactDust(_v1, this.fw, this.fd, 0.3);
+    Sound.crash(0.35, Main.panFor(this.x, this.z), Main.distFactor(this.x, this.z));
+    if (Main.liveDamage) Main.liveDamage(this);
   }
 
   followGround() {
@@ -1030,8 +1056,8 @@ class Trees {
   }
   fallenCount() { return this.list.filter(t => t.fall > 0.5).length; }
   update(dt, time, quakeOn) {
-    const ts = Quake.tsunami && Quake.tsunami.tau > 0 ? Quake.tsunami : null;
-    if (!quakeOn && !this.dirty && !ts && !this.moving) return;
+    const fl = Flood.active;
+    if (!quakeOn && !this.dirty && !fl && !this.moving) return;
     this.dirty = false;
     let moving = false;
     const w = 2 * Math.PI * 0.9, w2 = w * w, z2 = 2 * 0.09 * w;
@@ -1061,9 +1087,24 @@ class Trees {
             t.fall = 0.02; t.fallA = Math.atan2(t.uz || Math.random() - 0.5, t.ux || Math.random() - 0.5);
           }
         }
-        if (ts && t.fall === 0 && !t.hill) {
-          const d = ts.depthAt(t.x, t.z);
-          if (d > 2.6) { t.fall = 0.02; t.fallA = Math.atan2(ts.flowZ, 0.0001); }
+        // tsunami: woda łamie drzewo, a potem niesie je jak kłodę
+        if (fl && !t.hill) {
+          const d = Flood.depthAt(t.x, t.z);
+          if (d > 0.2) {
+            Flood.velAt(t.x, t.z, _fl);
+            const f = d * (_fl.u * _fl.u + _fl.w * _fl.w);
+            if (t.fall === 0 && (d > 2.8 || f > 7 * t.s)) { t.fall = 0.02; t.fallA = Math.atan2(_fl.w, _fl.u); t.drift = true; }
+            if (t.drift && t.fall > 1 && d > 0.6) {
+              t.x += _fl.u * Flood.SPEED * 0.85 * dt;
+              t.z += _fl.w * Flood.SPEED * 0.85 * dt;
+              const po = City.pushOut(t.x, t.z, 1);
+              if (po) { t.x = po.x; t.z = po.z; }
+              const e = Flood.etaAt(t.x, t.z);
+              if (e !== null) t.y0 += (e - 0.5 - t.y0) * Math.min(1, dt * 3);
+              t.fallA += (Math.random() - 0.5) * dt * 0.8;
+              moving = true;
+            } else if (t.drift) t.y0 += (World.baseHeight(t.x, t.z) - t.y0) * Math.min(1, dt * 2);
+          }
         }
         if (t.fall > 0 && t.fall < Math.PI / 2 - 0.05) {
           t.fallW += 4.5 * Math.sin(t.fall + 0.05) * dt;
@@ -1163,7 +1204,7 @@ class Cars {
     c.yaw += d * (dt > 0 ? Math.min(1, dt * 8) : 1);
   }
   update(dt, time, quakeOn, force) {
-    const ts = Quake.tsunami && Quake.tsunami.tau > 0 && !Quake.tsunami.done ? Quake.tsunami : null;
+    const fl = Flood.active;
     for (let i = 0; i < this.list.length; i++) {
       const c = this.list[i];
       let g = null;
@@ -1181,30 +1222,31 @@ class Cars {
       // alarm samochodowy
       if (quakeOn && I >= 4.6 && c.alarm <= 0 && Math.random() < dt * 0.5) c.alarm = U.rand(12, 25);
       if (c.alarm > 0) c.alarm -= dt;
-      // tsunami: auto unosi się na wodzie
+      // tsunami: auto unosi się i płynie z nurtem, obija się o budynki
       let gy = World.G0;
-      if (ts) {
-        const base = World.baseHeight(c.x, c.z);
-        const lvl = ts.level(c.x, c.z, base);
-        const depth = lvl === null ? 0 : lvl - base;
-        if (depth > 0.75) {
-          if (!c.float) { c.float = true; c.moved = true; c.drive = false; c.spin = U.rand(-0.6, 0.6); c.fvx = U.rand(-1, 1); }
-        }
+      if (fl) {
+        const depth = Flood.depthAt(c.x, c.z);
+        if (depth > 0.7 && !c.float) { c.float = true; c.moved = true; c.drive = false; c.spin = U.rand(-0.6, 0.6); c.vx = 0; c.vz = 0; }
         if (c.float) {
           if (depth > 0.5) {
-            gy = base + depth - 0.55;
-            const fz = ts.flowZ * U.clamp(depth / 2, 0.3, 1.2);
-            c.x += (c.fvx + Math.sin(time * 0.7 + i) * 0.8) * dt;
-            c.z += fz * dt;
+            Flood.drift(c.x, c.z, _fl);
+            const k = Math.min(1, dt * 1.3);
+            c.vx += (_fl.u - c.vx) * k;
+            c.vz += (_fl.w - c.vz) * k;
+            let nx = c.x + c.vx * dt, nz = c.z + c.vz * dt;
+            if (Flood.solidAt(nx + Math.sign(c.vx) * 2, c.z)) { nx = c.x; c.vx *= -0.3; c.spin += U.rand(-1, 1); }
+            if (Flood.solidAt(c.x, nz + Math.sign(c.vz) * 2)) { nz = c.z; c.vz *= -0.3; c.spin += U.rand(-1, 1); }
+            c.x = U.clamp(nx, Flood.X0 + 4, Flood.X1 - 4);
+            c.z = U.clamp(nz, Flood.Z0 + 4, Flood.Z1 - 4);
             c.yaw += c.spin * dt;
-            const po = City.pushOut(c.x, c.z, 1.5);
-            if (po) { c.x = po.x; c.z = po.z; c.fvx = -c.fvx; }
-            c.x = U.clamp(c.x, -440, 440);
-            c.z = U.clamp(c.z, -300, 200);
+            c.spin *= Math.exp(-dt * 0.5);
+            const eta = Flood.etaAt(c.x, c.z);
+            gy = (eta === null ? World.baseHeight(c.x, c.z) + depth : eta) - 0.85;
             c.roll = Math.sin(time * 1.3 + i) * 0.15;
             c.pitch = Math.sin(time * 1.1 + i * 2) * 0.12;
           } else {
             gy = World.baseHeight(c.x, c.z);
+            c.vx = 0; c.vz = 0;
           }
         }
       }
@@ -1225,7 +1267,7 @@ class Cars {
         c.pitch = U.clamp(c.pitch + c.vp * dt, -0.2, 0.2);
         c.gx = g.dx; c.gz = g.dz;
       } else {
-        if (!c.float || !ts) {
+        if (!c.float || !fl) {
           c.vy -= 9.81 * dt;
           c.y += c.vy * dt;
           if (c.y <= gy) { c.y = gy; c.vy = 0; }
@@ -1305,9 +1347,9 @@ class Lamps {
   }
   fallenCount() { return this.list.filter(l => l.fall > 0.3).length; }
   update(dt, time, quakeOn) {
-    const ts = Quake.tsunami && Quake.tsunami.tau > 0 ? Quake.tsunami : null;
+    const fl = Flood.active;
     const levelChanged = Math.abs(this.level - this.lastLevel) > 0.01;
-    if (!quakeOn && !this.dirty && !levelChanged && !ts && !this.moving) return;
+    if (!quakeOn && !this.dirty && !levelChanged && !fl && !this.moving) return;
     this.dirty = false;
     const c = new THREE.Color();
     let moving = false;
@@ -1332,8 +1374,14 @@ class Lamps {
             FX.sparks(_v1.set(l.x, l.y0 + this.H, l.z), 25);
           }
         }
-        if (ts && l.fall === 0 && ts.depthAt(l.x, l.z) > 3.5) { l.fall = 0.03; l.fallA = Math.atan2(ts.flowZ, 0.001); l.off = true; }
-        if (ts && ts.depthAt(l.x, l.z) > 0.6) l.off = true;
+        if (fl) {
+          const d = Flood.depthAt(l.x, l.z);
+          if (d > 0.6) l.off = true;
+          if (l.fall === 0 && d > 0.3) {
+            Flood.velAt(l.x, l.z, _fl);
+            if (d > 3.4 || d * (_fl.u * _fl.u + _fl.w * _fl.w) > 14) { l.fall = 0.03; l.fallA = Math.atan2(_fl.w, _fl.u); }
+          }
+        }
         if (l.fall > 0 && l.fall < Math.PI / 2 - 0.02) {
           l.fallW += 5 * Math.sin(l.fall + 0.05) * dt;
           l.fall = Math.min(Math.PI / 2 - 0.02, l.fall + l.fallW * dt);

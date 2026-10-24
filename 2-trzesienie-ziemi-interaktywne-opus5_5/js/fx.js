@@ -220,7 +220,22 @@ class Rubble {
   update(dt) {
     let any = this.dirty;
     const quake = Quake.events.length > 0;
+    const fl = Flood.active;
     for (const ch of this.list) {
+      if (ch.rest && !quake && !fl) continue;
+      // tsunami: rwąca woda wlecze odłamki po dnie
+      let inFlow = false;
+      if (fl && Flood.depthAt(ch.x, ch.z) > ch.sy * 0.8) {
+        Flood.drift(ch.x, ch.z, _fl);
+        if (_fl.u * _fl.u + _fl.w * _fl.w > 9 / ch.sx) {
+          inFlow = true;
+          ch.rest = false;
+          const k = Math.min(1, dt * 1.5);
+          ch.vx += (_fl.u * 0.55 - ch.vx) * k;
+          ch.vz += (_fl.w * 0.55 - ch.vz) * k;
+          if (Flood.solidAt(ch.x + ch.vx * dt * 3, ch.z + ch.vz * dt * 3)) { ch.vx *= -0.3; ch.vz *= -0.3; }
+        }
+      }
       if (ch.rest && !quake) continue;
       ch.t += dt;
       if (!ch.rest) {
@@ -242,6 +257,9 @@ class Rubble {
             ch.vx = ch.vx * 0.85 - hx * 4 * dt * 9.81;
             ch.vz = ch.vz * 0.85 - hz * 4 * dt * 9.81;
             ch.vy = Math.abs(ch.vy) * 0.2;
+          } else if (inFlow) {
+            ch.vy = 0;
+            ch.wx = ch.vz * 0.8; ch.wz = -ch.vx * 0.8;
           } else {
             ch.vy = -ch.vy * 0.28;
             ch.vx *= 0.55; ch.vz *= 0.55;
@@ -665,11 +683,13 @@ const FX = {
     }
   },
 
-  splash(x, z, y) {
-    for (let i = 0; i < 3; i++) {
+  /* Rozbryzg wody (np. o ścianę budynku); vx, vz – kierunek nurtu, s – siła. */
+  splash(x, z, y, vx = 0, vz = 0, s = 1) {
+    const n = Math.round(3 + s * 3);
+    for (let i = 0; i < n; i++) {
       this.dust.spawn({
-        x: x + U.rand(-1, 1), y, z: z + U.rand(-1, 1), vx: U.rand(-2, 2), vy: U.rand(2, 5), vz: U.rand(-2, 2),
-        life: U.rand(0.8, 1.6), s0: 1.5, s1: 4, a: 0.6, r: 0.9, g: 0.92, b: 0.92, grav: 9.81, drag: 0.4
+        x: x + U.rand(-1.5, 1.5), y, z: z + U.rand(-1.5, 1.5), vx: U.rand(-2, 2) - vx * 0.25, vy: U.rand(3, 8) * s, vz: U.rand(-2, 2) - vz * 0.25,
+        life: U.rand(0.7, 1.4), s0: 1.0 * s, s1: 3.2 * s, a: 0.65, r: 0.9, g: 0.92, b: 0.92, grav: 9.81, drag: 0.4
       });
     }
   },
@@ -715,12 +735,11 @@ const FX = {
     }
     // pożary
     let fireLevel = 0;
-    const ts = Quake.tsunami;
     const sorted = [];
     for (const f of this.fires) {
       if (f.delay > 0) { f.delay -= dt; continue; }
       if (f.out) continue;
-      if (ts && ts.tau > 0 && ts.depthAt(f.x, f.z) > 0.5) {
+      if (Flood.active && Flood.depthAt(f.x, f.z) > 0.5) {
         f.out = true;
         continue;
       }
@@ -753,22 +772,6 @@ const FX = {
       } else L.intensity = 0;
     }
     Sound.setFire(fireLevel * 0.5);
-    // tsunami: piana i rozbryzgi na czole fali
-    if (ts && ts.tau > ts.tCrest && !ts.done) {
-      const n = Math.round(dt * 160);
-      for (let i = 0; i < n; i++) {
-        const x = U.rand(-450, 450);
-        const onLand = ts.tau > ts.tShore;
-        const z = onLand && Math.random() < 0.6 ? ts.zf + U.rand(0, 10) : ts.zc + U.rand(-12, 6);
-        const base = World.baseHeight(x, z);
-        const l = ts.level(x, z, base);
-        if (l === null) continue;
-        this.dust.spawn({
-          x, y: l + 0.5, z, vx: U.rand(-1, 1), vy: U.rand(2, 6), vz: -U.rand(2, 8),
-          life: U.rand(1, 2.2), s0: U.rand(2, 4), s1: U.rand(6, 12), a: 0.55, r: 0.92, g: 0.95, b: 0.97, grav: 6, drag: 0.4
-        });
-      }
-    }
     this.dust.update(dt, fog);
     this.fire.update(dt, fog);
     this.rubble.update(dt);

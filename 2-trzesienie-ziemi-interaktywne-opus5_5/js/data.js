@@ -70,7 +70,9 @@ const HISTORIC = [
   { label: 'Sumatra (Ocean Indyjski)', year: 2004, M: 9.1, depth: 30, dist: 110, soil: 'soft', sea: true,
     note: 'Tsunami uderzyło w 14 krajów. Zginęło ok. 230 tys. osób.' },
   { label: 'Valdivia (Chile)', year: 1960, M: 9.5, depth: 33, dist: 30, soil: 'stiff', sea: true,
-    note: 'Najsilniejsze trzęsienie ziemi, jakie kiedykolwiek zarejestrowano.' }
+    note: 'Najsilniejsze trzęsienie ziemi, jakie kiedykolwiek zarejestrowano.' },
+  { label: 'Megatrzęsienie', year: 0, hypo: true, M: 9.9, depth: 25, dist: 40, soil: 'soft', sea: true,
+    note: 'Scenariusz „co by było, gdyby”. Takiego trzęsienia nigdy nie zarejestrowano. Uskok musiałby pęknąć na długości ok. 2500 km, mniej więcej jak z Gdańska do Lizbony.' }
 ];
 
 const TOD = {

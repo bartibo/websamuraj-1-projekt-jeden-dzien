@@ -116,7 +116,7 @@ const Seis = {
   },
   tsunamiHeight(M, depth, dist, sea) {
     if (!sea || M < 6.9) return 0;
-    const tbl = [[6.9, 0], [7.0, 1.4], [7.5, 3.2], [8.0, 5.5], [8.5, 8.5], [9.0, 12], [9.5, 15.5]];
+    const tbl = [[6.9, 0], [7.0, 1.4], [7.5, 3.2], [8.0, 5.5], [8.5, 8.5], [9.0, 12], [9.5, 15.5], [9.9, 19.5]];
     let H = 0;
     for (let i = 0; i < tbl.length - 1; i++) {
       if (M >= tbl[i][0] && M <= tbl[i + 1][0]) {
@@ -124,11 +124,13 @@ const Seis = {
         H = U.lerp(tbl[i][1], tbl[i + 1][1], t);
       }
     }
-    if (M > 9.5) H = 15.5;
+    if (M > 9.9) H = 19.5;
     H *= U.clamp((85 - depth) / 50, 0, 1);
     H *= U.clamp(1.15 - dist / 450, 0.55, 1);
     return H;
   },
+  /* Najsilniejsze zarejestrowane trzęsienie: Valdivia 1960, M 9,5. Powyżej – scenariusz hipotetyczny. */
+  M_RECORD: 9.5,
   magClass(M) {
     if (M < 2) return { name: 'Mikrowstrząs', color: '#8fb3c9' };
     if (M < 4) return { name: 'Słabe', color: '#7fd1b9' };
@@ -136,6 +138,7 @@ const Seis = {
     if (M < 6) return { name: 'Umiarkowane', color: '#ffd23f' };
     if (M < 7) return { name: 'Silne', color: '#ff9f1c' };
     if (M < 8) return { name: 'Bardzo silne', color: '#ff5a36' };
-    return { name: 'Katastrofalne', color: '#e0115f' };
+    if (M <= 9.5) return { name: 'Katastrofalne', color: '#e0115f' };
+    return { name: 'Hipotetyczne', color: '#b43cf0' };
   }
 };

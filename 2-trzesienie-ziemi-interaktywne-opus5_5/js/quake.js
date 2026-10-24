@@ -324,6 +324,8 @@ const Quake = {
 
   /* Faza trzęsienia do wyświetlenia w interfejsie */
   phaseLabel() {
+    // tsunami w toku jest ważniejsze niż wstrząsy wtórne (o nich mówią komunikaty)
+    if (this.tsunami && !this.tsunami.done && this.tsunami.tau >= 0) return this.tsunami.label();
     if (this.events.length === 0) {
       if (this.tsunami && !this.tsunami.done) return this.tsunami.label();
       return null;
@@ -353,100 +355,80 @@ const Quake = {
   }
 };
 
-/* Tsunami: najpierw morze się cofa, potem nadchodzi fala, zalewa ląd i spływa z powrotem. */
+/* Tsunami: harmonogram fal na granicy morskiej. Najpierw morze się cofa, potem przychodzi seria fal –
+   druga bywa największa. Od granicy do brzegu i po mieście wodę prowadzi symulacja (flood.js).
+   Czas tsunami (tau) liczymy w sekundach symulacji wody. */
 class Tsunami {
   constructor(H, tStart, distKm) {
     this.H = H;
     this.t0 = tStart;
     this.distKm = distKm;
-    this.shore = 75;
-    this.c = 72;
-    this.zStart = 820;
-    this.tCrest = 3.5;                       // start fali z horyzontu
-    this.tShore = this.tCrest + (this.zStart - this.shore) / this.c;
-    this.L = H < 1.5 ? 27 * H / 1.5 : U.clamp((H - 1.5) * 15 + 27, 0, 250);
-    this.tRun = Math.max(4, this.L / 11);
-    this.tHold = 4;
-    this.tBack = 16;
-    this.tEnd = this.tShore + this.tRun + this.tHold + this.tBack;
-    this.D = Math.min(0.45 * H, 6);
+    const A = this.A = H * Flood.AMP;
+    const D = this.D = Math.min(0.9 * A, 6.5);
+    // [start, narastanie, utrzymanie, opadanie, amplituda]
+    this.pulses = H >= 2.5 ? [
+      [0, 5, 7, 6, -D], [11, 6, 8, 8, A * 0.85], [32, 6, 8, 6, -D * 0.6],
+      [47, 6, 9, 9, A], [71, 6, 8, 6, -D * 0.5], [87, 6, 6, 8, A * 0.55]
+    ] : [
+      [0, 5, 7, 6, -D], [11, 6, 8, 8, A], [32, 6, 8, 6, -D * 0.5], [45, 6, 7, 8, A * 0.6]
+    ];
+    this.crests = this.pulses.filter(p => p[4] > 0).map(p => ({ s: p[0], e: p[0] + p[1] + p[2] + p[3], amp: p[4] }));
+    const last = this.pulses[this.pulses.length - 1];
+    this.tForce = last[0] + last[1] + last[2] + last[3];
     this.tau = -1;
     this.done = false;
-    this.maxDepthCity = 0;
-    this.zc = this.zStart;
-    this.zf = this.shore;
-    this.levelK = 1;
-    this.dd = 0;
-    this.flowZ = 0;
   }
   started(t) { return t >= this.t0; }
-  update(t) {
-    const tau = this.tau = t - this.t0;
-    if (tau < 0) return;
-    if (tau > this.tEnd) { this.done = true; return; }
-    // cofanie się morza
-    this.dd = this.D * U.smooth(0, 6, tau) * (1 - U.smooth(this.tShore - 4, this.tShore + 0.5, tau));
-    // położenie grzbietu fali
-    this.zc = tau < this.tCrest ? this.zStart + 400 : this.zStart - this.c * (tau - this.tCrest);
-    const tl = tau - this.tShore;
-    if (tl < 0) {
-      this.zf = this.shore;
-      this.levelK = 1;
-      this.flowZ = 0;
-    } else {
-      const p = U.clamp(tl / this.tRun, 0, 1);
-      const ease = 1 - Math.pow(1 - p, 2.2);
-      this.zf = this.shore - this.L * ease;
-      const tb = tl - this.tRun - this.tHold;
-      this.levelK = 1 - U.smooth(0, this.tBack, tb);
-      if (p < 1) this.flowZ = -(5 + this.H * 0.7) * (1 - p * 0.7);
-      else if (tb < 0) this.flowZ = -1;
-      else this.flowZ = (3 + this.H * 0.35) * (1 - U.smooth(this.tBack * 0.6, this.tBack, tb));
+  /* poziom morza na granicy obszaru symulacji */
+  etaIn(tau) {
+    let e = 0;
+    for (const [s, r, h, f, a] of this.pulses) {
+      if (tau <= s || tau >= s + r + h + f) continue;
+      e += a * U.smooth(s, s + r, tau) * (1 - U.smooth(s + r + h, s + r + h + f, tau));
     }
+    return e;
+  }
+  update(t) {
+    this.tau = (t - this.t0) * Flood.SPEED;
+    // po ostatniej fali kończymy alarm; woda spływa dalej w symulacji
+    if (this.tau > this.tForce + Tsunami.TRAVEL + 22) this.done = true;
+  }
+  /* ile fal dotarło już do brzegu */
+  wavesArrived() {
+    let n = 0;
+    for (const c of this.crests) if (this.tau >= c.s + Tsunami.TRAVEL) n++;
+    return n;
   }
   label() {
-    const tau = this.tau;
+    const tau = this.tau, n = this.crests.length, T = Tsunami.TRAVEL;
     if (tau < 0) return null;
-    if (tau < this.tShore - 3) return '⚠ Morze się cofa – nadchodzi tsunami!';
-    if (tau < this.tShore + this.tRun) return '🌊 Tsunami uderza w wybrzeże';
-    if (tau < this.tShore + this.tRun + this.tHold) return '🌊 Zalanie miasta';
-    return 'Woda spływa do morza';
-  }
-  /* Poziom lustra wody w punkcie; -1000 = brak wody (sucho) */
-  level(x, z, base) {
-    const tau = this.tau;
-    if (tau < 0 || this.done) return null;
-    const wob = 12 * Math.sin(x * 0.013 + 1.3) + 7 * Math.sin(x * 0.034 + 0.4);
-    const zc = this.zc + wob;
-    const A = this.H * (0.32 + 0.68 * U.smooth(700, this.shore, this.zc));
-    if (z >= this.shore - 2) {
-      // morze
-      let eta = -this.dd * Math.exp(-Math.max(0, z - this.shore) / 320);
-      const s = z - zc;
-      let w;
-      if (s < 0) w = Math.exp(-(s / 24) * (s / 24));
-      else w = (0.72 + 0.28 * Math.exp(-(s / 80) * (s / 80))) * Math.exp(-s / 1600);
-      if (tau < this.tCrest) w = 0;
-      eta += A * w * this.levelK;
-      return eta;
+    for (let k = n - 1; k >= 0; k--) {
+      const c = this.crests[k];
+      if (tau < c.s + T) continue;
+      if (tau < c.e + T + 4) return k === 0 && tau < c.s + T + 5 ? '🌊 Tsunami uderza w wybrzeże' : `🌊 Fala ${k + 1} z ${n} zalewa miasto`;
+      if (k < n - 1) return '⚠ Woda się cofa, ale to nie koniec – nadchodzi kolejna fala';
+      return 'Woda spływa do morza';
     }
-    // ląd
-    if (tau < this.tShore) return null;
-    const zf = this.zf + wob * 0.6;
-    if (z < zf) return null;
-    const span = Math.max(1, this.shore - zf);
-    const q = U.clamp((z - zf) / span, 0, 1);
-    const Hs = this.H * this.levelK;
-    const front = base + 0.05;
-    let eta = front + (Hs - front) * Math.pow(q, 0.55);
-    eta = Math.min(eta, Hs + 0.3);
-    if (eta <= base) return null;
-    return eta;
+    return '⚠ Morze się cofa – nadchodzi tsunami!';
   }
-  depthAt(x, z) {
-    const base = World.baseHeight(x, z);
-    const l = this.level(x, z, base);
-    if (l === null) return 0;
-    return Math.max(0, l - base);
+  /* Morze poza obszarem symulacji: ta sama seria fal, przesunięta w czasie z odległością. */
+  farTau(z) {
+    const Z1 = Flood.Z1;
+    return z > Z1 ? this.tau + (z - Z1) / Tsunami.C_FAR : this.tau - (Z1 - z) / Tsunami.C_NEAR;
+  }
+  farLevel(x, z) {
+    if (this.tau < 0) return 0;
+    const amp = z > Flood.Z1 ? 0.45 + 0.55 * Math.exp(-(z - Flood.Z1) / 700) : 1;
+    return amp * this.etaIn(this.farTau(z)) * U.smooth(0, 5, this.tau);
+  }
+  farFoam(x, z) {
+    const t = this.farTau(z);
+    const e = this.etaIn(t);
+    if (e <= 0) return 0;
+    const rising = e > this.etaIn(t - 1.2);
+    return U.smooth(0.3, 0.85, e / this.A) * (rising ? 0.9 : 0.3) * (0.6 + 0.4 * U.noise2(x * 0.05, z * 0.05 + this.tau));
   }
 }
+Tsunami.TRAVEL = 22;     // ile sekund (symulacji) fala płynie od granicy do brzegu
+Tsunami.C_FAR = 40;
+Tsunami.C_NEAR = 10;

@@ -7,6 +7,10 @@ const World = {
   ROADS_X: [-180, -140, -100, -60, -20, 20, 60, 100, 140, 180],
   ROADS_Z: [-170, -130, -90, -50, -10, 30],
   ROAD_W: 10,
+  // obszar symulacji wody (flood.js) – w indeksach siatki morza; wewnątrz morze rysuje symulacja
+  SIM_I0: 34,
+  SIM_I1: 136,
+  SIM_J1: 70,
   scene: null,
   renderer: null,
   tod: 'sunset',
@@ -121,6 +125,8 @@ const World = {
     this.seaMat.envMapIntensity = 1.0;
     this.waterBase = new THREE.Color(p.water);
     this.seaColorsDirty = true;
+    this.seaColorsDirtyFlood = true;
+    if (typeof Flood !== 'undefined' && Flood.mat) Flood.mat.envMapIntensity = 1.0;
   },
 
   /* Szybkie normalne dla regularnej siatki (różnice centralne), tylko w prostokącie zmian. */
@@ -404,6 +410,7 @@ const World = {
     const pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3), uv = new Float32Array(cnt * 2);
     this.sBase = new Float32Array(cnt * 3);   // x, wysokość dna, z
     this.sTaper = new Float32Array(cnt);
+    this.sHidden = new Uint8Array(cnt);
     for (let j = 0; j <= NZ; j++) for (let i = 0; i <= NX; i++) {
       const k = j * (NX + 1) + i;
       const u = i / NX * 2 - 1, v = j / NZ;
@@ -412,7 +419,10 @@ const World = {
       const h = this.baseHeight(x, z);
       this.sBase[k * 3] = x; this.sBase[k * 3 + 1] = h; this.sBase[k * 3 + 2] = z;
       this.sTaper[k] = 1 - U.smooth(380, 720, Math.hypot(x - Quake.center.x, z - Quake.center.z));
-      pos[k * 3] = x; pos[k * 3 + 1] = 0; pos[k * 3 + 2] = z;
+      // wnętrze obszaru symulacji: tę wodę rysuje Flood, tu chowamy siatkę pod dnem
+      const hid = i > this.SIM_I0 && i < this.SIM_I1 && j < this.SIM_J1;
+      this.sHidden[k] = hid ? 1 : 0;
+      pos[k * 3] = x; pos[k * 3 + 1] = hid ? h - 3 : 0; pos[k * 3 + 2] = z;
       uv[k * 2] = x / 70; uv[k * 2 + 1] = z / 70;
     }
     const idx = new Uint32Array(NX * NZ * 6);
@@ -489,7 +499,7 @@ const World = {
   },
 
   updateSea(time) {
-    const g = this.seaGeo, pos = g.attributes.position.array, col = g.attributes.color.array, base = this.sBase;
+    const g = this.seaGeo, pos = g.attributes.position.array, col = g.attributes.color.array, base = this.sBase, hid = this.sHidden;
     const W = this.seaNX + 1;
     const [ri0, ri1, rj0, rj1] = this.seaColorsDirty ? [0, this.seaNX, 0, this.seaNZ] : this.sRect;
     const ts = Quake.tsunami && Quake.tsunami.tau >= 0 && !Quake.tsunami.done ? Quake.tsunami : null;
@@ -504,55 +514,29 @@ const World = {
     this.seaMoved = !!(ts || quakeOn);
     const colorsNeeded = this.seaColorsDirty || ts || this._tsWas;
     this._tsWas = !!ts;
-    let maxCity = 0;
     for (let j = rj0; j <= rj1; j++) for (let i = ri0; i <= ri1; i++) {
       const k = j * W + i;
+      if (hid[k]) continue;
       const o = k * 3;
       const x = base[o], bed = base[o + 1], z = base[o + 2];
-      let eta = 0;
-      let wet = bed < eta - 0.02;
-      let flood = 0;
+      let eta = 0, foam = 0;
       if (ts) {
-        const l = ts.level(x, z, bed);
-        if (l !== null) {
-          eta += l;
-          if (bed > 0.2) {
-            const d = eta - bed;
-            if (d > 0.02) {
-              flood = d;
-              wet = true;
-              eta += 0.25 * Math.sin(x * 0.21 + time * 3.1) * Math.sin(z * 0.17 - time * 2.3) * U.clamp(d, 0, 1);
-              if (z < 46 && x > -200 && x < 200 && d > maxCity) maxCity = d;
-            }
-          } else wet = bed < eta - 0.02;
-        } else if (bed > 0.2) wet = false;
+        eta = ts.farLevel(x, z);
+        if (colorsNeeded) foam = ts.farFoam(x, z);
       }
       if (quakeOn && this.sTaper[k] > 0) {
         const ex = x - Ex, ez = z - Ez;
         const s = Math.sqrt(ex * ex + ez * ez);
-        const f = s - sMin, i = f | 0;
-        if (i >= 0 && i < n - 1) eta += (T.dy[i] + (T.dy[i + 1] - T.dy[i]) * (f - i)) * this.sTaper[k];
+        const f = s - sMin, ii = f | 0;
+        if (ii >= 0 && ii < n - 1) eta += (T.dy[ii] + (T.dy[ii + 1] - T.dy[ii]) * (f - ii)) * this.sTaper[k];
       }
-      pos[o] = x;
-      pos[o + 2] = z;
+      const wet = bed < eta - 0.02;
       pos[o + 1] = wet ? eta : Math.min(eta, bed - 2.5);
       if (colorsNeeded) {
         const depth = Math.max(0, eta - bed);
         const shallow = 1 - U.smooth(0, 9, depth);
         let r = wb.r + shallow * 0.05, gg = wb.g + shallow * 0.16, b = wb.b + shallow * 0.12;
-        if (flood > 0) {
-          const mud = U.smooth(0, 1.5, flood) * 0.85;
-          r = U.lerp(r, 0.2, mud); gg = U.lerp(gg, 0.15, mud); b = U.lerp(b, 0.09, mud);
-        }
-        if (ts) {
-          // piana na czole fali
-          const zc = ts.zc;
-          let foam = 0;
-          if (z > ts.shore - 4 && ts.tau > ts.tCrest) foam = Math.exp(-Math.pow((z - zc + 12) / 16, 2));
-          if (flood > 0 && ts.tau > ts.tShore) foam = Math.max(foam, Math.exp(-Math.pow((z - ts.zf - 6) / 9, 2)) * 0.9);
-          foam *= 0.6 + 0.4 * U.noise2(x * 0.1 + time, z * 0.1);
-          r = U.lerp(r, 0.92, foam); gg = U.lerp(gg, 0.95, foam); b = U.lerp(b, 0.96, foam);
-        }
+        r = U.lerp(r, 0.92, foam); gg = U.lerp(gg, 0.95, foam); b = U.lerp(b, 0.96, foam);
         col[o] = r; col[o + 1] = gg; col[o + 2] = b;
       }
     }
@@ -561,7 +545,6 @@ const World = {
       g.attributes.color.needsUpdate = true;
       this.seaColorsDirty = false;
     }
-    if (ts) ts.maxDepthCity = Math.max(ts.maxDepthCity, maxCity);
     this.gridNormals(g, W, this.seaNZ + 1, ri0, ri1, rj0, rj1);
     this.seaNormal.offset.set(time * 0.012, time * 0.008);
   }

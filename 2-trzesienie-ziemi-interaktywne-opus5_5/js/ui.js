@@ -21,11 +21,13 @@ const UI = {
       sc.appendChild(b);
     });
     const hs = $('historic');
+    const grp = (label) => { const g = document.createElement('optgroup'); g.label = label; hs.appendChild(g); return g; };
+    const gReal = grp('Zarejestrowane'), gHypo = grp('Hipotetyczne');
     HISTORIC.forEach((h, i) => {
       const o = document.createElement('option');
       o.value = i;
-      o.textContent = `${h.label} ${h.year} · M ${U.fmt(h.M, 1)}`;
-      hs.appendChild(o);
+      o.textContent = h.hypo ? `${h.label} · M ${U.fmt(h.M, 1)}` : `${h.label} ${h.year} · M ${U.fmt(h.M, 1)}`;
+      (h.hypo ? gHypo : gReal).appendChild(o);
     });
     hs.onchange = () => {
       const h = HISTORIC[hs.value];
@@ -34,7 +36,7 @@ const UI = {
       this.markScenario(-1);
       const n = $('histNote');
       n.hidden = false;
-      n.innerHTML = `<b>${h.label}, ${h.year}</b> · M ${U.fmt(h.M, 1)}<br>${h.note}<br><small style="color:var(--muted)">Parametry są dobrane w przybliżeniu dla naszego modelowego miasta.</small>`;
+      n.innerHTML = `<b>${h.hypo ? h.label : h.label + ', ' + h.year}</b> · M ${U.fmt(h.M, 1)}<br>${h.note}<br><small style="color:var(--muted)">Parametry są dobrane w przybliżeniu dla naszego modelowego miasta.</small>`;
     };
 
     // suwaki
@@ -51,6 +53,10 @@ const UI = {
     bind('mag', 'M');
     bind('depth', 'depth');
     bind('dist', 'dist');
+    $('wall').addEventListener('input', () => {
+      Flood.setWall(parseFloat($('wall').value));
+      this.refresh();
+    });
     for (const b of document.querySelectorAll('#soilSeg button')) {
       b.onclick = () => { this.params.soil = b.dataset.soil; this.markScenario(-1); this.refresh(); Sound.click(); };
     }
@@ -108,6 +114,10 @@ const UI = {
     document.documentElement.style.setProperty('--accent', mc.color);
     $('magVal').textContent = U.fmt(p.M, 1);
     $('magClass').textContent = mc.name;
+    const hypo = p.M > Seis.M_RECORD;
+    $('magHint').innerHTML = hypo
+      ? '<b>Scenariusz hipotetyczny.</b> Silniejszego trzęsienia nigdy nie zarejestrowano. Rekord to Valdivia (Chile) 1960, M 9,5.'
+      : 'Każdy stopień więcej to <b>10×</b> większe drgania i ok. <b>32×</b> więcej energii.';
     $('depthVal').textContent = `${p.depth} km`;
     $('distVal').textContent = `${p.dist} km`;
     const fill = (el, min, max) => {
@@ -116,6 +126,9 @@ const UI = {
     };
     fill($('depth'), 2, 100);
     fill($('dist'), 0, 160);
+    fill($('wall'), 0, 15);
+    const wallH = Flood.wallH || 0;
+    $('wallVal').textContent = wallH > 0 ? `${wallH} m` : 'brak';
     document.querySelectorAll('#soilSeg button').forEach(b => b.classList.toggle('on', b.dataset.soil === p.soil));
     document.querySelectorAll('#seaSeg button').forEach(b => b.classList.toggle('on', (b.dataset.sea === '1') === p.sea));
 
@@ -132,17 +145,20 @@ const UI = {
     const tnt = f.energy / 4.184e9;
     const hiro = f.energy / 6.3e13;
     $('fcEnergy').innerHTML = `${this.tntText(tnt)}<small>${hiro >= 1 ? '≈ ' + U.fmtBig(hiro) + '× bomba z Hiroszimy' : '≈ ' + U.fmt(hiro * 100, hiro * 100 < 1 ? 3 : 1) + '% bomby z Hiroszimy'}</small>`;
-    $('fcRupture').textContent = f.rupture < 1 ? `≈ ${U.fmt(f.rupture * 1000, 0)} m` : `≈ ${U.fmt(f.rupture, f.rupture < 10 ? 1 : 0)} km`;
+    $('fcRupture').innerHTML = (f.rupture < 1 ? `≈ ${U.fmt(f.rupture * 1000, 0)} m` : `≈ ${U.fmt(f.rupture, f.rupture < 10 ? 1 : 0)} km`)
+      + (f.rupture > 1600 ? '<small>dłuższe niż każde znane pęknięcie (Sumatra 2004: ok. 1500 km)</small>' : '');
     $('fcDur').textContent = f.durReal < 60 ? `≈ ${U.fmt(f.durReal, 0)} s` : `≈ ${U.fmt(f.durReal / 60, 1)} min`;
     $('fcWaves').innerHTML = `${U.fmt(f.tP, 1)} s / ${U.fmt(f.tS, 1)} s<small>na ostrzeżenie: ${U.fmt(f.tS - f.tP, 1)} s</small>`;
     const py = f.perYear;
-    $('fcYear').textContent = py >= 1 ? `≈ ${U.fmtBig(py)} razy w roku` : `raz na ≈ ${U.fmtBig(1 / py)} lat`;
+    $('fcYear').innerHTML = hypo ? 'nigdy nie zarejestrowano<small>rekord: M 9,5 w 1960 r.</small>'
+      : py >= 1 ? `≈ ${U.fmtBig(py)} razy w roku` : `raz na ≈ ${U.fmtBig(1 / py)} lat`;
     const row = $('fcTsuRow');
     if (p.sea) {
       row.hidden = false;
       row.classList.toggle('warn', f.tsunamiH > 0.3);
+      const wallTxt = wallH > 0 ? (f.tsunamiH > wallH + World.G0 - 0.8 ? ` · falochron ${wallH} m: woda się przeleje` : ` · falochron ${wallH} m powinien wystarczyć`) : '';
       $('fcTsu').innerHTML = f.tsunamiH > 0.3
-        ? `fala ≈ ${U.fmt(f.tsunamiH, 1)} m<small>dotrze po ≈ ${U.fmt(f.tsunamiMin, 0)} min</small>`
+        ? `fala ≈ ${U.fmt(f.tsunamiH, 1)} m<small>dotrze po ≈ ${U.fmt(f.tsunamiMin, 0)} min, kilka fal${wallTxt}</small>`
         : (p.M >= 6.9 ? 'mało prawdopodobne<small>ognisko zbyt głęboko</small>' : 'brak<small>potrzeba M ≥ 7</small>');
     } else row.hidden = true;
     this.cells.forEach((c, i) => c.classList.toggle('fc', i + 1 === I));
@@ -266,7 +282,18 @@ const UI = {
     ex.push(['Zasilanie', City.blackout ? 'awaria sieci' : 'działa']);
     if (FX.fires.length) ex.push(['Pożary', FX.fires.length]);
     if (FX.cracks.list.length) ex.push(['Szczeliny w gruncie', FX.cracks.list.length]);
-    if (Main.lastTsunami) ex.push(['Tsunami – woda w mieście', `do ${U.fmt(Main.lastTsunami.maxDepthCity, 1)} m`]);
+    if (Main.lastTsunami) {
+      const fs = Flood.stats;
+      ex.push(['Tsunami – woda w mieście', fs.maxDepthCity > 0.05 ? `do ${U.fmt(fs.maxDepthCity, 1)} m` : 'nie dotarła']);
+      if (fs.inland > 5) ex.push(['Zasięg zalewu', `${U.fmt(fs.inland, 0)} m od brzegu`]);
+      if (fs.maxSpeed > 0.5) ex.push(['Najszybszy nurt w mieście', `${U.fmt(fs.maxSpeed, 1)} m/s (${U.fmt(fs.maxSpeed * 3.6, 0)} km/h)`]);
+      ex.push(['Fale tsunami', Main.lastTsunami.crests.length]);
+      if (Flood.wallH > 0) ex.push([`Falochron ${Flood.wallH} m`, fs.breached ? `przerwany w ${fs.breached} miejscach` : fs.overtopped ? 'woda się przelała' : 'zatrzymał wodę']);
+      const wb = City.buildings.filter(b => b.byWater).length;
+      if (wb) ex.push(['Budynki zniszczone przez wodę', wb]);
+      const boats = Debris.stranded();
+      if (boats) ex.push(['Łodzie wyrzucone na ląd', boats]);
+    }
     if (st.carsMoved) ex.push(['Auta porwane przez wodę', st.carsMoved]);
     $('repExtra').innerHTML = ex.map(([a, b]) => `<li>${a}<b>${b}</b></li>`).join('');
     $('repComment').textContent = this.comment(st, peak);
@@ -275,6 +302,18 @@ const UI = {
 
   comment(st, I) {
     const bt = st.byType;
+    const ts = Main.lastTsunami, fs = Flood.stats;
+    if (ts) {
+      const byWater = City.buildings.filter(b => b.byWater).length;
+      if (Flood.wallH > 0 && !fs.overtopped && fs.maxDepthCity < 0.3)
+        return `Falochron o wysokości ${Flood.wallH} m zatrzymał tsunami – miasto ucierpiało tylko od wstrząsu. Tak w 2011 r. ochroniła się japońska wioska Fudai za wałem wysokim na 15,5 m.`;
+      if (Flood.wallH > 0 && fs.overtopped)
+        return `Woda przelała się przez ${Flood.wallH}-metrowy falochron${fs.breached ? ' i przerwała go' : ''}. Tak było w Japonii w 2011 r.: wiele falochronów okazało się za niskich na falę, która przyszła.`;
+      if (byWater > 0)
+        return `Najwięcej szkód zrobiła woda, nie wstrząs. Tsunami wdarło się ${U.fmt(fs.inland, 0)} m w głąb lądu: porwało lekkie domy, zburzyło kamienice, a auta i łodzie zostawiło na ulicach. Żelbetowe bloki w większości przetrwały.`;
+      if (fs.maxDepthCity > 0.3)
+        return 'Tsunami zalało nadbrzeżne ulice i porwało auta, ale budynki wytrzymały napór wody. Nawet pół metra płynącej wody przewraca człowieka.';
+    }
     const masCol = bt.masonry ? bt.masonry.collapsed : 0;
     const towerOk = bt.tower && bt.tower.collapsed === 0;
     if (I < 2) return 'Wstrząs zarejestrowały tylko sejsmografy. Takich mikrowstrząsów na świecie jest wiele tysięcy dziennie.';
