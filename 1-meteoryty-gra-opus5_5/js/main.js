@@ -54,6 +54,26 @@
   window.addEventListener('pointercancel', release);
   window.addEventListener('contextmenu', e => e.preventDefault());
 
+  // Boczne przyciski myszy (3 – wstecz, 4 – dalej) cofały przeglądarkę na poprzednią stronę w środku gry
+  const blockSideButton = e => { if (e.button === 3 || e.button === 4) e.preventDefault(); };
+  for (const t of ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'auxclick']) window.addEventListener(t, blockSideButton);
+
+  // Druga zapora: sterownik myszy może wysłać klawisz „Wstecz” przeglądarki, którego nie da się anulować.
+  // Dodatkowy wpis w historii przechwytuje cofnięcie – w trakcie misji gra tylko się pauzuje,
+  // poza misją cofamy się naprawdę. Wpis powstaje po pierwszym kliknięciu lub klawiszu – Chrome pomija
+  // przy cofaniu wpisy dodane bez udziału gracza.
+  const armHistory = () => {
+    window.removeEventListener('pointerdown', armHistory, true);
+    window.removeEventListener('keydown', armHistory, true);
+    history.pushState({ tz: 1 }, '');
+  };
+  window.addEventListener('pointerdown', armHistory, true);
+  window.addEventListener('keydown', armHistory, true);
+  window.addEventListener('popstate', () => {
+    const inMission = ['playing', 'paused', 'shop', 'dying'].includes(Game.state);
+    if (inMission) { history.pushState({ tz: 1 }, ''); Game.pause(); } else history.back();
+  });
+
   window.addEventListener('keydown', e => {
     Sound.init();
     const k = e.code;
