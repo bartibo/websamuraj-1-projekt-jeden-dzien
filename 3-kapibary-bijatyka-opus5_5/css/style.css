@@ -13,7 +13,9 @@
   --muted: #c9ae90;
   --p1: #ff8a2a;
   --p2: #58c8ef;
-  --display: 'Lilita One', 'Arial Black', Impact, sans-serif;
+  /* Titan One ma pełny polski alfabet (Lilita One nie ma Ą Ć Ę Ń Ś Ź Ż); Lilita zostaje tylko w logo */
+  --display: 'Titan One', 'Arial Black', Impact, sans-serif;
+  --logo: 'Lilita One', 'Titan One', 'Arial Black', Impact, sans-serif;
   --body: 'Rubik', 'Segoe UI', system-ui, sans-serif;
 }
 
@@ -78,7 +80,7 @@ kbd {
 /* ============ LOGO ============ */
 .logo { text-align: center; line-height: 0.85; transform: rotate(-3deg); }
 .logo-top, .logo-bottom {
-  font-family: var(--display);
+  font-family: var(--logo);
   font-size: clamp(64px, 12vw, 150px);
   letter-spacing: 0.02em;
   -webkit-text-stroke: 4px #2a1206;

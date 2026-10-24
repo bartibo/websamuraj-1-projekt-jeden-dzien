@@ -847,16 +847,18 @@ class Game {
     ctx.save();
     ctx.globalAlpha = clamp(alpha, 0, 1);
     ctx.translate(VW / 2, VH * 0.4);
-    ctx.scale(k * a.size, k * a.size);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = "92px 'Lilita One', 'Arial Black', sans-serif";
+    ctx.font = "92px 'Titan One', 'Arial Black', sans-serif";
+    // długie napisy (np. „ZŁOTY KAPITAN KAPI WYGRYWA!”) zmniejszone tak, żeby zmieściły się na ekranie
+    const fit = Math.min(1, (VW - 90) / (ctx.measureText(a.text).width * a.size));
+    ctx.scale(k * a.size * fit, k * a.size * fit);
     ctx.lineJoin = 'round';
     ctx.lineWidth = 16; ctx.strokeStyle = '#1b0f08'; ctx.strokeText(a.text, 0, 0);
     const g = ctx.createLinearGradient(0, -46, 0, 46);
     g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, a.color); g.addColorStop(1, shade(a.color, -0.35));
     ctx.fillStyle = g; ctx.fillText(a.text, 0, 0);
     if (a.sub) {
-      ctx.font = "44px 'Lilita One', 'Arial Black', sans-serif";
+      ctx.font = "44px 'Titan One', 'Arial Black', sans-serif";
       ctx.lineWidth = 10; ctx.strokeText(a.sub, 0, 78);
       ctx.fillStyle = '#ffffff'; ctx.fillText(a.sub, 0, 78);
     }
@@ -874,7 +876,7 @@ class Game {
     ctx.fillStyle = 'rgba(20,12,8,0.85)'; ctx.fill();
     ctx.lineWidth = 4; ctx.strokeStyle = '#ffd23f'; ctx.stroke();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = "40px 'Lilita One', sans-serif";
+    ctx.font = "40px 'Titan One', sans-serif";
     ctx.fillStyle = this.timer <= 10 && this.roundTime > 0 && this.mode !== 'training' ? '#ff5d5d' : '#ffffff';
     ctx.fillText(this.roundTime > 0 && this.mode !== 'training' ? String(Math.max(0, this.timer)) : '∞', 0, 3);
     ctx.restore();
@@ -891,16 +893,16 @@ class Game {
       ctx.lineJoin = 'round';
       // po obu stronach „3 CIOSY”: liczba, potem słowo; po prawej całość dosunięta do krawędzi
       const word = plural(c.n, 'CIOS', 'CIOSY', 'CIOSÓW');
-      ctx.font = "26px 'Lilita One', sans-serif";
+      ctx.font = "26px 'Titan One', sans-serif";
       const ww = ctx.measureText(word).width;
-      ctx.font = "64px 'Lilita One', sans-serif";
+      ctx.font = "64px 'Titan One', sans-serif";
       const w = ctx.measureText(String(c.n)).width;
       const nx = i === 0 ? x : x - ww - 10 - w;
       ctx.textAlign = 'left';
       ctx.lineWidth = 10; ctx.strokeStyle = '#1b0f08';
       ctx.strokeText(String(c.n), nx, 260);
       ctx.fillStyle = '#ffd23f'; ctx.fillText(String(c.n), nx, 260);
-      ctx.font = "26px 'Lilita One', sans-serif";
+      ctx.font = "26px 'Titan One', sans-serif";
       ctx.lineWidth = 7; ctx.strokeText(word, nx + w + 10, 252);
       ctx.fillStyle = '#ffffff'; ctx.fillText(word, nx + w + 10, 252);
       ctx.textAlign = i === 0 ? 'left' : 'right';
@@ -908,7 +910,7 @@ class Game {
       ctx.lineWidth = 5; ctx.strokeText(`${c.dmg} obrażeń`, x, 288);
       ctx.fillStyle = '#ffb3b3'; ctx.fillText(`${c.dmg} obrażeń`, x, 288);
       if (c.praise) {
-        ctx.font = "30px 'Lilita One', sans-serif";
+        ctx.font = "30px 'Titan One', sans-serif";
         ctx.lineWidth = 7; ctx.strokeText(c.praise.word, x, 326);
         ctx.fillStyle = c.praise.col; ctx.fillText(c.praise.word, x, 326);
       }
@@ -969,7 +971,7 @@ class Game {
     ctx.fillRect(side === 0 ? anchor - W * k : anchor, y + 2, W * k, 5);
     ctx.restore();
     // imię
-    ctx.font = "24px 'Lilita One', sans-serif";
+    ctx.font = "24px 'Titan One', sans-serif";
     ctx.textAlign = side === 0 ? 'left' : 'right'; ctx.textBaseline = 'alphabetic';
     ctx.lineWidth = 5; ctx.strokeStyle = '#1b0f08'; ctx.lineJoin = 'round';
     const nx = side === 0 ? x0 : x0 + W;
@@ -999,7 +1001,7 @@ class Game {
       if (side === 0) ctx.fillRect(sx + 2, my, sw * seg, MH);
       else ctx.fillRect(sx + 2 + sw * (1 - seg), my, sw * seg, MH);
     }
-    ctx.font = "20px 'Lilita One', sans-serif";
+    ctx.font = "20px 'Titan One', sans-serif";
     ctx.textAlign = side === 0 ? 'left' : 'right';
     ctx.lineWidth = 5; ctx.strokeStyle = '#1b0f08';
     const tx = side === 0 ? mx0 : mx0 + MW;

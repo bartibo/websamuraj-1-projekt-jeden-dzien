@@ -164,6 +164,7 @@ audio/dzwieki.js    – nagrania z ElevenLabs (mp3 w base64, działa też z file
   - dźwięki menu i komentator przy wyborze postaci w ogóle działają (wcześniej wyciszało je tło menu),
   - pierwszy klawisz włącza dźwięk (wcześniej dopiero kliknięcie).
 - **Wygląd:**
+  - polskie znaki: napisy krojem Titan One (Lilita One nie ma Ą Ć Ę Ń Ś Ź Ż i przeglądarka dorysowywała je szeryfową czcionką), Lilita zostaje w logo,
   - ekrany przewijają się na telefonie i niskich laptopach, tło menu wypełnia telefon w pionie,
   - bez zdublowanych i nakładających się napisów,
   - imiona w kolorze tekstu zamiast koloru, który mylił się z kolorem gracza,

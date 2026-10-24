@@ -196,7 +196,7 @@ class FX {
           break;
         }
         case 'txt':
-          ctx.font = `${q.size}px 'Lilita One', 'Arial Black', sans-serif`;
+          ctx.font = `${q.size}px 'Titan One', 'Arial Black', sans-serif`;
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.lineWidth = 6; ctx.strokeStyle = '#1b0f08'; ctx.lineJoin = 'round';
           ctx.strokeText(q.str, q.x, q.y);

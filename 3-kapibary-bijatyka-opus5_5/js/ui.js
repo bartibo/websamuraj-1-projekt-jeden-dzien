@@ -225,7 +225,7 @@ const UI = {
         const g = ctx.createLinearGradient(0, 0, 440, 248);
         g.addColorStop(0, '#3a1d0d'); g.addColorStop(1, '#7a3a12');
         ctx.fillStyle = g; ctx.fillRect(0, 0, 440, 248);
-        ctx.font = "120px 'Lilita One', sans-serif"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = "120px 'Titan One', sans-serif"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillStyle = '#ffd23f'; ctx.fillText('?', 220, 130);
       }
     });

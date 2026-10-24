@@ -147,7 +147,7 @@ const FIN_YUZU = {
     }
     if (c.t > 130 && c.t < 300) drawBubble(ctx, l.x, -300, 'Już mi się nie chce walczyć...');
     if (c.t > 160) {
-      ctx.font = "26px 'Lilita One', sans-serif"; ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = "26px 'Titan One', sans-serif"; ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.fillText('z', l.x + 70, -240 - (c.t % 60) * 0.6);
       ctx.fillText('Z', l.x + 90, -270 - (c.t % 60) * 0.4);
     }
