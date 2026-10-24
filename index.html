@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Projekty – 1 prompt, 1 zdanie</title>
+<meta name="description" content="Rozwijane wersje projektów z eksperymentu 1 prompt, 1 zdanie: gry, symulacje i aplikacje w przeglądarce. Każdy zaczął się od jednego zdania.">
+<meta name="theme-color" content="#12110f">
+<link rel="canonical" href="https://projekty.vibemaster.pl/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pl_PL">
+<meta property="og:title" content="Projekty – 1 prompt, 1 zdanie">
+<meta property="og:description" content="Gry, symulacje i aplikacje, które zaczęły się od jednego zdania, a potem były dalej rozwijane.">
+<meta property="og:url" content="https://projekty.vibemaster.pl/">
+<meta property="og:image" content="https://projekty.vibemaster.pl/galeria/projekt-2.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ffb547'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='700' font-size='19' text-anchor='middle' fill='%2312110f'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #12110f;
+    --bg-2: #171613;
+    --surface: #1c1b18;
+    --line: #2f2d28;
+    --line-2: #3d3a33;
+    --text: #f3f0e9;
+    --muted: #a7a297;
+    --dim: #6f6b62;
+    --accent: #ffb547;
+    --accent-ink: #15120c;
+    --sans: "Space Grotesk", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    --ease: cubic-bezier(.2, .7, .2, 1);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.6 var(--sans);
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+  /* ---------- nagłówek ---------- */
+  .top {
+    background:
+      radial-gradient(1100px 600px at 85% -20%, rgba(255, 181, 71, .14), transparent 62%),
+      radial-gradient(700px 420px at -10% 40%, rgba(255, 122, 69, .06), transparent 60%);
+  }
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; text-decoration: none; font-weight: 700; letter-spacing: -.01em; }
+  .brand i {
+    display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px;
+    background: var(--accent); color: var(--accent-ink); font: 700 16px/1 var(--sans); font-style: normal;
+  }
+  .nav-links { display: flex; gap: 6px; }
+  .nav-links a { padding: 8px 12px; border-radius: 999px; text-decoration: none; font-size: 15px; color: var(--muted); transition: color .2s, background .2s; }
+  .nav-links a:hover { color: var(--text); background: var(--surface); }
+
+  .hero { padding: 40px 0 56px; }
+  .kicker { display: inline-flex; align-items: center; gap: 10px; font: 500 13px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .kicker::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(255, 181, 71, .18); }
+  h1 { margin: 16px 0 18px; font-size: clamp(56px, 10vw, 128px); line-height: .9; letter-spacing: -.05em; font-weight: 700; }
+  .lead { max-width: 680px; margin: 0; font-size: 20px; color: var(--muted); }
+  .lead strong { color: var(--text); font-weight: 500; }
+  .lead a { color: var(--text); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
+  .index { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0 0; padding: 0; list-style: none; }
+  .index a {
+    display: inline-flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 16px 0 12px;
+    border: 1px solid var(--line-2); border-radius: 999px; text-decoration: none; font-size: 15px; color: var(--muted);
+    transition: color .2s, border-color .2s, background .2s;
+  }
+  .index a:hover { color: var(--text); border-color: var(--muted); background: var(--surface); }
+  .index b { font: 500 12px var(--mono); color: var(--accent); }
+
+  /* ---------- projekt na całą szerokość ---------- */
+  .proj { --acc: var(--accent); position: relative; padding-bottom: 104px; scroll-margin-top: 0; }
+  .shot { position: relative; display: block; height: min(56.25vw, 86vh); min-height: 240px; overflow: hidden; background: #000; }
+  .shot img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.4s var(--ease); }
+  .shot:hover img { transform: scale(1.025); }
+  .shot::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(18, 17, 15, .35) 0, transparent 18%, transparent 55%, rgba(18, 17, 15, .75) 84%, var(--bg));
+  }
+  .info {
+    position: relative; z-index: 1; margin-top: clamp(-180px, -12vw, -40px);
+    display: grid; grid-template-columns: 1.15fr 1fr; gap: 28px 56px; align-items: start;
+  }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 13px var(--mono); color: var(--muted); }
+  .meta .nr { padding: 4px 8px; border-radius: 6px; background: var(--acc); color: #111; font-weight: 500; }
+  .meta .kat { color: var(--acc); text-transform: uppercase; letter-spacing: .08em; }
+  .meta .stan { padding: 4px 9px; border: 1px solid var(--line-2); border-radius: 999px; background: rgba(18, 17, 15, .6); }
+  .meta .stan.dev { border-color: var(--acc); color: var(--text); }
+  .meta .stan.dev::before { content: "● "; color: var(--acc); }
+  .info h2 { margin: 10px 0 14px; font-size: clamp(42px, 6.4vw, 84px); line-height: .95; letter-spacing: -.04em; text-shadow: 0 2px 30px rgba(0, 0, 0, .5); }
+  .desc { margin: 0 0 26px; max-width: 600px; font-size: 19px; color: #d9d4c8; }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 48px; padding: 0 20px; white-space: nowrap;
+    border-radius: 12px; border: 1px solid var(--line-2); background: rgba(18, 17, 15, .5);
+    text-decoration: none; font-weight: 500; font-size: 15px;
+    transition: transform .2s var(--ease), background .2s, border-color .2s, filter .2s;
+  }
+  .btn:hover { border-color: var(--muted); background: var(--surface); }
+  .btn:active { transform: scale(.97); }
+  .btn.go { background: var(--acc); border-color: var(--acc); color: #111; }
+  .btn.go:hover { filter: brightness(1.08); background: var(--acc); }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+
+  .box { padding: 22px 24px; border: 1px solid var(--line); border-radius: 16px; background: rgba(23, 22, 19, .88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .box h3 { margin: 0 0 12px; font: 500 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .box ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .box li { position: relative; padding-left: 22px; font-size: 15.5px; color: var(--muted); }
+  .box li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 8px; height: 8px; border-radius: 2px; background: var(--acc); }
+  .box li b { color: var(--text); font-weight: 500; }
+  .box .prompt { margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font: 13px/1.6 var(--mono); color: var(--dim); }
+  .box .prompt span { color: #cfc9bc; }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 calc(36px + env(safe-area-inset-bottom)); font-size: 15px; color: var(--muted); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; }
+  footer a { color: var(--text); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
+  /* pojawianie się przy przewijaniu (tylko gdy działa JS) */
+  .js .rv { opacity: 0; transform: translateY(22px); transition: opacity .8s var(--ease), transform .8s var(--ease); }
+  .js .rv.in { opacity: 1; transform: none; }
+
+  @media (max-width: 900px) {
+    .info { grid-template-columns: 1fr; gap: 22px; }
+  }
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .nav { padding: 14px 0; }
+    .nav-links a { padding: 8px 10px; font-size: 14px; }
+    .nav-links .hide-s { display: none; }
+    .hero { padding: 20px 0 40px; }
+    .lead { font-size: 18px; }
+    .index a { min-height: 40px; font-size: 14px; }
+    .proj { padding-bottom: 72px; }
+    .shot { height: auto; aspect-ratio: 16 / 10; min-height: 0; }
+    .info { margin-top: -28px; }
+    .desc { font-size: 17px; }
+    .cta .btn { flex: 1 1 auto; }
+    .box { padding: 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; }
+    .js .rv { opacity: 1; transform: none; }
+  }
+</style>
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+
+<div class="top">
+  <div class="wrap">
+    <nav class="nav" aria-label="Główna">
+      <a class="brand" href="#"><i>P</i>Projekty</a>
+      <div class="nav-links">
+        <a class="hide-s" href="https://1prompt1zdanie.vibemaster.pl/">Oryginały</a>
+        <a href="https://vibemaster.pl">vibemaster.pl</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="kicker">1 prompt, 1 zdanie · ciąg dalszy</div>
+      <h1>Projekty</h1>
+      <p class="lead">Każdy z tych projektów powstał z <strong>jednego zdania</strong>, bez żadnych poprawek. Tutaj są ich <strong>rozwijane wersje</strong>: z nowymi funkcjami i pomysłami, które przyszły później. Wszystko działa w przeglądarce, bez instalowania. Oryginały z jednego promptu są na <a href="https://1prompt1zdanie.vibemaster.pl/">1prompt1zdanie.vibemaster.pl</a>.</p>
+      <ul class="index" aria-label="Spis projektów">
+        <li><a href="#tarcza-ziemi"><b>01</b>Tarcza Ziemi</a></li>
+        <li><a href="#sejsmo-lab"><b>02</b>Sejsmo·Lab</a></li>
+        <li><a href="#kapibara-kombat"><b>03</b>Kapibara Kombat</a></li>
+        <li><a href="#oczami-innych"><b>04</b>Oczami innych</a></li>
+        <li><a href="#absurdoro"><b>05</b>Absurdoro</a></li>
+      </ul>
+    </header>
+  </div>
+</div>
+
+<main>
+  <!-- Nowy projekt: skopiuj całą sekcję. Grafika: galeria/projekt-N.jpg (1920×1080) i projekt-N-960.jpg. -->
+
+  <section class="proj" id="tarcza-ziemi" style="--acc:#4fe3ff" aria-labelledby="h1p">
+    <a class="shot" href="1-meteoryty-gra-opus5_5/" tabindex="-1" aria-hidden="true">
+      <img src="galeria/projekt-1.jpg" srcset="galeria/projekt-1-960.jpg 960w, galeria/projekt-1.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" fetchpriority="high">
+    </a>
+    <div class="wrap info">
+      <div class="rv">
+        <div class="meta"><span class="nr">01</span><span class="kat">Gra</span><span>dzień 1 · 19.10.2026</span><span class="stan dev">rozwijany</span></div>
+        <h2 id="h1p">Tarcza Ziemi</h2>
+        <p class="desc">Z każdej strony nadlatują meteoryty, a ty bronisz Ziemi działem orbitalnym, tarczą energetyczną, impulsem EMP i satelitami. Między falami ulepszasz obronę w sklepie.</p>
+        <div class="cta">
+          <a class="btn go" href="1-meteoryty-gra-opus5_5/"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.8v10.4c0 .6.7 1 1.2.6l8-5.2a.7.7 0 0 0 0-1.2l-8-5.2C4.7 1.8 4 2.2 4 2.8Z"/></svg>Zagraj</a>
+          <a class="btn" href="https://1prompt1zdanie.vibemaster.pl/#dzien-1">Oryginał z jednego promptu</a>
+        </div>
+      </div>
+      <div class="box rv">
+        <h3>Co doszło po eksperymencie</h3>
+        <ul>
+          <li><b>Kampania na 100 fal</b>, a każda kończy się innym statkiem-bossem z własnymi zdolnościami</li>
+          <li><b>Statki wroga</b>: bombowce, kamikadze, kanonierki, łowcy, stawiacze min i nosiciele rojów</li>
+          <li><b>Kontenery z bronią</b>: lanca laserowa, rakiety samonaprowadzające, działo łukowe</li>
+          <li>Protokoły obrony, wydarzenia fal i trzy poziomy trudności</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="proj" id="sejsmo-lab" style="--acc:#ffb547" aria-labelledby="h2p">
+    <a class="shot" href="2-trzesienie-ziemi-interaktywne-opus5_5/" tabindex="-1" aria-hidden="true">
+      <img src="galeria/projekt-2.jpg" srcset="galeria/projekt-2-960.jpg 960w, galeria/projekt-2.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+    </a>
+    <div class="wrap info">
+      <div class="rv">
+        <div class="meta"><span class="nr">02</span><span class="kat">Symulacja 3D</span><span>dzień 2 · 20.10.2026</span><span class="stan dev">rozwijany</span></div>
+        <h2 id="h2p">Sejsmo·Lab</h2>
+        <p class="desc">Nadmorskie miasto stoi na uskoku. Ustawiasz siłę trzęsienia od M 1 do 9,9 i patrzysz w 3D, co dzieje się z budynkami, ulicami, drzewami, samochodami i wybrzeżem.</p>
+        <div class="cta">
+          <a class="btn go" href="2-trzesienie-ziemi-interaktywne-opus5_5/"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.8v10.4c0 .6.7 1 1.2.6l8-5.2a.7.7 0 0 0 0-1.2l-8-5.2C4.7 1.8 4 2.2 4 2.8Z"/></svg>Uruchom</a>
+          <a class="btn" href="https://1prompt1zdanie.vibemaster.pl/#dzien-2">Oryginał z jednego promptu</a>
+        </div>
+      </div>
+      <div class="box rv">
+        <h3>Co doszło po eksperymencie</h3>
+        <ul>
+          <li><b>Tsunami liczone jak prawdziwa woda</b>: płynie ulicami, omija budynki i spływa z powrotem do morza</li>
+          <li>Morze najpierw się cofa, a potem przychodzi <b>seria fal</b></li>
+          <li>Nurt niesie łodzie, auta, drzewa i gruz; drewniane domy rozpadają się na deski</li>
+          <li><b>Falochron</b> do 15 m, kamera „Fala” i magnitudy do 9,9 jako scenariusz hipotetyczny</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="proj" id="kapibara-kombat" style="--acc:#ff7a45" aria-labelledby="h3p">
+    <a class="shot" href="3-kapibary-bijatyka-opus5_5/" tabindex="-1" aria-hidden="true">
+      <img src="galeria/projekt-3.jpg" srcset="galeria/projekt-3-960.jpg 960w, galeria/projekt-3.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+    </a>
+    <div class="wrap info">
+      <div class="rv">
+        <div class="meta"><span class="nr">03</span><span class="kat">Gra dla dwojga</span><span>dzień 3 · 21.10.2026</span><span class="stan">wersja z jednego promptu</span></div>
+        <h2 id="h3p">Kapibara Kombat</h2>
+        <p class="desc">Bijatyka w stylu Street Fightera i Mortal Kombat, w której walczą kapibary. Dwóch graczy gra na jednej klawiaturze, a każda kapibara ma ponad 20 ruchów.</p>
+        <div class="cta">
+          <a class="btn go" href="3-kapibary-bijatyka-opus5_5/"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.8v10.4c0 .6.7 1 1.2.6l8-5.2a.7.7 0 0 0 0-1.2l-8-5.2C4.7 1.8 4 2.2 4 2.8Z"/></svg>Zagraj</a>
+          <a class="btn" href="https://1prompt1zdanie.vibemaster.pl/#dzien-3">Oryginał z jednego promptu</a>
+        </div>
+      </div>
+      <div class="box rv">
+        <h3>Co jest w środku</h3>
+        <ul>
+          <li><b>Cztery kapibary</b>, każda z innym stylem: karateka, właścicielka onsenu, ninja i sumita</li>
+          <li>Ciosy specjalne, combosy w łańcuchach i w powietrzu, <b>super ciosy i Kapibality</b></li>
+          <li>Walka z komputerem na czterech poziomach i tryb treningu z podglądem hitboxów</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="proj" id="oczami-innych" style="--acc:#2fd3b0" aria-labelledby="h4p">
+    <a class="shot" href="4-zaburzenia-wzroku-symulator-opus5_5/" tabindex="-1" aria-hidden="true">
+      <img src="galeria/projekt-4.jpg" srcset="galeria/projekt-4-960.jpg 960w, galeria/projekt-4.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+    </a>
+    <div class="wrap info">
+      <div class="rv">
+        <div class="meta"><span class="nr">04</span><span class="kat">Edukacja</span><span>dzień 4 · 22.10.2026</span><span class="stan">wersja z jednego promptu</span></div>
+        <h2 id="h4p">Oczami innych</h2>
+        <p class="desc">Symulator zaburzeń wzroku. Pokazuje, jak widzą świat osoby z krótkowzrocznością, astygmatyzmem, zezem, daltonizmem, zaćmą, jaskrą i AMD, i tłumaczy, skąd się to bierze.</p>
+        <div class="cta">
+          <a class="btn go" href="4-zaburzenia-wzroku-symulator-opus5_5/"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.8v10.4c0 .6.7 1 1.2.6l8-5.2a.7.7 0 0 0 0-1.2l-8-5.2C4.7 1.8 4 2.2 4 2.8Z"/></svg>Uruchom</a>
+          <a class="btn" href="https://1prompt1zdanie.vibemaster.pl/#dzien-4">Oryginał z jednego promptu</a>
+        </div>
+      </div>
+      <div class="box rv">
+        <h3>Co jest w środku</h3>
+        <ul>
+          <li><b>Ponad 20 zaburzeń</b>, które można też łączyć, np. starczowzroczność z zaćmą</li>
+          <li>Rozmycie liczone z optyki oka: krótkowidz widzi ostro telefon w dłoni, a autobus już nie</li>
+          <li>Porównanie ze zdrowym okiem, okulary i leczenie, <b>quiz</b>, własna kamera albo zdjęcie</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="proj" id="absurdoro" style="--acc:#ff5a45" aria-labelledby="h5p">
+    <a class="shot" href="5-pomodoro-absurdalny-timer-opus5_5/" tabindex="-1" aria-hidden="true">
+      <img src="galeria/projekt-5.jpg" srcset="galeria/projekt-5-960.jpg 960w, galeria/projekt-5.jpg 1920w" sizes="100vw" width="1920" height="1080" alt="" loading="lazy">
+    </a>
+    <div class="wrap info">
+      <div class="rv">
+        <div class="meta"><span class="nr">05</span><span class="kat">Aplikacja</span><span>dzień 5 · 23.10.2026</span><span class="stan">wersja z jednego promptu</span></div>
+        <h2 id="h5p">Absurdoro</h2>
+        <p class="desc">Timer pomodoro z Ministerstwa Czasu Nadmiernie Mierzonego. Najpierw składasz wniosek o przydział czasu, a potem zadanie odlicza się na 12 absurdalnych sposobów.</p>
+        <div class="cta">
+          <a class="btn go" href="5-pomodoro-absurdalny-timer-opus5_5/"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.8v10.4c0 .6.7 1 1.2.6l8-5.2a.7.7 0 0 0 0-1.2l-8-5.2C4.7 1.8 4 2.2 4 2.8Z"/></svg>Uruchom</a>
+          <a class="btn" href="https://1prompt1zdanie.vibemaster.pl/#dzien-5">Oryginał z jednego promptu</a>
+        </div>
+      </div>
+      <div class="box rv">
+        <h3>Co jest w środku</h3>
+        <ul>
+          <li><b>Gąsienica Grażyna zjada pomidora</b>, kot zrzuca rzeczy ze stołu, ślimak ściga się z leniwcem</li>
+          <li>Zegar Dalego topi się z każdą minutą, a foton leci przez Układ Słoneczny</li>
+          <li>Na koniec <b>raport z faktami</b>, w które trudno uwierzyć</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Bartłomiej Borowczyk · <a href="https://vibemaster.pl">vibemaster.pl</a></span>
+    <span><a href="https://1prompt1zdanie.vibemaster.pl/">Oryginały z jednego promptu</a></span>
+  </div>
+</footer>
+
+<script>
+{
+  const el = document.querySelectorAll('.rv');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) el.forEach(e => e.classList.add('in'));
+  else {
+    const obs = new IntersectionObserver(w => w.forEach(x => { if (x.isIntersecting) { x.target.classList.add('in'); obs.unobserve(x.target); } }), { rootMargin: '0px 0px -6% 0px' });
+    el.forEach(e => obs.observe(e));
+  }
+}
+</script>
+</body>
+</html>

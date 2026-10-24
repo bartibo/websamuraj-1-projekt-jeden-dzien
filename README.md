@@ -6,6 +6,8 @@ Oryginały, czyli to, co powstało z jednego zdania bez żadnych poprawek, leż�
 
 Autor: Bartłomiej Borowczyk · [vibemaster.pl](https://vibemaster.pl)
 
+Strona z projektami: **[projekty.vibemaster.pl](https://projekty.vibemaster.pl)** (GitHub Pages z gałęzi `main`, plik [`index.html`](index.html), grafiki w [`galeria/`](galeria/)).
+
 ## Projekty
 
 | # | Projekt | Oryginał z jednego promptu |
@@ -24,7 +26,9 @@ Autor: Bartłomiej Borowczyk · [vibemaster.pl](https://vibemaster.pl)
 
 ## Jak uruchomić
 
-Wejdź do folderu projektu i kliknij dwa razy `index.html`.
+Na [projekty.vibemaster.pl](https://projekty.vibemaster.pl) albo lokalnie: wejdź do folderu projektu i kliknij dwa razy `index.html`.
+
+Nowy projekt na stronie: skopiuj w `index.html` jedną sekcję `<section class="proj">`, zmień teksty i dodaj zrzut `galeria/projekt-N.jpg` (1920×1080) oraz `galeria/projekt-N-960.jpg`.
 
 ## Agenci oceniający
 
