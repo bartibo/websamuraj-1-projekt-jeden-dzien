@@ -23,8 +23,14 @@ const UI = {
     for (const k of ['rapid', 'spread', 'slow', 'gold', 'support', 'weapon']) this.fxBars[k] = this.el['fx-' + k].querySelector('i');
 
     document.addEventListener('click', e => {
+      const now = performance.now();
+      this.clickGap = now - (this.lastClickAt || 0);
+      this.lastClickAt = now;
       const el = e.target.closest('[data-action]');
       if (!el) return;
+      // ekran otwarty przed chwilą sam (pauza po utracie fokusu, sklep, koniec gry) – klik z ostrzału
+      // planety nie może trafić w jego przycisk, np. „Porzuć misję” na środku ekranu
+      if (el.closest('.screen') && now - this.shownAt < 600) return;
       el.blur();
       Sound.init();
       this.action(el.dataset.action, el);
@@ -40,13 +46,23 @@ const UI = {
   },
 
   show(name) {
+    if (name !== this.current) this.shownAt = performance.now();
     this.current = name;
     for (const k in this.screens) this.screens[k].classList.toggle('active', k === name);
     const st = this.g.state;
     this.hud.classList.toggle('visible', st === 'playing' || st === 'dying' || st === 'paused');
     document.body.classList.toggle('in-game', st === 'playing');
     if (name === 'help') this.buildHelp();
-    if (name === 'pause') this.$('pause-protos').innerHTML = this.protoList();
+    if (name === 'pause') {
+      this.$('pause-protos').innerHTML = this.protoList();
+      this.disarmAbandon();
+    }
+  },
+
+  disarmAbandon() {
+    const b = this.$('abandon-btn');
+    delete b.dataset.armed;
+    b.textContent = 'Porzuć misję';
   },
 
   // Aktywne protokoły jako lista chipów (pauza, koniec gry)
@@ -79,6 +95,16 @@ const UI = {
       case 'pause': g.pause(); break;
       case 'resume': Sound.click(); g.resume(); break;
       case 'menu': Sound.click(); g.toMenu(); break;
+      case 'abandon':
+        // porzucenie misji kasuje całą rozgrywkę – potrzebne drugie kliknięcie po chwili przerwy,
+        // seria szybkich klików z ostrzału go nie zastąpi
+        if (el.dataset.armed && this.clickGap > 400) { Sound.click(); g.toMenu(); break; }
+        if (!el.dataset.armed) {
+          el.dataset.armed = '1';
+          el.textContent = 'Na pewno? Kliknij ponownie';
+          Sound.deny();
+        }
+        break;
       case 'endless': Sound.click(); g.continueEndless(); break;
       case 'next':
         // najpierw wybór protokołu – inaczej łatwo go przeoczyć
