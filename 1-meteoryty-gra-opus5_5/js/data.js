@@ -24,8 +24,8 @@ const METEOR_TYPES = {
     speed: 0.95, spin: 0.4, trail: 'ember', palette: 'volatile', color: '#ff9a2a', blast: 115,
   },
   comet: {
-    name: 'Kometa', desc: 'Szybka; po trafieniu rozpada się na lodowe odłamki. Od fali 6.',
-    radius: [0, 19], hp: [0, 34], impact: [0, 8], score: [0, 50], credits: [0, 6],
+    name: 'Kometa', desc: 'Szybka; po trafieniu rozpada się na lód. Od fali 8 także wielkie, które pękają na dwie. Od fali 3.',
+    radius: [0, 19, 30], hp: [0, 34, 85], impact: [0, 8, 14], score: [0, 50, 95], credits: [0, 6, 10],
     speed: 1.55, spin: 0.3, trail: 'comet', palette: 'comet', color: '#8fdcff',
   },
   zig: {
@@ -39,9 +39,55 @@ const METEOR_TYPES = {
     speed: 0.8, spin: 0.3, trail: 'dust', palette: 'iron', color: '#7fd7ff', shield: 0.9, art: 'iron', drop: 0.1,
   },
   hunter: {
-    name: 'Łowca', desc: 'Obcy statek. Krąży po orbicie i ostrzeliwuje tarczę – jego pociski da się zestrzelić. Od fali 8.',
+    name: 'Łowca', desc: 'Obcy statek. Krąży po orbicie i ostrzeliwuje tarczę – jego pociski da się zestrzelić. Od fali 6.',
     radius: [0, 19], hp: [0, 110], impact: [0, 10], score: [0, 150], credits: [0, 15],
-    speed: 1.1, spin: 0, trail: 'alien', palette: 'alien', color: '#8dff9a', ship: true, noPush: true, drop: 0.35,
+    speed: 1.1, spin: 0, trail: 'alien', palette: 'alien', color: '#8dff9a', ai: 'hunter', noPush: true, drop: 0.35,
+  },
+  // Statki wroga (ai – zachowanie w js/enemies.js, hull – grafika z generatora statków)
+  bomber: {
+    name: 'Bombowiec', desc: 'Przelatuje bokiem i zrzuca bomby na planetę. Od fali 3.',
+    radius: [0, 26], hp: [0, 60], impact: [0, 10], score: [0, 90], credits: [0, 9],
+    speed: 0.85, spin: 0, trail: 'engine', palette: 'ship', color: '#ffb36b', ai: 'bomber', hull: true, noPush: true, drop: 0.25,
+  },
+  bomb: {
+    name: 'Bomba', desc: '',
+    radius: [8], hp: [10], impact: [9], score: [15], credits: [1],
+    speed: 0.7, spin: 2, trail: 'ember', palette: 'volatile', color: '#ff7040', art: 'mine',
+  },
+  kamikaze: {
+    name: 'Kamikadze', desc: 'Lecą trójkami i przyspieszają prosto na planetę – zestrzel je, zanim się rozpędzą. Od fali 4.',
+    radius: [13], hp: [16], impact: [13], score: [45], credits: [4],
+    speed: 1.1, spin: 0, trail: 'fire', palette: 'ship', color: '#ff4d5e', ai: 'kamikaze', hull: true, impacts: true,
+  },
+  gunship: {
+    name: 'Kanonierka', desc: 'Zatrzymuje się przy krawędzi ekranu i strzela szybkimi pociskami. Błysk zapowiada strzał. Od fali 5.',
+    radius: [0, 23], hp: [0, 75], impact: [0, 0], score: [0, 110], credits: [0, 11],
+    speed: 1.0, spin: 0, trail: 'engine', palette: 'ship', color: '#d8ff6a', ai: 'gunship', hull: true, noPush: true, drop: 0.25,
+  },
+  minelayer: {
+    name: 'Stawiacz min', desc: 'Krąży wokół planety i rozstawia miny. Od fali 7.',
+    radius: [0, 25], hp: [0, 85], impact: [0, 0], score: [0, 120], credits: [0, 12],
+    speed: 0.9, spin: 0, trail: 'engine', palette: 'ship', color: '#ff7ad9', ai: 'minelayer', hull: true, noPush: true, drop: 0.3,
+  },
+  carrier: {
+    name: 'Nosiciel', desc: 'Ciężki statek wypuszczający roje małych myśliwców-samobójców. Od fali 9.',
+    radius: [0, 0, 38], hp: [0, 0, 230], impact: [0, 0, 0], score: [0, 0, 230], credits: [0, 0, 22],
+    speed: 0.6, spin: 0, trail: 'engine', palette: 'ship', color: '#c48bff', ai: 'carrier', hull: true, noPush: true, drop: 0.5,
+  },
+  swarmer: {
+    name: 'Myśliwiec roju', desc: '',
+    radius: [8], hp: [5], impact: [4], score: [12], credits: [1],
+    speed: 2.0, spin: 0, trail: 'fire', palette: 'ship', color: '#ff9a6a', ai: 'swarmer', hull: true, impacts: true,
+  },
+  escort: {
+    name: 'Osłonowiec', desc: 'Nakłada tarcze energetyczne na meteoryty wokół siebie – zestrzel go najpierw. Od fali 12.',
+    radius: [0, 23], hp: [0, 95], impact: [0, 0], score: [0, 130], credits: [0, 13],
+    speed: 0.9, spin: 0, trail: 'engine', palette: 'ship', color: '#7fe9ff', ai: 'escort', hull: true, noPush: true, drop: 0.3,
+  },
+  missile: {
+    name: 'Rakieta', desc: '',
+    radius: [9], hp: [12], impact: [11], score: [20], credits: [1],
+    speed: 1.5, spin: 0, trail: 'fire', palette: 'ship', color: '#ffd166', ai: 'missile', hull: true, impacts: true,
   },
   bolt: {
     name: 'Pocisk plazmowy', desc: '',
@@ -53,6 +99,16 @@ const METEOR_TYPES = {
     radius: [0, 0, 34], hp: [0, 0, 70], impact: [0, 0, 12], score: [0, 0, 90], credits: [0, 0, 10],
     speed: 0.75, spin: 0.4, trail: 'ember', palette: 'cluster', color: '#ff7ad9',
   },
+  ship: {
+    name: 'Statek-boss', desc: '',
+    radius: [40], hp: [1], impact: [0], score: [0], credits: [0],
+    speed: 0.9, spin: 0, trail: 'engine', palette: 'boss', color: '#ff5a5a', ai: 'boss', noPush: true,
+  },
+  mine: {
+    name: 'Mina', desc: '',
+    radius: [11], hp: [25], impact: [12], score: [30], credits: [3],
+    speed: 0.5, spin: 1.2, trail: 'alien', palette: 'volatile', color: '#ff5050', blast: 60,
+  },
   ice: {
     name: 'Lodowy odłamek', desc: '',
     radius: [9], hp: [6], impact: [3], score: [10], credits: [1],
@@ -60,7 +116,7 @@ const METEOR_TYPES = {
   },
   boss: {
     name: 'Planetoida', desc: 'Olbrzym nadlatujący co 5 fal. Wyrzuca z siebie odłamki.',
-    radius: [78], hp: [800], impact: [45], score: [3000], credits: [160],
+    radius: [78], hp: [650], impact: [45], score: [3000], credits: [160],
     speed: 0.32, spin: 0.12, trail: 'boss', palette: 'boss', color: '#ff4040', drop: 1,
   },
 };
@@ -77,6 +133,7 @@ const PALETTES = {
   boss:     { spark: '255,180,100', glow: '255,90,40',   smoke: '60,40,35',   debris: '#6a4a36' },
   shield:   { spark: '160,255,255', glow: '60,220,255',  smoke: '40,90,110',  debris: '#8ff' },
   planet:   { spark: '255,210,110', glow: '255,110,30',  smoke: '55,42,36',   debris: '#5a4a3a' },
+  ship:     { spark: '255,215,160', glow: '255,140,60',  smoke: '60,58,66',   debris: '#7a7f8c' },
   zig:      { spark: '225,180,255', glow: '170,90,255',  smoke: '60,40,80',   debris: '#7a5a9a' },
   cluster:  { spark: '255,170,230', glow: '255,80,200',  smoke: '70,40,60',   debris: '#6a4a5a' },
   alien:    { spark: '190,255,170', glow: '90,255,120',  smoke: '40,70,50',   debris: '#5a7a6a' },
@@ -135,13 +192,15 @@ const UPGRADES = [
 const WAVE_INTRO = {
   1: 'Przytrzymaj LPM, by strzelać · Spacja – impuls EMP',
   2: 'Nowe zagrożenie: szybkie odłamki',
-  3: 'Nowe zagrożenie: meteoryty żelazne',
-  4: 'Nowe zagrożenie: meteoryty wybuchowe',
-  6: 'Nowe zagrożenie: komety',
-  7: 'Nowe zagrożenie: wirujące odłamki',
-  8: 'Nowe zagrożenie: Łowcy – obce statki na orbicie',
-  9: 'Nowe zagrożenie: meteoryty z tarczą – EMP ją zrywa',
-  11: 'Nowe zagrożenie: gromady – nie rozbijaj ich przy planecie',
+  3: 'Nowe: komety, żelazne meteoryty i bombowce',
+  4: 'Nowe: meteoryty wybuchowe i kamikadze',
+  5: 'Nowe: kanonierki – błysk zapowiada strzał',
+  6: 'Nowe: Łowcy krążący po orbicie',
+  7: 'Nowe: wirujące odłamki i stawiacze min',
+  8: 'Nowe: wielkie komety',
+  9: 'Nowe: meteoryty z tarczą i nosiciele rojów',
+  11: 'Nowe: gromady – nie rozbijaj ich przy planecie',
+  12: 'Nowe: osłonowce – zestrzel je najpierw',
 };
 const WAVE_FLAVOR = [
   'Czujniki wykrywają gęsty rój',
@@ -150,6 +209,25 @@ const WAVE_FLAVOR = [
   'Radar nie nadąża z liczeniem',
   'Ludzkość patrzy w niebo',
   'Kolejna fala na kursie kolizyjnym',
+];
+
+/* Poziomy trudności: mnożniki wytrzymałości, liczby meteorytów i statków, siły bossów i uderzeń */
+const DIFFICULTIES = {
+  easy:      { name: 'Łagodny',  hp: 0.75, count: 0.85, ships: 0.6, boss: 0.75, pace: 1.3, dmg: 0.75 },
+  normal:    { name: 'Normalny', hp: 1,    count: 1,    ships: 1,   boss: 1,    pace: 1,   dmg: 1 },
+  nightmare: { name: 'Koszmar',  hp: 1.2,  count: 1.1,  ships: 1.3, boss: 1.2,  pace: 0.88, dmg: 1.1 },
+};
+const DIFF_ORDER = ['easy', 'normal', 'nightmare'];
+
+/* Statki wroga w falach: od której fali i jak często (w – waga losowania) */
+const ENEMY_WAVES = [
+  { type: 'bomber',    from: 3,  w: 3,   size: 1 },
+  { type: 'kamikaze',  from: 4,  w: 2.5, size: 0 },
+  { type: 'gunship',   from: 5,  w: 2.5, size: 1 },
+  { type: 'hunter',    from: 6,  w: 2,   size: 1 },
+  { type: 'minelayer', from: 7,  w: 1.8, size: 1 },
+  { type: 'carrier',   from: 9,  w: 1.2, size: 2 },
+  { type: 'escort',    from: 12, w: 1.3, size: 1 },
 ];
 
 /* Protokoły obrony: co kilka fal wybór 1 z 3 kart na resztę rozgrywki. Każda ma plus i minus. */
@@ -175,7 +253,8 @@ const WAVE_EVENTS = [
   { id: 'iron',     name: 'Pole żelaza',        desc: 'dużo żelaznych meteorytów, kredyty ×1,5', from: 5, weights: { iron: 8 }, count: 0.8, credits: 1.5 },
   { id: 'chainrx',  name: 'Niestabilny rój',    desc: 'dużo wybuchowych – czas na reakcje łańcuchowe', from: 5, weights: { volatile: 8 } },
   { id: 'storm',    name: 'Burza słoneczna',    desc: 'tarcza się nie odnawia, EMP ładuje się 2× szybciej', from: 6, noRegen: true, emp: 0.5 },
-  { id: 'comets',   name: 'Deszcz komet',       desc: 'komety rozpadające się na lód', from: 7, weights: { comet: 7 } },
+  { id: 'comets',   name: 'Deszcz komet',       desc: 'komety rozpadające się na lód', from: 3, weights: { comet: 7 } },
+  { id: 'raid',     name: 'Najazd',             desc: 'trzy dodatkowe statki wroga, kredyty ×1,3', from: 5, ships: 3, credits: 1.3 },
   { id: 'fronts',   name: 'Dwa fronty',         desc: 'meteoryty nadlatują z dwóch przeciwnych stron', from: 8, fronts: true },
   { id: 'convoy',   name: 'Konwój zaopatrzenia', desc: 'trzy kontenery z bronią do zestrzelenia', from: 4, crates: 3 },
   { id: 'hunters',  name: 'Polowanie',          desc: 'dodatkowi Łowcy na orbicie, kredyty ×1,3', from: 10, hunters: 2, credits: 1.3 },

@@ -75,6 +75,7 @@
       if (Game.state === 'shop') UI.action('next');
       else if (Game.state === 'menu' && UI.current === 'menu') UI.action('play');
       else if (Game.state === 'gameover') UI.action('restart');
+      else if (Game.state === 'won') UI.action('endless');
     } else if (Game.state === 'shop') {
       const proto = { KeyQ: 0, KeyW: 1, KeyE: 2 }[k];
       if (proto !== undefined) { Game.chooseProtocol(proto); return; }

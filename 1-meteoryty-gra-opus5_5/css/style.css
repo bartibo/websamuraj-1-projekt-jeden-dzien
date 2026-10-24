@@ -197,6 +197,9 @@ kbd {
 }
 .tagline { max-width: 520px; color: #b7d3e2; font-size: clamp(14px, 1.6vw, 17px); line-height: 1.5; text-shadow: 0 2px 10px #000; }
 .menu-bottom { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.diff-btn { min-width: 220px; }
+.diff-btn[data-level="easy"] { color: var(--green); border-color: rgba(125, 255, 154, 0.4); }
+.diff-btn[data-level="nightmare"] { color: #ff8a95; border-color: rgba(255, 77, 94, 0.5); background: rgba(255, 77, 94, 0.08); }
 .records { font-family: var(--display); font-size: 12px; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; }
 .records b { color: var(--gold); font-weight: 700; }
 .records .sep { margin: 0 12px; opacity: 0.5; }
@@ -351,6 +354,12 @@ kbd {
 #next-btn.locked { filter: saturate(0.4) brightness(0.8); }
 .shop-next { font-family: var(--display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); max-width: 520px; line-height: 1.5; }
 .shop-next.event b { color: var(--gold); font-weight: 700; }
+.next-boss { display: block; margin-top: 2px; color: #ff9aa4; }
+.next-boss b { color: #ffd0d4; }
+.shop-status .boss b { color: var(--gold); }
+.hud-wave small { font-size: 0.45em; margin-left: 3px; color: var(--muted); text-shadow: none; }
+.hud-wave small.hide { display: none; }
+.over-panel.win-panel h2 { color: #fff6da; text-shadow: 0 0 26px rgba(255, 209, 102, 0.85); }
 .shop-next.danger { color: var(--red); text-shadow: 0 0 12px rgba(255, 77, 94, 0.6); animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: 0.55; } }
 
@@ -401,6 +410,11 @@ kbd {
 .hud-boss.show { opacity: 1; transform: translate(-50%, 0); }
 .boss-name { font-family: var(--display); font-weight: 900; font-size: 13px; letter-spacing: 0.4em; text-transform: uppercase; color: #ff6b6b; text-shadow: 0 0 12px rgba(255, 60, 60, 0.8); margin-bottom: 5px; }
 .boss-bar { height: 9px; border: 1px solid rgba(255, 90, 90, 0.6); border-radius: 5px; padding: 1px; background: rgba(40, 0, 0, 0.5); }
+.boss-bar { position: relative; }
+.boss-bar::before, .boss-bar::after { content: ''; position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(255, 220, 220, 0.7); z-index: 1; }
+.boss-bar::before { left: 33%; }
+.boss-bar::after { left: 66%; }
+.hud-boss.rage .boss-name { animation: blink .5s infinite; }
 .boss-bar i { border-radius: 3px; background: linear-gradient(90deg, #ff3b3b, #ff9a3d); box-shadow: 0 0 10px #ff4b4b; transition: transform .15s; }
 
 .hud-bottom {

@@ -20,12 +20,13 @@ const Game = {
     const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.shakeOn = Store.get('tz_shake', !reduce);
     this.empUsed = Store.get('tz_emp', false);
+    this.diffId = DIFFICULTIES[Store.get('tz_diff', 'normal')] ? Store.get('tz_diff', 'normal') : 'normal';
     this.mods = new Set(); this.event = null; this.nextEvent = null; this.offer = null;
     this.time = 0; this.dt = 0; this.shake = 0; this.flash = 0; this.dmgFlash = 0;
     this.turretAngle = -Math.PI / 2; this.recoil = 0;
     this.effects = { rapid: 0, spread: 0, slow: 0, gold: 0 };
     this.up = this.freshUpgrades();
-    this.stats = { kills: 0, shots: 0, hits: 0, bosses: 0, perfect: 0 };
+    this.stats = { kills: 0, shots: 0, hits: 0, bosses: 0, ships: 0, perfect: 0 };
     this.drones = []; this.droneAngle = 0;
     this.fxQuality = 1; this.avgDt = 1 / 60;
     this.hp = 100; this.maxHp = 100; this.shield = 30;
@@ -69,14 +70,19 @@ const Game = {
   get empRadius() { return 250 * (1 + 0.15 * this.up.emp) * this.scale * (this.has('overload') ? 0.75 : 1); },
   get comboTime() { return this.has('cascade') ? 4 : COMBO_TIME; },
   get droneCount() { return (this.has('swarm') ? Math.max(2, this.up.drone * 2) : this.up.drone) + (this.supportT > 0 ? 3 : 0); },
-  // Od 8. fali wytrzymałość rośnie wykładniczo – gra bez końca, ale ulepszenia w końcu przestają wystarczać
+  // Wytrzymałość nadąża za ulepszeniami: do fali 30 rośnie szybko (z kwadratem), potem już liniowo,
+  // tak jak siła działa po wykupieniu wszystkiego. Fala 10 ≈ ×8, 30 ≈ ×72, 100 ≈ ×170
+  get diff() { return DIFFICULTIES[this.diffId]; },
+  setDifficulty(id) { this.diffId = id; Store.set('tz_diff', id); },
   get hpMul() {
     if (this.demo) return 1;
-    return (1 + (this.wave - 1) * 0.12) * Math.pow(1.12, Math.max(this.wave - 8, 0));
+    const n = Math.min(this.wave, 30) - 1;
+    const mid = 1 + n * 0.12 + n * n * 0.08;
+    return mid * (1 + Math.max(this.wave - 30, 0) * 0.02) * this.diff.hp;
   },
   get baseSpeed() {
     const n = Math.max(this.wave - 1, 0);
-    return (this.demo ? 85 : 56) * this.scale * (1 + Math.min(n, 24) * 0.04 + Math.max(n - 24, 0) * 0.03);
+    return (this.demo ? 85 : 56) * this.scale * (1 + Math.min(n, 24) * 0.045 + Math.max(n - 24, 0) * 0.02);
   },
   get multiplier() { return 1 + Math.min(this.has('cascade') ? 6 : 4, Math.floor(this.combo / 8) * 0.5); },
 
@@ -105,7 +111,7 @@ const Game = {
       MeteorArt.clear();
       for (const m of this.meteors) {
         m.r *= k; m.x *= k; m.y *= k;
-        m.art = MeteorArt.get(m.type, m.r);
+        m.art = m.spec ? ShipArt.get(m.spec, m.r) : m.T.hull ? ShipArt.get(enemySpec(m.type), m.r) : MeteorArt.get(m.T.art || m.type, m.r);
       }
     }
   },
@@ -207,7 +213,8 @@ const Game = {
     this.shield = this.shieldMax; this.shieldDelay = 0;
     this.score = 0; this.credits = 0; this.wave = 0;
     this.combo = 0; this.comboTimer = 0; this.maxCombo = 0;
-    this.stats = { kills: 0, shots: 0, hits: 0, bosses: 0, perfect: 0 };
+    this.stats = { kills: 0, shots: 0, hits: 0, bosses: 0, ships: 0, perfect: 0 };
+    this.endless = false; this.lastBoss = null;
     this.mods.clear(); this.event = null; this.nextEvent = null; this.offer = null; this.rerolls = 0;
     this.lastHit = null; this.empHintWave = 0;
     this.empTimer = 0; this.fireTimer = 0; this.slowmo = 0; this.flash = 0; this.dmgFlash = 0;
@@ -219,15 +226,17 @@ const Game = {
 
   buildWave(n) {
     const events = [];
-    const boss = n % 5 === 0;
+    // planetoida co 5 fal, od fali 10 (wcześniej wystarczy statek-boss)
+    const boss = n % 5 === 0 && n >= 10;
     const E = this.event || {};
-    const count = Math.min(110, Math.round((6 + n * 2.6 + n * n * 0.04) * (boss ? 0.55 : 1) * (E.count || 1)));
+    // pierwsze fale łagodne, od fali 7 gęstnieje szybciej
+    const count = Math.min(150, Math.round((6 + n * 2.4 + n * n * 0.06 + Math.max(n - 6, 0) * 2) * (boss ? 0.6 : 1) * (E.count || 1) * this.diff.count));
     const duration = Math.min(14 + n * 1.6, 45);
     const weights = [['rock', 10]];
     if (n >= 2) weights.push(['fast', 2 + n * 0.5]);
     if (n >= 3) weights.push(['iron', 1.2 + n * 0.3]);
     if (n >= 4) weights.push(['volatile', 1.5 + n * 0.25]);
-    if (n >= 6) weights.push(['comet', 1 + n * 0.2]);
+    if (n >= 3) weights.push(['comet', 0.5 + (n - 3) * 0.35]);
     if (n >= 7) weights.push(['zig', 1 + n * 0.15]);
     if (n >= 9) weights.push(['shielded', 0.8 + n * 0.12]);
     if (n >= 11) weights.push(['cluster', 0.6 + n * 0.08]);
@@ -258,21 +267,33 @@ const Game = {
         else if (type === 'iron') size = Math.random() < 0.55 ? 1 : 2;
         else if (type === 'shielded') size = Math.random() < 0.6 ? 1 : 2;
         else if (type === 'cluster') size = 2;
-        else if (type === 'volatile' || type === 'comet' || type === 'zig') size = 1;
+        else if (type === 'comet') size = n >= 8 && Math.random() < 0.35 ? 2 : 1;
+        else if (type === 'volatile' || type === 'zig') size = 1;
         events.push({ t, type, size, angle: aim(type) });
         i++;
       }
     }
-    // Łowcy (obce statki) od fali 8 – co kilka fal jeden więcej
-    if (n >= 8) {
-      const hunters = (boss ? 0 : 1 + Math.floor((n - 8) / 6)) + (E.hunters || 0);
-      for (let h = 0; h < hunters; h++) events.push({ t: rand(3, duration * 0.85), type: 'hunter', size: 1 });
+    // Statki wroga od fali 3 – nowy typ na pewno pojawia się w swojej pierwszej fali
+    if (n >= 3) {
+      const avail = ENEMY_WAVES.filter(e => n >= e.from);
+      const ships = Math.min(20, Math.round((1 + (n - 3) * 0.5) * (boss ? 0.6 : 1) * this.diff.ships) + (E.ships || 0));
+      const fresh = avail.find(e => e.from === n);
+      for (let k = 0; k < ships; k++) {
+        const e = k === 0 && fresh ? fresh : avail[weightedPick(avail.map((v, i) => [i, v.w]))];
+        const t = rand(2, duration * 0.9), ang = rand(0, TAU);
+        // kamikadze lecą trójkami z jednego kierunku
+        const group = e.type === 'kamikaze' ? 3 : 1;
+        for (let j = 0; j < group; j++) events.push({ t: t + j * 0.3, type: e.type, size: e.size, angle: ang + rand(-0.1, 0.1) });
+      }
+      for (let h = 0; h < (E.hunters || 0); h++) events.push({ t: rand(3, duration * 0.85), type: 'hunter', size: 1 });
     }
     // Kontenery z bronią – trzeba je zestrzelić, zanim przelecą
     if (n >= 3) {
       const crates = (Math.random() < 0.45 + n * 0.02 ? 1 : 0) + (E.crates || 0);
       for (let c = 0; c < crates; c++) events.push({ t: rand(4, Math.max(6, duration * 0.8)), type: 'crate' });
     }
+    // na koniec każdej fali – statek-boss
+    events.push({ t: duration + 2.5, type: 'ship', size: 0 });
     if (boss) {
       // co druga planetoida to Bliźnięta: dwie mniejsze z przeciwnych stron
       if ((n / 5) % 2 === 0) {
@@ -292,7 +313,7 @@ const Game = {
     this.waveTime = 0; this.waveDamage = 0; this.waveKills = 0; this.waveClear = 0;
     this.waveShots = this.stats.shots; this.waveHits = this.stats.hits;
     this.state = 'playing';
-    const isBoss = this.wave % 5 === 0;
+    const isBoss = this.wave % 5 === 0 && this.wave >= 10;
     let sub = isBoss ? ((this.wave / 5) % 2 === 0 ? 'Uwaga: nadlatują Bliźnięta – dwie planetoidy!' : 'Uwaga: nadlatuje planetoida!')
       : (WAVE_INTRO[this.wave] || pick(WAVE_FLAVOR));
     if (this.wave === 1 && UI.touch) sub = 'Przytrzymaj palec, by strzelać · dwa palce – EMP';
@@ -328,10 +349,30 @@ const Game = {
     Sound.clear();
     Sound.setIntensity(0);
     const shots = this.stats.shots - this.waveShots, hits = this.stats.hits - this.waveHits;
-    UI.showShop({
+    const sum = {
       wave: this.wave, kills: this.waveKills, acc: shots ? hits / shots : 0,
-      bonus, scoreBonus, perfect, damage: this.waveDamage, heal,
-    });
+      bonus, scoreBonus, perfect, damage: this.waveDamage, heal, boss: this.lastBoss,
+    };
+    this.lastBoss = null;
+    // po 100. fali – zwycięstwo (można grać dalej bez końca)
+    if (this.wave === FINAL_WAVE && !this.endless) {
+      this.state = 'won';
+      this.pendingShop = sum;
+      Store.set('tz_won', true);
+      const best = Store.get('tz_best', 0);
+      if (this.score > best) Store.set('tz_best', this.score);
+      Store.set('tz_bestwave', Math.max(Store.get('tz_bestwave', 0), this.wave));
+      UI.showWin({ score: this.score, kills: this.stats.kills, ships: this.stats.ships, bosses: this.stats.bosses, perfect: this.stats.perfect, record: this.score > best });
+      return;
+    }
+    UI.showShop(sum);
+  },
+
+  continueEndless() {
+    if (this.state !== 'won') return;
+    this.endless = true;
+    this.state = 'shop';
+    UI.showShop(this.pendingShop);
   },
 
   nextWave() {
@@ -433,7 +474,7 @@ const Game = {
       lastHit: this.lastHit, mods: [...this.mods],
       score: this.score, wave: this.wave, kills: this.stats.kills,
       acc: this.stats.shots ? this.stats.hits / this.stats.shots : 0,
-      maxCombo: this.maxCombo, bosses: this.stats.bosses, perfect: this.stats.perfect,
+      maxCombo: this.maxCombo, bosses: this.stats.bosses + this.stats.ships, perfect: this.stats.perfect,
       record, best: Math.max(best, this.score),
     });
   },
@@ -447,15 +488,16 @@ const Game = {
       type, T, size, x, y, vx, vy, r, hp, maxHp: hp,
       rot: rand(0, TAU), vr: rand(-1, 1) * T.spin * (22 / T.radius[size]),
       flash: 0, heat: 0, trailAcc: 0, age: 0, pulse: rand(0, TAU), spit: 3, cryo: 0,
-      impactDmg: T.impact[size] * k * (this.demo ? 1 : 1 + this.wave * 0.03 + Math.max(this.wave - 15, 0) * 0.05),
-      art: MeteorArt.get(T.art || type, r), dead: false,
+      impactDmg: T.impact[size] * k * (this.demo ? 1 : (1 + this.wave * 0.03 + Math.max(this.wave - 15, 0) * 0.05) * this.diff.dmg),
+      art: T.hull ? ShipArt.get(enemySpec(type), r) : MeteorArt.get(T.art || type, r), dead: false,
       esh: T.shield ? hp * T.shield : 0, eshMax: T.shield ? hp * T.shield : 0, eshT: 0, eshHit: 0,
-      dir: Math.random() < 0.5 ? -1 : 1, fire: 1.5, orbiting: false, off: 0,
+      dir: Math.random() < 0.5 ? -1 : 1, fire: 1.5, orbiting: false, off: 0, isBoss: type === 'boss',
     };
   },
 
   spawnMeteor(ev) {
     if (ev.type === 'crate') return this.spawnCrate();
+    if (ev.type === 'ship') return this.spawnShip();
     const T = METEOR_TYPES[ev.type];
     const ang = ev.angle !== undefined ? ev.angle : rand(0, TAU);
     const ca = Math.cos(ang), sa = Math.sin(ang);
@@ -595,7 +637,7 @@ const Game = {
     if (this.arcs.length) this.arcs = this.arcs.filter(a => a.life > 0);
     this.fx.update(dt);
     this.updateDrones(dt);
-    if (this.state === 'shop') return;
+    if (this.state === 'shop' || this.state === 'won') return;
 
     if (this.state === 'menu') this.updateDemo(dt);
     else if (this.state !== 'gameover') this.updateGame(dt);
@@ -830,7 +872,8 @@ const Game = {
   },
 
   damageMeteor(m, dmg) {
-    if (m.dead) return;
+    if (m.dead || m.dying > 0) return;
+    if (m.beam) m.beam.taken += dmg;
     // tarcza energetyczna (Ekranowany) przyjmuje obrażenia pierwsza
     if (m.esh > 0) {
       m.eshT = 0; m.eshHit = 0.12;
@@ -841,7 +884,13 @@ const Game = {
     }
     m.hp -= dmg;
     m.flash = 0.1;
-    if (m.hp <= 0) this.killMeteor(m);
+    if (m.hp > 0) return;
+    if (m.type === 'ship') {
+      m.hp = 0; m.dying = 1.5; m.beam = null; m.salvoN = 0; m.streamT = 0;
+      UI.callout(m.spec.name.toUpperCase() + ' ROZPADA SIĘ!', '255,200,90', true);
+      return;
+    }
+    this.killMeteor(m);
   },
 
   killMeteor(m) {
@@ -860,14 +909,14 @@ const Game = {
         UI.callout(`COMBO ×${fmt1(this.multiplier)}`, '255,215,100');
       }
       const mult = this.multiplier, gold = this.effects.gold > 0 ? 2 : 1;
-      const pts = Math.round(T.score[s] * mult * (1 + (this.wave - 1) * 0.05)) * gold;
+      const pts = Math.round((m.pts || T.score[s]) * mult * (1 + (this.wave - 1) * 0.05)) * gold;
       this.score += pts;
-      this.credits += T.credits[s] * gold * (this.has('scrap') ? 1.6 : 1) * (this.event && this.event.credits || 1);
+      this.credits += (m.cr || T.credits[s]) * gold * (this.has('scrap') ? 1.6 : 1) * (this.event && this.event.credits || 1);
       this.stats.kills++;
       this.waveKills++;
       this.floatText(m.x, m.y - m.r * 0.6, '+' + formatNum(pts), mult > 1 ? '255,220,120' : '220,240,255',
-        m.type === 'boss' ? 30 : 12 + Math.min(m.r / sc * 0.18, 7));
-      if (m.type === 'boss') { this.spawnPowerup(m.x - 20, m.y); this.spawnPowerup(m.x + 20, m.y); }
+        m.isBoss ? 30 : 12 + Math.min(m.r / sc * 0.18, 7));
+      if (m.isBoss) { this.spawnPowerup(m.x - 20, m.y); this.spawnPowerup(m.x + 20, m.y); }
       else if (Math.random() < (T.drop || 0.05) * (this.event && this.event.drop || 1)) this.spawnPowerup(m.x, m.y);
       if (this.has('overload')) this.empTimer = Math.max(0, this.empTimer - 0.4);
       // Reakcja łańcuchowa: część zestrzeleń wybucha (ale wybuch nie odpala kolejnych – bez lawiny)
@@ -878,7 +927,10 @@ const Game = {
 
     // rozpad na odłamki
     if (m.type === 'rock' && s > 0) this.splitMeteor(m, 'rock', s - 1, 2, 0.55);
-    else if (m.type === 'comet') this.splitMeteor(m, 'ice', 0, 4, 0.4);
+    else if (m.type === 'comet') {
+      if (s === 2) this.splitMeteor(m, 'comet', 1, 2, 0.5);
+      this.splitMeteor(m, 'ice', 0, s === 2 ? 2 : 4, 0.4);
+    }
     else if (m.type === 'cluster') {
       // Gromada rozsypuje się pierścieniem szybkich odłamków
       const sp = this.baseSpeed * 1.5;
@@ -893,6 +945,20 @@ const Game = {
     }
     if (T.blast) {
       this.blasts.push({ x: m.x, y: m.y, r: T.blast * sc, dmg: 45 * this.hpMul, t: 0.07, dead: false });
+    }
+    if (m.type === 'ship') {
+      this.slowmo = 1;
+      this.shake += 22;
+      this.flash = 0.5;
+      this.explode(m.x, m.y, m.r * 1.3, 'boss', 3);
+      this.fx.add({ k: 'ring', x: m.x, y: m.y, life: 0.9, r0: m.r, r1: m.r * 6, s: 8, c: m.spec.accent, a: 1 });
+      if (!this.demo) {
+        this.stats.ships++;
+        this.lastBoss = m.spec.name;
+        UI.callout('ZNISZCZONO: ' + m.spec.name.toUpperCase(), '255,200,90', true);
+        Sound.clear();
+        Sound.setIntensity(1);
+      }
     }
     if (m.type === 'boss') {
       this.slowmo = 1.2;
@@ -1088,9 +1154,15 @@ const Game = {
         // tarcza energetyczna odnawia się po 2,2 s bez trafień
         m.eshT += dt;
         if (m.eshHit > 0) m.eshHit -= dt;
-        if (m.eshT > 2.2 && m.esh < m.eshMax) m.esh = Math.min(m.eshMax, m.esh + m.eshMax * 0.35 * dt);
+        if (m.eshT > 2.2 && m.esh < m.eshMax) m.esh = Math.min(m.eshMax, m.esh + m.eshMax * (m.eshRegen || 0.35) * dt);
       }
-      if (m.T.ship) { this.updateHunter(m, mdt, dt); continue; }
+      if (m.T.ai) {
+        this.updateAI(m, mdt, dt);
+        if (m.dead || !m.T.impacts) continue;
+        const dd = Math.hypot(m.x, m.y);
+        if (dd < (shieldUp ? this.Rs + m.r * 0.55 : R + m.r * 0.3)) this.meteorImpact(m);
+        continue;
+      }
       let d = Math.hypot(m.x, m.y) || 1;
       const ux = m.x / d, uy = m.y / d;
       const a = this.GM / Math.max(d * d, R * R);
@@ -1138,43 +1210,13 @@ const Game = {
       if (d < hitR) this.meteorImpact(m);
     }
     this.meteors = this.meteors.filter(m => !m.dead);
-    if (this.boss && this.boss.dead) this.boss = this.meteors.find(m => m.type === 'boss') || null;
-  },
-
-  // Łowca: podlatuje do orbity, krąży i co chwilę strzela pociskiem plazmowym w planetę
-  updateHunter(m, mdt, dt) {
-    const d = Math.hypot(m.x, m.y) || 1, ux = m.x / d, uy = m.y / d;
-    // orbita nad dolnym paskiem HUD
-    const orbit = clamp(Math.min(this.w, this.h) / 2 - 115 * this.scale, this.R * 2.3, this.R * 4.2);
-    const sp = this.baseSpeed * m.T.speed;
-    if (!m.orbiting) {
-      const k = Math.min(1, dt * 2);
-      m.vx += (-ux * sp - m.vx) * k; m.vy += (-uy * sp - m.vy) * k;
-      if (d <= orbit) m.orbiting = true;
-    } else {
-      const t = sp * 0.55 * m.dir, corr = (orbit - d) * 1.5;
-      m.vx = -uy * t + ux * corr; m.vy = ux * t + uy * corr;
-      if (!this.demo && this.state === 'playing' && (m.fire -= dt) <= 0) {
-        m.fire = Math.max(1.3, 2.6 - this.wave * 0.03);
-        const bs = this.baseSpeed * METEOR_TYPES.bolt.speed;
-        const bx = m.x - ux * m.r, by = m.y - uy * m.r;
-        this.meteors.push(this.makeMeteor('bolt', 0, bx, by, -ux * bs, -uy * bs));
-        this.fx.add({ k: 'glow', x: bx, y: by, life: 0.25, s: 22 * this.scale, c: '90,255,120', a: 1 });
-        Sound.alienShot();
-      }
-    }
-    m.x += m.vx * mdt; m.y += m.vy * mdt;
-    m.rot = Math.sin(m.age * 2) * 0.15;
-    if (m.flash > 0) m.flash -= dt;
-    m.age += dt;
-    m.heat = 0;
-    this.emitTrail(m, dt);
+    if (this.boss && this.boss.dead) this.boss = this.meteors.find(m => m.isBoss) || null;
   },
 
   // Łączne życie planetoid na ekranie (Bliźnięta mają wspólny pasek)
   bossFrac() {
     let hp = 0;
-    for (const m of this.meteors) if (m.type === 'boss' && !m.dead) hp += Math.max(0, m.hp);
+    for (const m of this.meteors) if (m.isBoss && !m.dead) hp += Math.max(0, m.hp);
     return this.bossMaxSum ? hp / this.bossMaxSum : 0;
   },
 
@@ -1418,6 +1460,8 @@ const Game = {
     if (this.state !== 'dying' && this.state !== 'gameover') this.drawTurret(ctx);
     this.drawMeteors(ctx);
     if (this.crates.length) this.drawCrates(ctx);
+    if (this.boss) this.drawBossFx(ctx);
+    this.drawEnemyFx(ctx);
     this.drawShield(ctx);
     this.drawPowerups(ctx);
     this.drawBullets(ctx);
@@ -1511,7 +1555,7 @@ const Game = {
     const t = this.time;
     const AURA = { volatile: '255,120,30', boss: '255,120,30', comet: '140,210,255', cluster: '255,80,200', hunter: '90,255,120', zig: '170,90,255' };
     for (const m of this.meteors) {
-      const art = m.art, hs = art.half, aura = AURA[m.type];
+      const art = m.art, hs = art.half, aura = m.phase === 3 ? '255,60,60' : AURA[m.type];
       if (aura) {
         ctx.globalCompositeOperation = 'lighter';
         const pul = m.type === 'volatile' || m.type === 'cluster' ? 0.55 + 0.45 * Math.sin(t * 8 + m.pulse) : 0.65;
@@ -1524,7 +1568,9 @@ const Game = {
       ctx.save();
       ctx.translate(m.x, m.y);
       ctx.rotate(m.rot);
+      if (m.warp > 0) { const k = 1 - m.warp / 0.9; ctx.globalAlpha = k; ctx.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k); }
       ctx.drawImage(art.canvas, -hs, -hs, hs * 2, hs * 2);
+      ctx.globalAlpha = 1;
       if (m.cryo > 0) {
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = Math.min(1, m.cryo * 2) * 0.35;
@@ -1562,7 +1608,7 @@ const Game = {
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
       }
-      if (m.type !== 'boss' && m.maxHp >= 60 && m.hp < m.maxHp) {
+      if (!m.isBoss && m.maxHp >= 60 && m.hp < m.maxHp) {
         const bw = m.r * 1.4, by = m.y - m.r - 8;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(m.x - bw / 2 - 1, by - 1, bw + 2, 5);
@@ -1636,6 +1682,44 @@ const Game = {
       ctx.fillRect(c.x - bw / 2 - 1, by - 1, bw + 2, 5);
       ctx.fillStyle = '#ffcf3a';
       ctx.fillRect(c.x - bw / 2, by, bw * Math.max(0, c.hp / c.maxHp), 3);
+    }
+  },
+
+  // Laser bossa: ładowanie (cienka, pulsująca linia) i strzał
+  drawBossFx(ctx) {
+    for (const m of this.meteors) {
+      if (m.type !== 'ship' || (!m.beam && !(m.beamFx > 0))) continue;
+      const ang = m.beam ? Math.atan2(m.y, m.x) : m.beamAng;
+      const x0 = m.x - Math.cos(ang) * m.r * 0.6, y0 = m.y - Math.sin(ang) * m.r * 0.6;
+      const x1 = Math.cos(ang) * this.Rs, y1 = Math.sin(ang) * this.Rs;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      if (m.beam) {
+        const k = 1 - m.beam.t / 1.8, pulse = 0.5 + 0.5 * Math.sin(this.time * (10 + k * 30));
+        ctx.setLineDash([10, 8]);
+        ctx.strokeStyle = `rgba(255,70,70,${0.25 + 0.5 * pulse})`;
+        ctx.lineWidth = (1 + k * 4) * Math.max(this.scale, 0.7);
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.setLineDash([]);
+        const gs = m.r * (0.4 + k);
+        ctx.globalAlpha = 0.6 + 0.4 * pulse;
+        ctx.drawImage(SpriteCache.glow('255,80,80'), x0 - gs, y0 - gs, gs * 2, gs * 2);
+        // pasek przerwania: ile jeszcze obrażeń zadać
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        const bw = m.r * 1.6, by = m.y + m.r + 10;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(m.x - bw / 2 - 1, by - 1, bw + 2, 5);
+        ctx.fillStyle = '#78f0ff'; ctx.fillRect(m.x - bw / 2, by, bw * Math.min(1, m.beam.taken / m.beam.need), 3);
+      } else {
+        const k = m.beamFx / 0.4;
+        for (const [w, c] of [[22, `rgba(255,60,60,${0.35 * k})`], [9, `rgba(255,120,100,${0.7 * k})`], [3, `rgba(255,240,230,${k})`]]) {
+          ctx.strokeStyle = c;
+          ctx.lineWidth = w * Math.max(this.scale, 0.7);
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
     }
   },
 

@@ -11,14 +11,14 @@ const UI = {
     this.$ = $;
     this.screens = {
       menu: $('screen-menu'), help: $('screen-help'), pause: $('screen-pause'),
-      shop: $('screen-shop'), over: $('screen-over'),
+      shop: $('screen-shop'), over: $('screen-over'), win: $('screen-win'),
     };
     this.hud = $('hud');
     this.el = {};
     for (const id of ['hud-score', 'hud-wave', 'hud-credits', 'hud-combo', 'hud-combo-n', 'hud-mult', 'hud-combo-bar',
       'hud-wave-bar', 'hud-left', 'hud-hp', 'hud-hp-t', 'bar-hp', 'hud-sh', 'hud-sh-t', 'bar-sh', 'emp-btn',
       'hud-boss', 'hud-boss-bar', 'hud-boss-name', 'hud-auto', 'hud-event', 'hud-protos',
-      'fx-rapid', 'fx-spread', 'fx-slow', 'fx-gold', 'fx-support', 'fx-weapon', 'fx-weapon-name']) this.el[id] = $(id);
+      'hud-wave-of', 'fx-rapid', 'fx-spread', 'fx-slow', 'fx-gold', 'fx-support', 'fx-weapon', 'fx-weapon-name']) this.el[id] = $(id);
     this.fxBars = {};
     for (const k of ['rapid', 'spread', 'slow', 'gold', 'support', 'weapon']) this.fxBars[k] = this.el['fx-' + k].querySelector('i');
 
@@ -70,9 +70,16 @@ const UI = {
       case 'back': Sound.click(); this.show('menu'); break;
       case 'sound': Sound.toggleMute(); this.updateSoundLabels(); Sound.click(); break;
       case 'music': Sound.toggleMusic(); this.updateSoundLabels(); Sound.click(); break;
+      case 'diff': {
+        const i = DIFF_ORDER.indexOf(g.diffId);
+        g.setDifficulty(DIFF_ORDER[(i + 1) % DIFF_ORDER.length]);
+        this.updateSoundLabels(); Sound.click();
+        break;
+      }
       case 'pause': g.pause(); break;
       case 'resume': Sound.click(); g.resume(); break;
       case 'menu': Sound.click(); g.toMenu(); break;
+      case 'endless': Sound.click(); g.continueEndless(); break;
       case 'next':
         // najpierw wybór protokołu – inaczej łatwo go przeoczyć
         if (g.offer) { Sound.deny(); this.denyCard('protos'); break; }
@@ -92,8 +99,13 @@ const UI = {
   updateSoundLabels() {
     document.querySelectorAll('[data-sound-label]').forEach(b => { b.textContent = 'Dźwięk: ' + (Sound.muted ? 'wył.' : 'wł.'); });
     document.querySelectorAll('[data-music-label]').forEach(b => { b.textContent = 'Muzyka: ' + (Sound.musicOn ? 'wł.' : 'wył.'); });
-    if (!this.g) return;
+    // przed Game.init (UI.init woła to wcześniej) nie ma jeszcze ustawień gry
+    if (!this.g || !this.g.diffId) return;
     document.querySelectorAll('[data-auto-label]').forEach(b => { b.textContent = 'Auto-ogień: ' + (this.g.autoFire ? 'wł.' : 'wył.'); });
+    document.querySelectorAll('[data-diff-label]').forEach(b => {
+      b.textContent = 'Poziom: ' + this.g.diff.name;
+      b.dataset.level = this.g.diffId;
+    });
     document.querySelectorAll('[data-shake-label]').forEach(b => { b.textContent = 'Wstrząsy: ' + (this.g.shakeOn ? 'wł.' : 'wył.'); });
   },
 
@@ -150,6 +162,7 @@ const UI = {
     if (!this.hud.classList.contains('visible')) return;
     this.txt('hud-score', formatNum(g.score));
     this.txt('hud-wave', String(g.wave));
+    this.cls('hud-wave-of', 'hide', !!g.endless);
     this.txt('hud-credits', formatNum(g.credits));
 
     const hp = clamp(g.hp / g.maxHp, 0, 1);
@@ -203,29 +216,34 @@ const UI = {
     this.cls('hud-boss', 'show', !!boss);
     if (boss) {
       this.css('hud-boss-bar', 'transform', `scaleX(${clamp(g.bossFrac(), 0, 1).toFixed(3)})`);
-      this.txt('hud-boss-name', '⚠ ' + g.bossName);
+      const ph = g.boss.phase || 1;
+      this.txt('hud-boss-name', '⚠ ' + g.bossName + (ph > 1 ? ` · faza ${ph}` : ''));
+      this.cls('hud-boss', 'rage', ph === 3);
     }
     this.cls('hud-auto', 'on', g.autoFire);
   },
 
   /* ---------- sklep ---------- */
   showShop(sum) {
-    this.$('shop-title').textContent = `Fala ${sum.wave} odparta`;
     this.$('shop-stats').innerHTML = `
       <div><span>Zniszczone</span><b>${sum.kills}</b></div>
       <div><span>Celność</span><b>${Math.round(sum.acc * 100)}%</b></div>
       <div><span>Premia za falę</span><b>+${formatNum(sum.bonus)} ¢</b></div>
       <div class="${sum.perfect ? 'perfect' : 'hurt'}"><span>${sum.perfect ? 'Perfekcyjna obrona' : 'Uszkodzenia planety'}</span><b>${sum.perfect ? '+60% ¢' : '−' + Math.ceil(sum.damage)}</b></div>`;
     this.$('shop-heal').textContent = sum.heal > 0 ? `Ekipy naprawcze odbudowały +${Math.ceil(sum.heal)} pkt` : '';
+    this.$('shop-title').textContent = `Fala ${sum.wave}${this.g.endless ? '' : ' / ' + FINAL_WAVE} odparta`;
+    this.$('shop-boss').innerHTML = sum.boss ? `Pokonany boss: <b>${sum.boss}</b>` : '';
     const nw = sum.wave + 1;
-    const warn = nw % 5 === 0;
+    const warn = nw % 5 === 0 && nw >= 10;
     const nt = this.$('shop-next');
     const ev = this.g.nextEvent;
     nt.classList.toggle('danger', warn);
     nt.classList.toggle('event', !!ev);
-    nt.innerHTML = warn ? `Następnie: fala ${nw} — wykryto ${(nw / 5) % 2 === 0 ? 'BLIŹNIĘTA' : 'PLANETOIDĘ'}!`
+    const head = warn ? `Następnie: fala ${nw} — wykryto ${(nw / 5) % 2 === 0 ? 'BLIŹNIĘTA' : 'PLANETOIDĘ'}!`
       : ev ? `Następnie: fala ${nw} — <b>${ev.name}</b>: ${ev.desc}`
       : `Następnie: fala ${nw}${WAVE_INTRO[nw] ? ' — ' + WAVE_INTRO[nw].toLowerCase() : ''}`;
+    const bs = BossGen.spec(nw);
+    nt.innerHTML = `${head}<span class="next-boss">Boss: <b>${bs.name}</b> · ${BossGen.abilityNames(bs).join(', ')}</span>`;
     this.renderShop();
     this.show('shop');
   },
@@ -309,6 +327,12 @@ const UI = {
       zig: ['wirujący odłamek', 'Zygzaki łatwiej trafić z Naprowadzaniem albo wiązką lasera.'],
       shielded: ['meteoryt ekranowany', 'Tarczę energetyczną zrywa EMP – odpal je, gdy ekranowane są blisko.'],
       cluster: ['odłamek gromady', 'Gromady rozbijaj daleko od planety – odłamki lecą we wszystkie strony.'],
+      kamikaze: ['kamikadze', 'Kamikadze przyspieszają – strzelaj w nie, gdy tylko wlecą na ekran.'],
+      swarmer: ['myśliwiec roju', 'Nosiciel wypuszcza roje co kilka sekund – zestrzel go, zamiast walczyć z rojem.'],
+      missile: ['rakieta bossa', 'Rakiety da się zestrzelić – Naprowadzanie i satelity łapią je same.'],
+      bomb: ['bomba', 'Bombowce zrzucają bomby tylko nad ekranem – zestrzel je w trakcie przelotu.'],
+      mine: ['mina', 'Miny są wolne, ale wytrzymałe – EMP czyści je wokół planety.'],
+      ship: ['laser bossa', 'Ładowanie lasera przerwiesz, zadając bossowi dość obrażeń – pasek pod nim pokazuje ile.'],
     };
     const c = CAUSE[d.lastHit] || ['meteoryt skalny', 'Mocniejsza tarcza i regeneracja dają czas na reakcję. Nie zapominaj o EMP.'];
     this.$('over-cause').innerHTML = `Ostatni cios: <b>${c[0]}</b>. ${c[1]}${d.mods.length ? `<span class="over-mods">${this.protoList(d.mods)}</span>` : ''}`;
@@ -318,11 +342,23 @@ const UI = {
       <div><span>Zestrzelone</span><b>${formatNum(d.kills)}</b></div>
       <div><span>Celność</span><b>${Math.round(d.acc * 100)}%</b></div>
       <div><span>Najwyższe combo</span><b>${d.maxCombo}</b></div>
-      <div><span>Planetoidy</span><b>${d.bosses}</b></div>
+      <div><span>Bossy</span><b>${d.bosses}</b></div>
       <div><span>Perfekcyjne fale</span><b>${d.perfect}</b></div>`;
     this.$('over-best').textContent = formatNum(d.best);
     this.show('over');
     this.updateBest();
+  },
+
+  showWin(d) {
+    this.$('win-title').textContent = d.record ? 'Ziemia ocalona – rekord!' : 'Ziemia ocalona!';
+    this.$('win-score').textContent = formatNum(d.score);
+    this.$('win-stats').innerHTML = `
+      <div><span>Statki-bossy</span><b>${d.ships}</b></div>
+      <div><span>Planetoidy</span><b>${d.bosses}</b></div>
+      <div><span>Zestrzelone</span><b>${formatNum(d.kills)}</b></div>`;
+    this.show('win');
+    this.updateBest();
+    Sound.clear();
   },
 
   /* ---------- odprawa (pomoc) ---------- */
@@ -333,10 +369,19 @@ const UI = {
       const art = MeteorArt.make(type, r);
       return `<img src="${art.canvas.toDataURL()}" alt="">`;
     };
-    const list = [['rock', 2], ['fast', 0], ['iron', 2], ['volatile', 1], ['comet', 1], ['zig', 1], ['hunter', 1], ['shielded', 2], ['cluster', 2], ['boss', 0]];
-    this.$('threat-list').innerHTML = list.map(([t]) => {
+    const list = ['rock', 'fast', 'iron', 'comet', 'bomber', 'volatile', 'kamikaze', 'gunship', 'hunter', 'zig', 'minelayer',
+      'shielded', 'carrier', 'cluster', 'escort', 'boss'];
+    const shipThumb = t => {
+      const a = ShipArt.get(enemySpec(t), 15), c = document.createElement('canvas');
+      c.width = c.height = 40;
+      const g = c.getContext('2d');
+      g.translate(20, 20); g.rotate(-Math.PI / 2);
+      g.drawImage(a.canvas, -18, -18, 36, 36);
+      return `<img src="${c.toDataURL()}" alt="">`;
+    };
+    this.$('threat-list').innerHTML = list.map(t => {
       const T = METEOR_TYPES[t];
-      return `<li><span class="thumb">${thumb(T.art || t, t === 'hunter' ? 14 : 20)}</span><div><b style="color:${T.color}">${T.name}</b><small>${T.desc}</small></div></li>`;
+      return `<li><span class="thumb">${T.hull ? shipThumb(t) : thumb(T.art || t, t === 'hunter' ? 14 : 20)}</span><div><b style="color:${T.color}">${T.name}</b><small>${T.desc}</small></div></li>`;
     }).join('');
     this.$('bonus-list').innerHTML = Object.entries(POWERUPS).map(([k, P]) => {
       const c = document.createElement('canvas');

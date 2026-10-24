@@ -30,7 +30,7 @@
 
     <div class="hud-tc">
       <div class="hud-label">Fala</div>
-      <div class="hud-wave" id="hud-wave">1</div>
+      <div class="hud-wave"><span id="hud-wave">1</span><small id="hud-wave-of">/100</small></div>
       <div class="wave-bar"><i id="hud-wave-bar"></i></div>
       <div class="hud-left" id="hud-left"></div>
       <div class="hud-event" id="hud-event"></div>
@@ -90,7 +90,8 @@
         <button class="btn" data-action="sound" data-sound-label>Dźwięk: wł.</button>
         <button class="btn" data-action="music" data-music-label>Muzyka: wł.</button>
       </div>
-      <div class="records">Rekord: <b id="menu-best">0</b><span class="sep">•</span>Najdalsza fala: <b id="menu-wave">0</b></div>
+      <button class="btn diff-btn" data-action="diff" data-diff-label>Poziom: Normalny</button>
+      <div class="records">Rekord: <b id="menu-best">0</b><span class="sep">•</span>Najdalsza fala: <b id="menu-wave">0</b> / 100</div>
     </div>
   </section>
 
@@ -119,6 +120,8 @@
             <li>Zestrzel <b>kapsułę</b> wypadającą z meteorytu, aby zdobyć bonus. <b>Pancerne</b> kapsuły trzeba trafić kilka razy.</li>
             <li>Przelatujący <b>kontener z bronią</b> wymaga ok. 30 trafień – w środku laser, rakiety albo działo łukowe na kilkanaście sekund.</li>
             <li>Między falami wydawaj <b>kredyty</b> na ulepszenia. Fala bez uszkodzeń planety to premia +60%.</li>
+            <li>Każda fala kończy się <b>bossem</b> – statkiem kosmicznym. Jest ich 100 i każdy jest inny. Przy 66% życia boss dokłada zdolność, przy 33% wpada w szał. Ładowanie jego lasera przerwiesz, zadając mu dość obrażeń.</li>
+            <li>Od fali 3 nadlatują też <b>statki wroga</b>: bombowce, kamikadze, kanonierki, stawiacze min, nosiciele rojów i osłonowce.</li>
             <li>Co kilka fal wybierasz <b>protokół obrony</b> – jedną z trzech kart z plusem i minusem, na resztę gry.</li>
             <li>Od fali 3 fale mają <b>wydarzenia</b> (np. burza słoneczna, dwa fronty). Sklep zapowiada następne.</li>
           </ul>
@@ -173,6 +176,7 @@
         <span>Integralność planety: <b id="shop-planet">100 / 100</b></span>
         <span>Pojemność tarczy: <b id="shop-shield">30</b></span>
         <span class="heal" id="shop-heal"></span>
+        <span class="boss" id="shop-boss"></span>
         <span class="mods" id="shop-mods"></span>
       </div>
       <div class="proto-offer" id="shop-protos"></div>
@@ -183,6 +187,22 @@
           <button class="btn repair-btn" data-action="buy" data-id="repair" id="repair-btn"></button>
           <button class="btn primary" data-action="next" id="next-btn">Następna fala <kbd>Enter</kbd></button>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ZWYCIĘSTWO ===================== -->
+  <section class="screen" id="screen-win">
+    <div class="panel over-panel win-panel">
+      <div class="kicker gold-text">Fala 100 odparta</div>
+      <h2 id="win-title">Ziemia ocalona!</h2>
+      <p class="muted">Pokonałeś wszystkie sto statków, z Okrętem-matką Nawią na czele. Ludzkość może spać spokojnie… na razie.</p>
+      <div class="over-score-label">Wynik</div>
+      <div class="over-score" id="win-score">0</div>
+      <div class="over-stats" id="win-stats"></div>
+      <div class="row">
+        <button class="btn primary" data-action="endless">Graj dalej – bez końca <kbd>Enter</kbd></button>
+        <button class="btn" data-action="menu">Menu główne</button>
       </div>
     </div>
   </section>
@@ -211,7 +231,9 @@
   <script src="js/planet.js"></script>
   <script src="js/background.js"></script>
   <script src="js/fx.js"></script>
+  <script src="js/bosses.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/enemies.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>
 </body>

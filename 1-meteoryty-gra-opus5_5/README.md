@@ -36,20 +36,28 @@ Nie trzeba niczego instalować ani budować. Działa też na telefonie i tableci
 
 ## Co jest w grze
 
-- **Nieskończone fale** z rosnącą trudnością, a co 5. fala nadlatuje **Planetoida** (boss z paskiem życia), która wyrzuca z siebie odłamki. Co druga planetoida to **Bliźnięta**: dwie mniejsze z przeciwnych stron.
+- **Kampania na 100 fal.** Każda fala kończy się **bossem – statkiem kosmicznym**. Jest ich 100 i każdy jest inny: kadłub (8 typów), kolory, klasa (od Korwety do Okrętu-matki), nazwa i zestaw zdolności. Bossy strzelają salwami i wachlarzami plazmy, zrzucają meteoryty, wypuszczają myśliwce i miny, mają tarcze energetyczne, skaczą po orbicie i ładują laser oblężniczy, który da się przerwać, zadając dość obrażeń. Bossy wchodzą przez portal i strzelają z własnych wieżyczek. Przy 66% życia dokładają zdolność, przy 33% wpadają w szał, a przy uszkodzeniach dymią i iskrzą. Zniszczony boss rozpada się w serii wybuchów. Fala 100 to finałowy **Okręt-matka Nawia**, a po zwycięstwie można grać dalej bez końca.
+- Od fali 10 co 5 fal dodatkowo nadlatuje **Planetoida**, która wyrzuca z siebie odłamki. Co druga planetoida to **Bliźnięta**: dwie mniejsze z przeciwnych stron.
 - **Wydarzenia fal** od fali 3: deszcz kapsuł, rój Perseidów, ostrzał salwami, pole żelaza, niestabilny rój, burza słoneczna, deszcz komet, dwa fronty, konwój zaopatrzenia (3 kontenery), polowanie (dodatkowi Łowcy). Sklep zapowiada wydarzenie następnej fali.
 - **Protokoły obrony**: po falach 2, 4, 7, 10, 14, 18 (i dalej co 4) wybierasz 1 z 3 kart na resztę gry, najwyżej 4. Każda ma plus i minus, np. Działo szynowe, Reakcja łańcuchowa, Tarcza zwierciadlana, Kriopociski, Rój. Ofertę można przelosować za kredyty.
-- **10 rodzajów przeciwników**:
+- **3 poziomy trudności** (wybór w menu, zapamiętywany): Łagodny, Normalny i Koszmar.
+- **Meteoryty**:
   - skalne, które rozpadają się na mniejsze,
-  - szybkie odłamki,
-  - pancerne żelazne,
-  - wybuchowe, które wywołują reakcje łańcuchowe,
-  - komety, które rozpadają się na lód,
+  - szybkie odłamki (od fali 2),
+  - pancerne żelazne i komety, które rozpadają się na lód (od fali 3); od fali 8 także wielkie komety pękające na dwie,
+  - wybuchowe, które wywołują reakcje łańcuchowe (od fali 4),
   - wirujące odłamki, które lecą zygzakiem (od fali 7),
-  - Łowcy, obce statki krążące po orbicie i ostrzeliwujące tarczę pociskami, które da się zestrzelić (od fali 8),
-  - ekranowane meteoryty z odnawiającą się tarczą energetyczną, którą zrywa EMP (od fali 9),
+  - ekranowane z odnawiającą się tarczą energetyczną, którą zrywa EMP (od fali 9),
   - gromady, które po rozbiciu rozsypują się na 7 szybkich odłamków (od fali 11),
   - Planetoida.
+- **Statki wroga** (od fali 3):
+  - bombowce przelatujące bokiem i zrzucające bomby (od fali 3),
+  - kamikadze, które lecą trójkami i przyspieszają prosto na planetę (od fali 4),
+  - kanonierki, które stają przy krawędzi ekranu i strzelają szybkimi pociskami, zapowiadanymi błyskiem (od fali 5),
+  - Łowcy krążący po orbicie (od fali 6),
+  - stawiacze min (od fali 7),
+  - nosiciele wypuszczający roje myśliwców-samobójców (od fali 9),
+  - osłonowce nakładające tarcze na meteoryty wokół siebie (od fali 12).
 - **Kontenery z bronią** (od fali 3): przelatują obok planety i trzeba je trafić ok. 30 razy. W środku broń na kilkanaście sekund:
   - lanca laserowa – ciągła wiązka, która tnie wszystko na linii ognia,
   - wyrzutnia rakiet – samonaprowadzające rakiety z wybuchem obszarowym,
@@ -75,6 +83,8 @@ js/audio.js       – efekty dźwiękowe i muzyka
 js/planet.js      – renderer obracającej się Ziemi
 js/background.js  – kosmiczne tło
 js/fx.js          – cząsteczki, grafika meteorytów
+js/bosses.js      – 100 statków-bossów i statki wroga: generator wyglądu, nazw i zdolności
+js/enemies.js     – zachowanie statków wroga i bossów (ruch, strzały, fazy)
 js/game.js        – logika gry i rysowanie świata
 js/ui.js          – menu, HUD, sklep
 js/main.js        – pętla gry i sterowanie

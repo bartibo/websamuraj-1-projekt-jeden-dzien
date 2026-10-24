@@ -178,7 +178,7 @@ const MeteorArt = {
   },
 
   make(type, r) {
-    if (type === 'hunter' || type === 'bolt') return this.makeAlien(type, r);
+    if (type === 'hunter' || type === 'bolt' || type === 'mine') return this.makeAlien(type, r);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const pad = 4, half = r + pad, S = Math.ceil(half * 2 * dpr);
     const c = document.createElement('canvas');
@@ -330,6 +330,22 @@ const MeteorArt = {
       return [c, g];
     };
     const [c, g] = mk(), [w, wg] = mk();
+    if (type === 'mine') {
+      // mina: kolczasta kula z czerwonym rdzeniem
+      g.strokeStyle = '#3a3f48'; g.lineWidth = r * 0.22; g.lineCap = 'round';
+      for (let k = 0; k < 8; k++) {
+        const a = k / 8 * TAU;
+        g.beginPath(); g.moveTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); g.lineTo(Math.cos(a) * r * 1.35, Math.sin(a) * r * 1.35); g.stroke();
+      }
+      const mg = g.createRadialGradient(-r * 0.3, -r * 0.3, 0, 0, 0, r);
+      mg.addColorStop(0, '#8a919c'); mg.addColorStop(1, '#262a31');
+      g.fillStyle = mg; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+      const cg = g.createRadialGradient(0, 0, 0, 0, 0, r * 0.45);
+      cg.addColorStop(0, '#fff'); cg.addColorStop(0.4, '#ff4a4a'); cg.addColorStop(1, 'rgba(255,40,40,0)');
+      g.fillStyle = cg; g.beginPath(); g.arc(0, 0, r * 0.45, 0, TAU); g.fill();
+      wg.fillStyle = '#fff'; wg.beginPath(); wg.arc(0, 0, r * 1.1, 0, TAU); wg.fill();
+      return { canvas: c, white: w, half };
+    }
     if (type === 'bolt') {
       const gr = g.createRadialGradient(0, 0, 0, 0, 0, r * 1.5);
       gr.addColorStop(0, '#f4fff0'); gr.addColorStop(0.35, '#8dff9a'); gr.addColorStop(1, 'rgba(60,255,110,0)');
