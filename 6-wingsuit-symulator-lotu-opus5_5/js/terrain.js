@@ -21,9 +21,14 @@
     uniform vec3 uSunCol; uniform vec3 uAmbSky; uniform vec3 uAmbGround;
     uniform float uSnow; uniform float uWet; uniform float uFlash;
     uniform vec4 uHole;
+    uniform vec3 uBand[5];
     varying vec3 vW; varying vec3 vN; varying vec3 vC; varying float vS;
     ${WS.GLSL.noise}
     ${WS.GLSL.fogPars}
+    // rzeźba skały: nieregularne bloki i półki (do zaburzenia normalnej na ścianach)
+    float relief(vec2 p) {
+      return vnoise(p * 0.07) * 0.6 + vnoise(p * vec2(0.19, 0.31) + 5.0) * 0.4;
+    }
     void main() {
       #ifdef HOLE
         if (vW.x > uHole.x && vW.x < uHole.z && vW.z > uHole.y && vW.z < uHole.w) discard;
@@ -34,7 +39,8 @@
       float steep = 1.0 - N.y;
       // płaskie powierzchnie: współrzędne xz, strome ściany: (pozioma wzdłuż ściany, wysokość)
       float wall = smoothstep(0.35, 0.65, steep);
-      vec2 wp2 = mix(vW.xz, vec2(dot(vW.xz, normalize(vec2(-N.z, N.x) + 1e-4)), vW.y), wall);
+      vec2 tdir = normalize(vec2(-N.z, N.x) + 1e-4);
+      vec2 wp2 = mix(vW.xz, vec2(dot(vW.xz, tdir), vW.y), wall);
       float n1 = vnoise(wp2 * 0.021);
       float n2 = vnoise(wp2 * 0.11 + 7.0);
       float fNear = exp(-dist / 160.0);
@@ -43,13 +49,41 @@
       float det = n1 * 0.45 + n2 * 0.35 + (n3 - 0.5) * 0.5 * fNear + 0.1;
       float rock = smoothstep(0.3, 0.6, steep);
       det = mix(det, n4 * 0.55 + n2 * 0.3 + (n3 - 0.5) * 0.4 * fNear + 0.12, rock);
+      // ściany: normalna zaburzona rzeźbą, żeby światło łamało się na blokach (zamiast gładkiej „zasłony”)
+      if (rock > 0.01 && dist < 650.0) {
+        vec2 rp = vec2(dot(vW.xz, tdir), vW.y);
+        float e = 1.5;
+        float r0 = relief(rp);
+        float gx = relief(rp + vec2(e, 0.0)) - r0, gy = relief(rp + vec2(0.0, e)) - r0;
+        vec3 T = normalize(vec3(tdir.x, 0.0, tdir.y)), B = vec3(0.0, 1.0, 0.0);
+        float k = 9.0 * rock * (1.0 - smoothstep(250.0, 650.0, dist));
+        N = normalize(N - (T * gx + B * gy) / e * k);
+      }
       vec3 col = vC * (0.7 + 0.6 * det);
+      #ifdef DESERT
+        // warstwy piaskowca liczone na pikselu (na wierzchołkach siatki 4 m rozmazywały się w pionowe smugi)
+        float bt = vW.y / 13.0 + n1 * 1.4 + (vnoise(vW.xz * 0.0011) - 0.5) * 4.0;
+        float bi = mod(floor(bt), 5.0);
+        float bf = smoothstep(0.75, 1.0, fract(bt));
+        vec3 b0 = uBand[0], b1 = uBand[1];
+        if (bi > 0.5) { b0 = uBand[1]; b1 = uBand[2]; }
+        if (bi > 1.5) { b0 = uBand[2]; b1 = uBand[3]; }
+        if (bi > 2.5) { b0 = uBand[3]; b1 = uBand[4]; }
+        if (bi > 3.5) { b0 = uBand[4]; b1 = uBand[0]; }
+        col = mix(col, mix(b0, b1, bf) * (0.72 + 0.56 * det), rock);
+      #endif
+      // poziome spękania i pionowe żłobienia na ścianach
+      float crack = smoothstep(0.9, 0.975, fract(vW.y / 7.3 + n2 * 0.35 + n1 * 0.6));
+      float groove = smoothstep(0.55, 0.85, vnoise(vec2(dot(vW.xz, tdir) * 0.09, vW.y * 0.012)));
+      // (spękania tylko z bliska: z daleka drobne paski migotałyby jak mora)
+      col *= 1.0 - rock * (0.3 * crack * exp(-dist / 260.0) + 0.18 * groove);
       float sn = uSnow * smoothstep(0.52, 0.82, N.y + (n2 - 0.5) * 0.35);
       col = mix(col, vec3(0.9, 0.92, 0.96) * (0.9 + 0.12 * n2), sn);
       col *= 1.0 - uWet * 0.22 * (1.0 - sn);
       float diff = max(dot(N, uSunDir), 0.0) * vS;
       vec3 amb = mix(uAmbGround, uAmbSky, N.y * 0.5 + 0.5);
-      vec3 lit = col * (uSunCol * diff + amb * (0.72 + 0.28 * vS) + uFlash);
+      // błysk pioruna oświetla z góry: ściany zostają ciemniejsze, kadr nie robi się płasko szary
+      vec3 lit = col * (uSunCol * diff + amb * (0.72 + 0.28 * vS) + uFlash * max(N.y, 0.0) * 0.8 * vec3(0.75, 0.8, 1.0));
       if (uWet > 0.0) {
         vec3 V = d / max(dist, 0.01);
         vec3 H = normalize(uSunDir - V);
@@ -58,15 +92,20 @@
       gl_FragColor = vec4(applyFog(lit, vW), 1.0);
     }`;
 
-  function terrainMaterial(hole) {
+  const DESERT_BANDS = [[0.72, 0.37, 0.2], [0.82, 0.52, 0.31], [0.6, 0.29, 0.17], [0.86, 0.68, 0.48], [0.68, 0.42, 0.26]];
+
+  function terrainMaterial(hole, desert) {
     const uniforms = {
+      uBand: { value: DESERT_BANDS.map(c => new THREE.Vector3(c[0], c[1], c[2])) },
       uSunCol: U.uSunCol, uAmbSky: U.uAmbSky, uAmbGround: U.uAmbGround,
       uSnow: U.uSnow, uWet: U.uWet, uFlash: U.uFlash,
       uFogCol: U.uFogCol, uSunFog: U.uSunFog, uSunDir: U.uSunDir, uCam: U.uCam, uFogDens: U.uFogDens, uHF: U.uHF,
       uHole: { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) }
     };
     const m = new THREE.ShaderMaterial({ uniforms, vertexShader: VERT, fragmentShader: FRAG, vertexColors: true });
-    if (hole) m.defines = { HOLE: 1 };
+    m.defines = {};
+    if (hole) m.defines.HOLE = 1;
+    if (desert) m.defines.DESERT = 1;
     return m;
   }
 
@@ -77,7 +116,7 @@
     const set = (r, g, b) => { tmp[0] = r; tmp[1] = g; tmp[2] = b; return tmp; };
     const mix = (a, b, t) => { tmp[0] = a[0] + (b[0] - a[0]) * t; tmp[1] = a[1] + (b[1] - a[1]) * t; tmp[2] = a[2] + (b[2] - a[2]) * t; };
     if (L.palette === 'alpine') {
-      const grass = [0.33, 0.45, 0.19], grass2 = [0.43, 0.47, 0.25], forest = [0.14, 0.22, 0.1];
+      const grass = [0.26, 0.34, 0.16], grass2 = [0.36, 0.38, 0.23], forest = [0.11, 0.17, 0.09];
       const rock = [0.5, 0.48, 0.45], rock2 = [0.36, 0.35, 0.34], scree = [0.62, 0.6, 0.56], snow = [0.94, 0.95, 0.98];
       return (x, z, h, ny, fl) => {
         const v = n.noise(x / 160, z / 160);
@@ -101,7 +140,7 @@
       };
     }
     if (L.palette === 'fjord') {
-      const grass = [0.24, 0.36, 0.16], forest = [0.11, 0.19, 0.1], rock = [0.4, 0.41, 0.43], rock2 = [0.26, 0.27, 0.29];
+      const grass = [0.21, 0.3, 0.15], forest = [0.1, 0.16, 0.09], rock = [0.4, 0.41, 0.43], rock2 = [0.26, 0.27, 0.29];
       const sand = [0.66, 0.62, 0.5], under = [0.22, 0.3, 0.28], snow = [0.93, 0.95, 0.98], moss = [0.3, 0.34, 0.2];
       return (x, z, h, ny, fl) => {
         const v = n.noise(x / 140, z / 140);
@@ -212,9 +251,10 @@
       this.group = new THREE.Group();
       scene.add(this.group);
       this.palette = makePalette(world);
-      this.matNear = terrainMaterial(false);
-      this.matMid = terrainMaterial(true);
-      this.matFar = terrainMaterial(true);
+      const desert = world.L.palette === 'desert';
+      this.matNear = terrainMaterial(false, desert);
+      this.matMid = terrainMaterial(true, desert);
+      this.matFar = terrainMaterial(true, desert);
       this.treeGeo = treeGeometry(world.L.trees.kind);
       this.treeMat = WS.patchFog(new THREE.MeshLambertMaterial({ vertexColors: true }));
       this.chunks = new Map();
@@ -230,6 +270,7 @@
       for (const c of this.chunks.values()) this._freeChunk(c);
       this.chunks.clear();
       for (const m of [this.mid, this.far, this.water]) if (m) { m.geometry.dispose(); this.group.remove(m); }
+      if (this.water) this.water.material.dispose();
       this.scene.remove(this.group);
       this.matNear.dispose(); this.matMid.dispose(); this.matFar.dispose(); this.treeGeo.dispose(); this.treeMat.dispose();
     }
@@ -436,6 +477,16 @@
         for (let i = 0; i < M; i++) H[j * M + i] = w.height(x0 + (i - 1) * st, z, 0);
         if (j % 6 === 5) yield;
       }
+      // cień od słońca na rzadszej siatce (co 4. wierzchołek) – był ~70% kosztu kawałka
+      const SS = 4, SN = N / SS + 1;
+      const SH = new Float32Array(SN * SN);
+      for (let j = 0; j < SN; j++) {
+        for (let i = 0; i < SN; i++) {
+          const ii = i * SS, jj = j * SS;
+          SH[j * SN + i] = sunShade(w, x0 + ii * st, H[(jj + 1) * M + ii + 1], z0 + jj * st, sd);
+        }
+        if (j % 4 === 3) yield;
+      }
       const nv = (N + 1) * (N + 1);
       const extra = 4 * (N + 1);
       const pos = new Float32Array((nv + extra) * 3), nor = new Float32Array((nv + extra) * 3), col = new Float32Array((nv + extra) * 3), sh = new Float32Array(nv + extra);
@@ -453,9 +504,12 @@
           nor[k * 3] = ax; nor[k * 3 + 1] = ay; nor[k * 3 + 2] = az;
           const c = pal(x, z, h, ay, fl);
           col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];
-          sh[k] = sunShade(w, x, h, z, sd);
+          const fi = i / SS, fj = j / SS, i0 = Math.min(SN - 2, Math.floor(fi)), j0 = Math.min(SN - 2, Math.floor(fj));
+          const u = fi - i0, v = fj - j0;
+          const s00 = SH[j0 * SN + i0], s10 = SH[j0 * SN + i0 + 1], s01 = SH[(j0 + 1) * SN + i0], s11 = SH[(j0 + 1) * SN + i0 + 1];
+          sh[k] = (s00 * (1 - u) + s10 * u) * (1 - v) + (s01 * (1 - u) + s11 * u) * v;
         }
-        if (j % 4 === 3) yield;
+        if (j % 8 === 7) yield;
       }
       const idx = [];
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -482,6 +536,7 @@
         const c = new THREE.Color();
         const shrub = w.L.trees.kind === 'shrub';
         for (let i = 0; i < list.length; i++) {
+          if (i % 48 === 47) yield;
           const t = list[i];
           q.setFromAxisAngle(up, t.r * 40);
           const hs = shrub ? t.s : t.s * (0.85 + 0.3 * ((t.r * 7) % 1));
@@ -524,8 +579,10 @@
       for (const t of ch.list) {
         const dx = x - t.x, dz = z - t.z;
         if (Math.abs(dx) > rad || Math.abs(dz) > rad) continue;
-        const top = t.y + t.h;
-        const dd = Math.hypot(dx, dz, Math.max(0, y - top));
+        // odległość od powierzchni korony (stożek), a nie od osi pnia
+        const top = t.y + t.h, dy = y - t.y;
+        const hd = Math.hypot(dx, dz);
+        const dd = dy < t.h ? Math.max(0.3, hd - (t.cr * (1 - Math.max(0, dy) / t.h) + 0.5)) : Math.hypot(Math.max(0, hd - 0.5), y - top);
         if (dd < best) best = dd;
       }
       return best;

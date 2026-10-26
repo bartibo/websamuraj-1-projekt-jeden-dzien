@@ -26,10 +26,15 @@
       this.score = 0; this.mult = 1; this.gatesOk = 0; this.gatesMissed = 0; this.streak = 0;
       this.next = 0; this.specials = 0; this.near = 0; this.topSpeed = 0; this.maxG = 1; this.minProx = 1e9;
       this.dist = 0; this.adr = 0.08; this.warn = 0; this.prox = 1e9; this.pf = 0;
-      this.nearEv = null; this.slow = 0; this.timeScale = 1;
+      this.nearEv = null; this.slow = 0; this.timeScale = 1; this.fast = false;
       this.endT = 0; this.result = null; this.closeTime = 0;
       this.frames = []; this.recT = 0;
       this.flash = 0;
+      // seria bliskości: punkty przy skale czekają w puli, dopóki pilot nie odbije od ściany
+      this.combo = 0; this.comboT = 0; this.calm = 0; this.comboBest = 0;
+      this.wxMult = opts.wxMult || 1;
+      this.splits = []; this.ref = opts.ref || null; this.delta = null;
+      this.moments = []; this.warnT = 0; this.reach = null; this.slowWarn = false;
       this.prev.copy(this.fl.pos);
       a.props.gateMeshes.forEach((m, i) => a.props.setGateState(i, 'wait'));
       a.pilot.resetTrails();
@@ -44,7 +49,9 @@
       const a = this.app, fl = this.fl, w = this.world;
       // zwolnione tempo przy bardzo bliskich przelotach i przy wypadku
       this.slow = Math.max(0, this.slow - rdt);
-      const tsT = this.slow > 0 ? 0.35 : 1;
+      // pod pełną czaszą wysoko nad ziemią czas płynie szybciej (nic się nie dzieje, a opadanie trwa minutę)
+      this.fast = fl.phase === 'chute' && fl.chute >= 1 && (this.agl || 0) > 45;
+      const tsT = this.slow > 0 ? 0.35 : this.fast ? 2.5 : 1;
       this.timeScale = damp(this.timeScale, tsT, this.slow > 0 ? 14 : 3, rdt);
       const dt = rdt * this.timeScale;
 
@@ -52,7 +59,9 @@
         if (inp.jumpPressed) { fl.jump(); a.audio.play('jump'); this.hint = ''; }
       } else if (fl.phase === 'flight' && inp.chutePressed) {
         fl.deploy(); a.audio.play('chute'); a.rig.impact(0.25);
-        this.popup('SPADOCHRON', 'otwarty');
+        this._bank();
+        const r = this.reach;
+        this.popup('SPADOCHRON', r && r.ok ? 'dolecisz do lądowiska' : r && r.dist > r.max ? 'za daleko od lądowiska' : 'otwarty');
       }
       this.prev.copy(fl.pos);
       w.time = (w.time || 0) + dt;
@@ -90,38 +99,57 @@
       // --- bliskość: w dół, na boki, drzewa
       let prox = agl;
       const r = fl.right;
-      const rx = r.x, rz = r.z, rl = Math.hypot(rx, rz) || 1;
+      const rx = r.x / (Math.hypot(r.x, r.z) || 1), rz = r.z / (Math.hypot(r.x, r.z) || 1);
+      const solid = (o, sg) => Math.max(w.height(P.x + rx * o * sg, P.z + rz * o * sg, 0), w.water) > P.y - 2;
       for (const sg of [-1, 1]) {
+        let po = 0;
         for (const o of LAT) {
-          const x = P.x + rx / rl * o * sg, z = P.z + rz / rl * o * sg;
-          if (Math.max(w.height(x, z, 0), w.water) > P.y - 2) { prox = Math.min(prox, o * 0.9); break; }
+          if (solid(o, sg)) {
+            // dokładniej: połowienie odcinka między ostatnim wolnym a pierwszym zajętym punktem
+            let lo = po, hi = o;
+            for (let k = 0; k < 4; k++) { const m = (lo + hi) / 2; if (solid(m, sg)) hi = m; else lo = m; }
+            prox = Math.min(prox, (lo + hi) / 2);
+            break;
+          }
+          po = o;
         }
       }
       if (agl < 40) prox = Math.min(prox, a.terrain.treeNear(P.x, P.y, P.z, 25));
       const b = w.bridge;
-      if (b) { const d = Math.hypot(P.x - b.mx, P.z - b.mz); if (d < b.half + 20) prox = Math.min(prox, Math.max(0, Math.abs(P.y - b.y) - 0.8) + Math.max(0, d - b.half)); }
+      if (b) {
+        // odległość od pomostu: w pionie, w poprzek mostu (kierunek lotu) i poza jego końcami
+        const dx = P.x - b.mx, dz = P.z - b.mz;
+        const along = Math.abs(dx * b.n.x + dz * b.n.z), across = Math.abs(dx * b.t.x + dz * b.t.z);
+        if (across < 40 && along < b.half + 20) prox = Math.min(prox, Math.hypot(Math.max(0, Math.abs(P.y - b.y) - 0.8), Math.max(0, across - 1.3), Math.max(0, along - b.half)));
+      }
+      prox = Math.max(0, prox);
       this.prox = prox;
-      if (fl.flightTime > 3) this.minProx = Math.min(this.minProx, prox);
-      this.pf = 1 - smoothstep(3, 55, prox);
+      this.pf = 1 - smoothstep(3, 60, prox);
       const pf = this.pf;
 
-      // --- punkty
+      // --- punkty (przy skale trafiają do serii, którą trzeba „zaliczyć”, odbijając od ściany)
       if (fl.flightTime > 1.5) {
-        this.mult = 1 + 6 * Math.pow(pf, 1.4) + smoothstep(220, 380, kmh) * 1.5;
-        this.score += fl.speed * this.mult * dt * 0.8;
+        this.mult = (1 + 6 * Math.pow(pf, 1.4) + smoothstep(220, 380, kmh) * 1.5) * this.wxMult;
+        const pts = fl.speed * this.mult * dt * 0.8;
+        if (pf > 0.4) { this.combo += pts; this.comboT += dt; this.calm = 0; }
+        else {
+          this.score += pts;
+          if (this.combo > 0 && (this.calm += dt) > 1.2) this._bank();
+        }
         if (pf > 0.6) this.closeTime += dt;
       }
 
       // --- bliski przelot (zdarzenie)
       if (prox < 12 && fl.flightTime > 3) {
-        if (!this.nearEv) this.nearEv = { min: prox, sp: kmh };
-        this.nearEv.min = Math.min(this.nearEv.min, prox);
+        if (!this.nearEv) this.nearEv = { min: prox, sp: kmh, t: fl.flightTime };
+        if (prox < this.nearEv.min) { this.nearEv.min = prox; this.nearEv.t = fl.flightTime; }
         this.nearEv.sp = Math.max(this.nearEv.sp, kmh);
       } else if (this.nearEv && prox > 22) {
         const e = this.nearEv;
-        const bonus = Math.round((12 - e.min) * 90 + e.sp * 2);
-        this.score += bonus;
+        const bonus = Math.round(((12 - e.min) * 90 + e.sp * 2) * this.wxMult);
+        if (this.combo > 0) this.combo += bonus; else this.score += bonus;
         this.near++;
+        this.moments.push({ t: e.t, kind: 'near', min: e.min, sp: e.sp });
         this.popup(e.min < 4 ? 'O WŁOS!' : 'BLISKO!', `${fmt(e.min, 1)} m · +${fmt(bonus)}`, e.min < 4 ? 'hot' : '');
         a.audio.play('whoosh', { v: 1.2 });
         if (e.min < 4 && this.opts.slowmo) this.slow = 0.55;
@@ -139,6 +167,7 @@
         if (y < Math.max(w.height(x, z, 1), w.water) + 1.5) { tti = t; break; }
       }
       this.warn = tti < 2.6 ? 1 - tti / 2.6 : 0;
+      this.warnT = this.warn > 0.15 ? this.warnT + dt : 0;
 
       // --- bramki
       this._gates();
@@ -148,15 +177,39 @@
       if (agl < 0.6) hit = P.y <= w.water + 0.6 && w.hasWater && gh < w.water ? 'woda' : 'skała';
       if (!hit) { const o = w.hitObjects(P.x, P.y, P.z); if (o) hit = o; }
       if (!hit && agl < 25 && a.terrain.treeHit(P.x, P.y, P.z)) hit = 'drzewo';
-      if (hit) this._crash(hit);
+      if (hit) { this._crash(hit); return; }
+      if (fl.flightTime > 3) this.minProx = Math.min(this.minProx, prox);
 
-      // podpowiedź o spadochronie
+      // --- zasięg spadochronu: czasza leci ok. 2,1 m w poziomie na 1 m opadania (bez wiatru), otwarcie kosztuje ~25 m
       const toLand = Math.hypot(P.x - w.land.x, P.z - w.land.z);
+      const reachM = Math.max(0, agl - 25) * 2.1;
+      const nearEnd = this.next >= w.gates.length || toLand < 700;
+      this.reach = nearEnd ? { dist: toLand, max: reachM, ok: reachM >= toLand - 30 && reachM <= toLand + 260, high: reachM > toLand + 260 } : null;
+      this.slowWarn = kmh < 150 && fl.flightTime > 9 && agl > 25;
+
+      // podpowiedzi
       if (!this.result) {
-        if (agl < 350 && (this.next >= w.gates.length || toLand < 600) && fl.flightTime > 6) this.hint = 'F – otwórz spadochron';
+        const R = this.reach;
+        if (R && fl.flightTime > 6 && agl < 45) this.hint = 'F – SPADOCHRON, ZARAZ ZIEMIA!';
+        else if (R && R.ok && fl.flightTime > 6) this.hint = 'F – otwórz spadochron teraz, dolecisz do lądowiska';
+        else if (this.slowWarn) this.hint = 'ZA WOLNO – nurkuj (W), żeby nabrać prędkości';
         else if (fl.flightTime < 4) this.hint = 'W/S – nurkuj / podciągaj · A/D – skręt';
         else this.hint = '';
       }
+    }
+
+    // Zaliczenie serii bliskości: im dłużej przy skale, tym większy mnożnik (do ×3)
+    _bank() {
+      if (this.combo <= 0) return;
+      const k = 1 + Math.min(2, this.comboT / 4);
+      const pts = Math.round(this.combo * k);
+      this.score += pts;
+      this.comboBest = Math.max(this.comboBest, pts);
+      if (this.comboT > 1.5) {
+        this.popup('SERIA ZALICZONA', `${fmt(this.comboT, 1)} s przy skale · ×${fmt(k, 1)} · +${fmt(pts)}`, 'combo');
+        this.app.audio.play('bank', { k });
+      }
+      this.combo = 0; this.comboT = 0; this.calm = 0;
     }
 
     _gates() {
@@ -174,20 +227,30 @@
       if (g.type === 'ring') ok = Math.hypot(lat, cy - g.y) < g.r;
       else if (g.type === 'most') ok = cy < g.under && Math.abs(lat) < w.bridge.half;
       else ok = cy < g.under && Math.abs(lat) < w.arch.R - w.arch.r;
+      // międzyczas: wynik w tej bramce wobec rekordu (wynik w puli serii też się liczy)
+      const now = this.score + this.combo;
+      this.splits[this.next] = Math.round(now);
+      let vs = '';
+      if (this.ref && this.ref[this.next] != null) {
+        this.delta = Math.round(now - this.ref[this.next]);
+        vs = ` · ${this.delta >= 0 ? '+' : '−'}${fmt(Math.abs(this.delta))} vs rekord`;
+      }
       if (ok) {
         this.streak++;
         this.gatesOk++;
         if (g.type === 'ring') {
           const c = 1 - Math.hypot(lat, cy - g.y) / g.r;
-          const pts = Math.round((400 + c * 300) * (1 + 0.25 * Math.min(this.streak - 1, 8)));
+          const pts = Math.round((400 + c * 300) * (1 + 0.25 * Math.min(this.streak - 1, 8)) * this.wxMult);
           this.score += pts;
-          this.popup(c > 0.75 ? 'IDEALNIE!' : 'BRAMKA', `+${fmt(pts)}${this.streak > 1 ? ` · seria ×${this.streak}` : ''}`, 'gate');
+          if (this.combo > 0) this.comboT += 1; // bramka przy skale wydłuża serię
+          this.popup(c > 0.75 ? 'IDEALNIE!' : 'BRAMKA', `+${fmt(pts)}${this.streak > 1 ? ` · seria ×${this.streak}` : ''}${vs}`, 'gate');
           a.audio.play('gate', { pitch: 1 + Math.min(this.streak, 10) * 0.04 });
         } else {
           this.specials++;
-          const pts = 3000;
+          const pts = Math.round(3000 * this.wxMult);
           this.score += pts;
-          this.popup(g.type === 'most' ? 'POD MOSTEM!' : 'PRZEZ SKALNE OKNO!', `+${fmt(pts)}`, 'hot');
+          this.moments.push({ t: fl.flightTime, kind: g.type, min: Math.max(0, g.under - cy), sp: fl.speed * 3.6 });
+          this.popup(g.type === 'most' ? 'POD MOSTEM!' : 'PRZEZ SKALNE OKNO!', `+${fmt(pts)}${vs}`, 'hot');
           a.audio.play('bonus');
           if (this.opts.slowmo) this.slow = 0.6;
         }
@@ -197,7 +260,13 @@
         this.gatesMissed++;
         a.props.setGateState(this.next, 'miss');
         a.audio.play('miss');
-        this.popup(g.type === 'ring' ? 'ominięta bramka' : (g.type === 'most' ? 'nad mostem…' : 'obok okna…'), '', 'miss');
+        // dlaczego: za wysoko, za nisko czy z boku
+        let why = '';
+        if (g.type === 'ring') {
+          const dy = cy - g.y;
+          why = Math.abs(dy) > Math.abs(lat) ? (dy > 0 ? `za wysoko o ${fmt(dy - g.r)} m` : `za nisko o ${fmt(-dy - g.r)} m`) : `obok o ${fmt(Math.abs(lat) - g.r)} m`;
+        } else why = cy >= g.under ? 'trzeba lecieć pod spodem' : 'obok przelotu';
+        this.popup(g.type === 'ring' ? 'ominięta bramka' : (g.type === 'most' ? 'nad mostem…' : 'obok okna…'), why, 'miss');
       }
       this.next++;
     }
@@ -206,21 +275,23 @@
       const a = this.app, fl = this.fl, w = this.world, P = fl.pos;
       this.adr = Math.max(0.05, this.adr - dt * 0.12);
       this.warn = 0; this.pf = 0; this.prox = 1e9;
-      this.mult = 1;
-      this.hint = fl.chute < 1 ? '' : 'A/D – skręt · S – hamowanie (tuż nad ziemią)';
+      this.mult = 1; this.slowWarn = false;
+      const R = this.reach = { dist: Math.hypot(P.x - w.land.x, P.z - w.land.z), max: Math.max(0, agl) * 2.1 };
+      R.ok = R.max >= R.dist - 30; R.high = false;
+      this.hint = fl.chute < 1 ? '' : agl < 12 ? 'S – HAMUJ teraz!' : this.fast ? 'A/D – skręt do koła · ▶▶ czas przyspieszony' : 'A/D – skręt · S – hamowanie (tuż nad ziemią)';
       const tree = agl < 20 && a.terrain.treeHit(P.x, P.y - 0.8, P.z);
       const obj = w.hitObjects(P.x, P.y, P.z);
       if (obj) { this._crash(obj); return; }
       if (agl < 0.9 || tree) {
         const vy = -fl.vel.y, vh = Math.hypot(fl.vel.x, fl.vel.z);
         const water = w.hasWater && gh < w.water;
-        if (!tree && (vy > 11 || vh > 22)) { this._crash(water ? 'woda' : 'skała'); return; }
+        if (!tree && (vy > 11 || vh > 22)) { this._crash(water ? 'woda' : 'skała', 'landing'); return; }
         P.y = tree ? P.y : Math.max(gh, w.water) + 0.9;
         const dl = Math.hypot(P.x - w.land.x, P.z - w.land.z);
         let kind, bonus;
         if (tree) { kind = 'Na drzewie'; bonus = 200; }
         else if (water) { kind = 'Wodowanie'; bonus = 500; a.audio.play('splash'); }
-        else if (dl < 26) { kind = 'W celu!'; bonus = Math.round(1500 + 2500 * (1 - dl / 26)); }
+        else if (dl < 26) { kind = 'W celu!'; bonus = Math.round(1500 + 2500 * (1 - dl / 26)); this.moments.push({ t: fl.flightTime, kind: 'cel', min: dl, sp: 0 }); }
         else { kind = dl < 160 ? 'Na lądowisku' : 'W terenie'; bonus = dl < 160 ? 1000 : 500; }
         const hard = vy > 6.5 || vh > 14;
         if (hard) { bonus = Math.round(bonus * 0.5); kind += ' (twardo)'; a.rig.impact(0.3); }
@@ -233,14 +304,19 @@
       }
     }
 
-    _crash(what) {
+    _crash(what, how) {
       const a = this.app, fl = this.fl;
       if (this.result) return;
       const kmh = fl.speed * 3.6;
+      const cause = this._cause(what, how, kmh);
       fl.phase = 'crashed';
-      const lost = Math.round(this.score * 0.5);
-      this.score -= lost;
-      this.result = { ok: false, kind: what, impact: kmh, lost };
+      // niezaliczona seria przepada w całości, z reszty wyniku uderzenie zabiera 30%
+      const lostCombo = Math.round(this.combo);
+      this.combo = 0;
+      const lost = Math.round(this.score * 0.3) + lostCombo;
+      this.score -= lost - lostCombo;
+      this.moments.push({ t: fl.flightTime, kind: 'crash', min: 0, sp: kmh });
+      this.result = { ok: false, kind: what, impact: kmh, lost, lostCombo, cause };
       a.audio.play(what === 'woda' ? 'splash' : 'crash');
       a.rig.impact(1.6);
       this.flash = 1;
@@ -250,13 +326,32 @@
       fl.vel.set(0, 0, 0);
     }
 
+    // Jedno zdanie: dlaczego lot się skończył i co zrobić następnym razem
+    _cause(what, how, kmh) {
+      const fl = this.fl, w = this.world, P = fl.pos;
+      if (how === 'landing') return `Za szybkie przyziemienie (${fmt(Math.hypot(fl.vel.x, fl.vel.z) * 3.6)} km/h). Tuż nad ziemią przytrzymaj S, żeby wyhamować.`;
+      if (fl.phase === 'chute') return 'Czasza zahaczyła o przeszkodę. Pod spadochronem omijaj mosty i skały (A/D).';
+      if (what === 'most') return 'Uderzenie w most. Przelatuj nisko pod środkiem przęsła.';
+      if (what === 'łuk') return 'Uderzenie w skalny łuk. Celuj w środek okna, trochę poniżej połowy wysokości.';
+      if (what === 'drzewo') return 'Lot tuż nad lasem: świerki mają 10–15 m. Nad drzewami zostaw zapas.';
+      if (what === 'woda') return `Uderzenie w wodę przy ${fmt(kmh)} km/h. Nad taflą trudno ocenić wysokość, patrz na licznik metrów.`;
+      if (kmh < 150) return `Za wolno (${fmt(kmh)} km/h): kombinezon stracił nośność. Gdy prędkość spada, nurkuj (W).`;
+      // ściana z boku czy ziemia pod spodem: nachylenie terenu w miejscu uderzenia
+      const e = 2;
+      const nx = w.height(P.x - e, P.z, 0) - w.height(P.x + e, P.z, 0), nz = w.height(P.x, P.z - e, 0) - w.height(P.x, P.z + e, 0);
+      const ny = 2 * e / Math.hypot(nx, nz, 2 * e);
+      const late = this.warnT > 0.2 ? ` Napis WYCIĄGAJ! wisiał ${fmt(this.warnT, 1)} s przed uderzeniem.` : '';
+      if (ny < 0.6) return 'Ściana z boku. Na zakrętach skręcaj wcześniej i mocniej (pełne A/D).' + late;
+      return 'Za nisko nad ziemią. Podciągnij (S), zanim zabraknie miejsca.' + late;
+    }
+
     _spawnDebris(what) {
       const a = this.app;
       const n = 140;
       const g = new THREE.BufferGeometry();
       const pos = new Float32Array(n * 3);
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      const col = what === 'woda' ? 0xdfeeff : what === 'drzewo' ? 0x5a6b3a : 0xb8a890;
+      const col = what === 'woda' ? 0xdfeeff : what === 'drzewo' ? 0x4a5a30 : 0x8a7a66;
       if (!Game.dot) {
         const cv = document.createElement('canvas'); cv.width = cv.height = 32;
         const cx = cv.getContext('2d');
@@ -265,7 +360,7 @@
         cx.fillStyle = gr; cx.fillRect(0, 0, 32, 32);
         Game.dot = new THREE.CanvasTexture(cv);
       }
-      const m = new THREE.PointsMaterial({ color: col, map: Game.dot, size: what === 'woda' ? 0.22 : 0.14, transparent: true, opacity: 1, depthWrite: false });
+      const m = new THREE.PointsMaterial({ color: col, map: Game.dot, size: what === 'woda' ? 0.5 : 0.4, transparent: true, opacity: 1, depthWrite: false });
       const pts = new THREE.Points(g, m);
       pts.frustumCulled = false;
       a.scene.add(pts);
@@ -273,7 +368,7 @@
       const P = this.fl.pos;
       for (let i = 0; i < n; i++) {
         pos[i * 3] = P.x; pos[i * 3 + 1] = P.y; pos[i * 3 + 2] = P.z;
-        v.push(new V3((Math.random() - 0.5) * 18, Math.random() * 14 + 2, (Math.random() - 0.5) * 18));
+        v.push(new V3((Math.random() - 0.5) * 18, Math.random() * (what === 'woda' ? 22 : 14) + 2, (Math.random() - 0.5) * 18));
       }
       this.debris = { pts, v, t: 0 };
     }
@@ -342,13 +437,16 @@
       const wd = this.env.wind;
       const wRel = Math.atan2(wd.x, wd.z) - Math.atan2(fl.heading.x, fl.heading.z);
       const ph = fl.phase;
+      if (tgt) tgt.dy = tgt.y - P.y;
       return {
         kmh: fl.speed * 3.6, vy: fl.vel.y, glide: fl.vel.y < -0.5 ? hv / -fl.vel.y : 0,
         agl: this.agl != null ? this.agl : 0, alt: P.y, prox: this.prox, pf: this.pf, score: this.score, mult: this.mult,
         gatesOk: this.gatesOk, gatesTotal: this.gatesTotal, time: fl.flightTime, adr: this.adr, g: fl.gSmooth,
         windRel: -wRel * 180 / Math.PI, windSpd: Math.hypot(wd.x, wd.z), warn: ph === 'flight' ? this.warn : 0,
         target: ph === 'flight' || ph === 'chute' ? tgt : null, hint: this.hint,
-        phaseLbl: ph === 'chute' ? 'SPADOCHRON' : ph === 'ledge' ? 'NA KRAWĘDZI' : ''
+        phaseLbl: ph === 'chute' ? (this.fast ? 'SPADOCHRON ▶▶' : 'SPADOCHRON') : ph === 'ledge' ? 'NA KRAWĘDZI' : '',
+        combo: this.combo, comboT: this.comboT, calm: this.calm, delta: this.delta, slow: this.slowWarn,
+        reach: this.reach, fpv: ph === 'flight' ? fl : null
       };
     }
 
@@ -356,10 +454,18 @@
       const w = this.world, P = this.fl.pos;
       if (!this.free && this.next < w.gates.length) {
         const g = w.gates[this.next];
-        return { x: g.x, y: g.y, z: g.z, dist: Math.hypot(g.x - P.x, g.y - P.y, g.z - P.z), label: g.type === 'ring' ? `BRAMKA ${this.next + 1}` : g.type === 'most' ? 'POD MOST' : 'PRZEZ OKNO', special: g.type !== 'ring' };
+        return { x: g.x, y: g.y, z: g.z, dist: Math.hypot(g.x - P.x, g.y - P.y, g.z - P.z), label: g.type === 'ring' ? `BRAMKA ${this.next + 1}` : g.type === 'most' ? 'POD MOST' : 'PRZEZ OKNO', special: g.type !== 'ring', gate: true };
       }
       const L = w.land;
-      return { x: L.x, y: w.height(L.x, L.z, 0) + 2, z: L.z, dist: Math.hypot(L.x - P.x, L.z - P.z), label: 'LĄDOWISKO', special: false };
+      return { x: L.x, y: w.height(L.x, L.z, 0) + 2, z: L.z, dist: Math.hypot(L.x - P.x, L.z - P.z), label: 'LĄDOWISKO', special: false, land: true };
+    }
+
+    // Najciekawsza chwila lotu do powtórki: najbliższy przelot, most/okno, lądowanie w celu albo uderzenie
+    bestMoment() {
+      const M = this.moments;
+      if (!M.length) return null;
+      const near = M.filter(m => m.kind === 'near' && m.min < 7).sort((a, b) => a.min - b.min || b.sp - a.sp)[0];
+      return near || M.find(m => m.kind === 'most' || m.kind === 'łuk') || M.find(m => m.kind === 'crash') || M.find(m => m.kind === 'cel') || null;
     }
 
     summary() {
@@ -367,8 +473,8 @@
       return {
         ok: r.ok, kind: r.kind, score: Math.max(0, Math.round(this.score)), time: this.fl.flightTime, top: this.topSpeed, maxG: this.maxG,
         minProx: this.minProx, near: this.near, gatesOk: this.gatesOk, gatesTotal: this.gatesTotal, specials: this.specials,
-        dist: this.dist, drop: this.world.L.exitH - this.fl.pos.y, closeTime: this.closeTime, lost: r.lost || 0, impact: r.impact,
-        bonus: r.bonus || 0, landDist: r.landDist
+        dist: this.dist, drop: this.world.L.exitH - this.fl.pos.y, closeTime: this.closeTime, lost: r.lost || 0, lostCombo: r.lostCombo || 0, impact: r.impact,
+        bonus: r.bonus || 0, landDist: r.landDist, cause: r.cause || '', comboBest: this.comboBest, splits: this.splits, wxMult: this.wxMult
       };
     }
   }

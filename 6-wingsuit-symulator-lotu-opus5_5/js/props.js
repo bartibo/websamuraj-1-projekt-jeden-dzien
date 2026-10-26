@@ -18,18 +18,26 @@
     }
 
     dispose() {
-      this.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+      this.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
       this.scene.remove(this.group);
     }
 
     _gates() {
-      const geo = new THREE.TorusGeometry(13, 0.55, 10, 56);
-      const glowGeo = new THREE.TorusGeometry(13, 2.4, 8, 56);
+      const R = this.world.gates.find(g => g.type === 'ring');
+      const rr = R ? R.r : 15;
+      const geo = new THREE.TorusGeometry(rr, 0.42, 10, 64);
+      const glowGeo = new THREE.TorusGeometry(rr, 2.6, 12, 64);
       for (const g of this.world.gates) {
         if (g.type !== 'ring') { this.gateMeshes.push(null); continue; }
-        const mat = WS.patchFog(new THREE.MeshBasicMaterial({ color: 0xffffff }));
+        const mat = WS.patchFog(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true }));
         const ring = new THREE.Mesh(geo, mat);
-        const gm = new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+        // poświata: jasna przy obręczy, zanika ku brzegom rury (miękkie światło zamiast pełnej „opony”)
+        const gm = new THREE.ShaderMaterial({
+          uniforms: { uCol: { value: new THREE.Color(0xff7a1a) }, uOp: { value: 0.2 } },
+          vertexShader: `varying float vF; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vec3 n = normalize(normalMatrix * normal); vF = abs(dot(n, normalize(-mv.xyz))); gl_Position = projectionMatrix * mv; }`,
+          fragmentShader: `uniform vec3 uCol; uniform float uOp; varying float vF; void main(){ float a = pow(vF, 3.0) * uOp; gl_FragColor = vec4(uCol * a, a); }`,
+          transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+        });
         const glow = new THREE.Mesh(glowGeo, gm);
         const grp = new THREE.Group();
         grp.add(ring, glow);
@@ -47,15 +55,17 @@
         const m = this.gateMeshes[i];
         if (!m) continue;
         m.t += dt;
-        let col, op, sc = 1;
-        if (m.state === 'ok') { col = 0x5dff8a; op = Math.max(0, 0.5 - m.t * 0.5); sc = 1 + m.t * 0.6; }
-        else if (m.state === 'miss') { col = 0xff3344; op = Math.max(0, 0.35 - m.t * 0.3); }
-        else if (i === nextIdx) { col = 0xffa21a; op = 0.32 + 0.18 * Math.sin(time * 6); sc = 1 + 0.03 * Math.sin(time * 6); }
-        else if (i === nextIdx + 1) { col = 0xfff1d6; op = 0.12; }
-        else { col = 0xd8e4ee; op = 0.05; }
+        let col, op, sc = 1, ro = 1;
+        if (m.state === 'ok') { col = 0x5dff8a; op = Math.max(0, 1.4 - m.t * 1.4); sc = 1 + m.t * 0.6; ro = Math.max(0, 1 - m.t); }
+        else if (m.state === 'miss') { col = 0xff3344; op = Math.max(0, 0.9 - m.t * 0.8); ro = Math.max(0, 1 - m.t); }
+        else if (i === nextIdx) { col = 0xffa21a; op = 0.9 + 0.35 * Math.sin(time * 6); sc = 1 + 0.03 * Math.sin(time * 6); }
+        else if (i === nextIdx + 1) { col = 0xfff1d6; op = 0.25; ro = 0.8; }
+        else { col = 0x8a96a3; op = 0; ro = 0.45; }
         m.mat.color.setHex(col);
-        m.gm.color.setHex(col);
-        m.gm.opacity = op;
+        m.mat.opacity = ro;
+        m.gm.uniforms.uCol.value.setHex(col);
+        m.gm.uniforms.uOp.value = op;
+        m.glow.visible = op > 0.01;
         m.grp.scale.setScalar(sc);
         m.grp.visible = !(m.state !== 'wait' && m.t > 1.2);
       }
@@ -83,14 +93,21 @@
       const segs = [];
       const N = 40;
       const sag = (t) => 9 * (1 - Math.pow(2 * t - 1, 2));
+      // liny nośne i poręcze jako rury (linia ma zawsze 1 piksel i ginie na tle skały), wieszaki jako linie
+      const ropeM = WS.patchFog(new THREE.MeshLambertMaterial({ color: 0x3a2e22 }));
       for (const side of [-1.35, 1.35]) {
-        for (let i = 0; i < N; i++) {
-          const t0 = i / N, t1 = (i + 1) / N;
-          const z0 = -len / 2 + t0 * len, z1 = -len / 2 + t1 * len;
-          segs.push(side, 11 - sag(t0), z0, side, 11 - sag(t1), z1);
-          segs.push(side, 1.1, z0, side, 1.1, z1);
-          if (i % 2 === 0) segs.push(side, 0.15, z0, side, 11 - sag(t0), z0);
+        const main = [], rail = [];
+        for (let i = 0; i <= N; i++) {
+          const t = i / N, z = -len / 2 + t * len;
+          main.push(new THREE.Vector3(side, 11 - sag(t), z));
+          rail.push(new THREE.Vector3(side, 1.1, z));
+          if (i % 2 === 0 && i < N) segs.push(side, 0.15, z, side, 11 - sag(t), z);
         }
+        grp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(main), N * 2, 0.09, 5), ropeM));
+        grp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rail), 8, 0.06, 5), ropeM));
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, len), ropeM);
+        edge.position.set(side * 0.98, 0.25, 0);
+        grp.add(edge);
       }
       const lg = new THREE.BufferGeometry();
       lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(segs), 3));
@@ -114,7 +131,7 @@
 
     _arch(a) {
       const R = a.R, r = a.r;
-      const geo = new THREE.TorusGeometry(R, r, 14, 60, Math.PI);
+      const geo = new THREE.TorusGeometry(R, r, 18, 90, Math.PI);
       const pos = geo.attributes.position;
       const n = new WS.U.Simplex(77);
       const col = new Float32Array(pos.count * 3);
@@ -123,11 +140,12 @@
         v.fromBufferAttribute(pos, i);
         const th = Math.atan2(v.y, v.x);
         const cxp = R * Math.cos(th), cyp = R * Math.sin(th);
-        const k = (0.85 + 0.15 * Math.cos(th * 3)) * (1 + n.noise(v.x * 0.15, v.y * 0.15 + v.z * 0.1) * 0.12);
+        const k = (0.85 + 0.15 * Math.cos(th * 3)) * (1 + n.noise(v.x * 0.15, v.y * 0.15 + v.z * 0.1) * 0.17 + n.noise(v.x * 0.5 + 9, v.y * 0.5 - v.z * 0.4) * 0.05);
         v.x = cxp + (v.x - cxp) * k; v.y = cyp + (v.y - cyp) * k; v.z *= k * 1.1;
         pos.setXYZ(i, v.x, v.y, v.z);
         const band = 0.5 + 0.5 * Math.sin(v.y * 0.35 + n.noise(v.x * 0.05, 3) * 2);
-        col[i * 3] = lerp(0.62, 0.8, band); col[i * 3 + 1] = lerp(0.3, 0.46, band); col[i * 3 + 2] = lerp(0.18, 0.28, band);
+        const dk = 0.82 + 0.18 * n.noise(v.x * 0.9, v.y * 0.9 + v.z);
+        col[i * 3] = lerp(0.62, 0.8, band) * dk; col[i * 3 + 1] = lerp(0.3, 0.46, band) * dk; col[i * 3 + 2] = lerp(0.18, 0.28, band) * dk;
       }
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
       geo.computeVertexNormals();

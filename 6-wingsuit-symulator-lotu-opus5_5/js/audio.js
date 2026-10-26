@@ -70,6 +70,9 @@
       this.drF.connect(this.drG); this.drG.connect(this.master);
     }
 
+    suspend() { if (this.ctx && this.ctx.state === 'running') this.ctx.suspend(); }
+    resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+
     setEnabled(on) {
       this.enabled = on; WS.U.store.set('sound', on);
       if (this.master) this.master.gain.setTargetAtTime(on ? 0.9 : 0, this.ctx.currentTime, 0.05);
@@ -197,6 +200,18 @@
             this._env(g, t + i * 0.07, 0.01, 0.14, 0.4);
             o.connect(g); g.connect(this.master); o.start(t + i * 0.07); o.stop(t + 1);
           });
+          break;
+        }
+        case 'bank': {
+          // zaliczona seria: szybkie arpeggio, tym wyżej, im dłuższa seria
+          const base = 392 * (1 + ((p.k || 1) - 1) * 0.25);
+          [1, 1.25, 1.5, 2, 2.5].forEach((m, i) => {
+            const o = c.createOscillator(), g = c.createGain();
+            o.type = i % 2 ? 'triangle' : 'square'; o.frequency.value = base * m;
+            this._env(g, t + i * 0.045, 0.008, i % 2 ? 0.12 : 0.05, 0.3);
+            o.connect(g); g.connect(this.master); o.start(t + i * 0.045); o.stop(t + 0.7);
+          });
+          this._noise(this.white, t, 0.5, 'bandpass', 1500, 6000, 0.18, 1.2);
           break;
         }
         case 'click': this._beep(1200, 0.03, 0.05); break;

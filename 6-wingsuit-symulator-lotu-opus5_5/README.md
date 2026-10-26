@@ -50,14 +50,14 @@ Na telefonie i tablecie pojawia się sterowanie dotykiem (gałka i przyciski).
 
 Do wyboru jest sześć rodzajów pogody, które zmieniają światło, widoczność i sam lot:
 
-| Pogoda | Co się dzieje |
-|---|---|
-| ☀ Słońce | czyste niebo, cienie gór, świetna widoczność |
-| 🌅 Złota godzina | nisko stojące słońce, długie cienie, ciepłe światło |
-| 🌫 Mgła i chmury | gęsta mgła w dolinach i chmury, przez które się przelatuje (ekran na chwilę bieleje) |
-| ⛈ Burza | ulewa, pioruny z grzmotem po kilku sekundach, porywy wiatru i mocne turbulencje |
-| ❄ Śnieżyca | zawieja, śnieg na skałach, zimny boczny wiatr |
-| 🌌 Noc z zorzą | księżyc w pełni, gwiazdy, Droga Mleczna i zorza polarna |
+| Pogoda | Co się dzieje | Punkty |
+|---|---|---|
+| Słońce | czyste niebo, cienie gór, świetna widoczność | ×1 |
+| Złota godzina | nisko stojące słońce, długie cienie, ciepłe światło | ×1,05 |
+| Mgła i chmury | gęsta mgła w dolinach i chmury, przez które się przelatuje (ekran na chwilę bieleje) | ×1,25 |
+| Burza | ulewa, pioruny z grzmotem po kilku sekundach, porywy wiatru i mocne turbulencje | ×1,4 |
+| Śnieżyca | zawieja, śnieg na skałach, zimny boczny wiatr | ×1,3 |
+| Noc z zorzą | księżyc w pełni, gwiazdy, Droga Mleczna i zorza polarna | ×1,2 |
 
 Siłę wiatru (0–20 m/s), jego kierunek (czołowy, z boku, w plecy) i turbulencje ustawiasz suwakami. Wiatr naprawdę znosi pilota, a pod czaszą przy silnym wietrze czołowym można nawet lecieć do tyłu.
 
@@ -65,20 +65,23 @@ Siłę wiatru (0–20 m/s), jego kierunek (czołowy, z boku, w plecy) i turbulen
 
 - **Model lotu**: siła nośna i opór zależą od kąta natarcia, a przechył skręca tor lotu. Skręt w dużym przechyle kosztuje wysokość. Nurkowanie daje prędkość, którą potem zamieniasz z powrotem na wysokość. Przy zbyt małej prędkości kombinezon traci nośność. Doskonałość lotu wynosi ok. 2,8 przy ok. 230 km/h, jak w prawdziwym wingsuicie.
 - **Punkty za bliskość**: mnożnik rośnie, im bliżej skał, wody i drzew lecisz (do ok. ×8). Bliski przelot („BLISKO!”, „O WŁOS!”) daje premię, a przy kilku metrach od skały czas na moment zwalnia.
-- **Bramki** z premią za serię, a za przelot pod mostem lub przez skalne okno +3000 pkt.
+- **Seria przy skale**: punkty zdobyte przy ścianie nie trafiają od razu do wyniku, tylko do serii pod licznikiem. Zaliczasz ją, odbijając od skały na ponad sekundę (albo otwierając spadochron). Im dłuższa seria, tym większy mnożnik, do ×3. Uderzenie zabiera całą niezaliczoną serię. Zaliczyć teraz czy jeszcze docisnąć – to główna decyzja w locie.
+- **Bramki** stoją przy ścianach i schodzą coraz niżej, więc trasa prowadzi blisko skały. Premia rośnie z serią, za przelot pod mostem lub przez skalne okno jest +3000 pkt. Przy ominięciu gra mówi, czy było za wysoko, za nisko czy obok.
 - **Wrażenie prędkości**: rozmycie promieniste, aberracja na brzegach, kąt widzenia rosnący z prędkością, drżenie kamery, smugi pyłu, deszczu i śniegu przelatujące obok, łopot kombinezonu i szum wiatru rosnący z prędkością.
 - **Adrenalina**: tętno pilota (słychać serce), czerwień na brzegach ekranu i piszczący wysokościomierz oraz napis „WYCIĄGAJ!”, gdy do ziemi zostały ok. 2 sekundy.
-- **Lądowanie** w kole lądowiska daje do +4000 pkt. Można też wylądować w terenie, w wodzie albo na drzewie. Uderzenie kończy lot i zabiera połowę punktów.
-- **Powtórka**: po locie w tle leci powtórka z kamer filmowych.
-- Rekordy dla każdego miejsca zapisują się w przeglądarce.
+- **Lądowanie** w kole lądowiska daje do +4000 pkt. Znacznik LĄDOWISKO robi się zielony, gdy spadochron otwarty w tej chwili doniesie Cię do koła, i czerwony, gdy już nie doniesie. Pod czaszą wysoko nad ziemią czas płynie szybciej. Można też wylądować w terenie, w wodzie albo na drzewie. Uderzenie kończy lot, zabiera 30% punktów i całą niezaliczoną serię, a ekran wyników mówi, co poszło nie tak.
+- **Duch rekordu**: półprzezroczysty niebieski pilot powtarza Twój najlepszy lot w tym miejscu, a przy każdej bramce widać, ile prowadzisz albo tracisz.
+- **Gwiazdki**: za każde miejsce w każdej pogodzie trzy do zdobycia (lądowanie w kole; most lub okno i 80% bramek; dość długi lot przy ścianie albo przelot bliżej niż 3 m), razem 54.
+- **Powtórka**: po locie zaczyna się od najlepszego momentu (najbliższy przelot, most, okno albo uderzenie) w zwolnionym tempie, z kamery stojącej przy torze lotu, a potem leci cała.
+- Rekordy, gwiazdki i duchy zapisują się w przeglądarce.
 
 ## Technika
 
-- Teren powstaje proceduralnie z funkcji wysokości (szum simplex, granie, tarasy). Dno doliny jest liczone jako zapas pod lotem wzorcowym, więc każdą trasę da się przelecieć. Bramki stawia lot wzorcowy z autopilotem (sprawdzone w testach: autopilot dolatuje do lądowiska na wszystkich trzech trasach).
+- Teren powstaje proceduralnie z funkcji wysokości (szum simplex, granie, tarasy). Dno doliny jest liczone jako zapas pod lotem wzorcowym, więc każdą trasę da się przelecieć. Bramki stawia lot wzorcowy, a potem autopilot przelatuje trasę i dopasowuje wysokość obręczy, które minął (sprawdzone w testach: autopilot zalicza wszystkie bramki i ląduje na wszystkich trzech trasach).
 - Wokół pilota jest 81 kawałków terenu z oczkiem 4 m, które doczytują się w trakcie lotu. Dalej są dwa pierścienie z grubszą siatką aż po horyzont (ok. 35 km). Cienie gór od słońca są wyliczane dla każdego wierzchołka.
 - Shadery są własne: skała, trawa, śnieg i mokre skały, mgła wysokościowa z poświatą słońca, woda z odbiciem nieba, niebo z chmurami, gwiazdami i zorzą, chmury do przelotu oraz opady jako smugi pędu.
 - Cały dźwięk jest syntezowany na żywo przez Web Audio, bez plików audio.
-- Jakość dostosowuje się sama: gdy klatek jest za mało, gra zmniejsza rozdzielczość renderu.
+- Jakość dostosowuje się sama: gdy klatek jest za mało, gra zmniejsza rozdzielczość renderu, a gdy znów jest płynnie, przywraca ją.
 
 ## Struktura
 
@@ -96,6 +99,7 @@ js/sky.js         – niebo, słońce/księżyc, chmury, gwiazdy, zorza, chmury 
 js/weather.js     – wiatr z porywami i turbulencją, opady, pioruny
 js/props.js       – bramki, most linowy, skalny łuk, lądowisko z rękawem, miejsce wyskoku
 js/pilot.js       – pilot w kombinezonie, czasza spadochronu, smugi dymu
+js/ghost.js       – duch rekordu: zapis najlepszego lotu i odtwarzanie go obok pilota
 js/camera.js      – kamery i drżenie
 js/post.js        – obróbka obrazu (rozmycie, aberracja, winieta, efekty)
 js/audio.js       – syntezowany dźwięk
@@ -103,3 +107,45 @@ js/hud.js         – HUD i komunikaty
 js/game.js        – przebieg lotu, punkty, lądowanie, wypadek, powtórka
 js/main.js        – start, menu, pętla gry, sterowanie
 ```
+
+## Rozwój po eksperymencie
+
+26.10.2026 grę oceniło czterech agentów z [`.claude/agents/`](../.claude/agents/): design, UX, wydajność i rozwój produktu. Główny wniosek: bramki trzymały gracza 80–600 m nad ziemią, a punkty płynęły za lot przy skale, więc przez większość lotu mnożnik wynosił ×1,0. Wdrożone poprawki:
+
+- **Rozgrywka:**
+  - seria przy skale z zaliczaniem (odbij od ściany, zanim coś pójdzie nie tak) i mnożnikiem do ×3,
+  - bramki przy ścianach, schodzące coraz niżej; pierwsza na wysokości swobodnego lotu, żeby pierwszym zdarzeniem był sukces; autopilot przelatuje trasę i dopasowuje obręcze,
+  - duch rekordu i międzyczasy na bramkach („+830 vs rekord”),
+  - 3 gwiazdki za każde miejsce w każdej pogodzie, mnożnik punktów za trudną pogodę,
+  - powtórka od najlepszego momentu, w zwolnionym tempie, z kamery przy torze lotu.
+- **Sterowanie:**
+  - skręt ok. 25°/s zamiast 9°/s (przechył obraca tor lotu bez utraty prędkości),
+  - pełne podciągnięcie kończy się tuż przed przeciągnięciem.
+- **Informacja zwrotna:**
+  - celownik toru lotu, różnica wysokości przy znaczniku celu,
+  - znacznik lądowiska zielony, gdy spadochron otwarty teraz doleci do koła,
+  - podpowiedź „ZA WOLNO”, przyczyna ominięcia bramki („za wysoko o 12 m”),
+  - na ekranie wyników przyczyna wypadku i wskazówka,
+  - przyspieszony czas pod czaszą,
+  - dokładniejsza odległość od skały, mostu i drzew.
+- **Wygoda:**
+  - pauza po utracie fokusu, wyciszenie dźwięku w ukrytej karcie,
+  - opcja „spokojna kamera” (domyślnie przy „ogranicz ruch” w systemie),
+  - menu w tle pokazuje ujęcia filmowe zamiast ściany z bliska.
+- **Wygląd:**
+  - skała z rzeźbą światła, spękaniami i żłobieniami, warstwy piaskowca liczone na pikselu,
+  - spokojniejsza zieleń, chłodna noc,
+  - miękka poświata bramek i przygaszone dalsze bramki,
+  - most z grubymi linami, nieregularny skalny łuk, spadochron z wyraźnymi komorami,
+  - piorun jako jasna wstęga, błysk bez spłaszczania kadru, szerszy i miękki dym.
+- **Interfejs:**
+  - ikony pogody w SVG zamiast emoji,
+  - czytelniejszy HUD na jasnym tle, wyraźne „WYCIĄGAJ!”,
+  - układ na telefon w poziomie i w pionie, przewijane wyniki z przyciskami zawsze pod ręką,
+  - kontrast przycisków, obramowanie fokusu.
+- **Wydajność:**
+  - obróbka obrazu z liczbą próbek zależną od rozmycia, bez MSAA na słabszym sprzęcie,
+  - automatyczna jakość nie liczy klatek ładowania i przywraca rozdzielczość,
+  - liczby HUD odświeżane 15 razy na sekundę, buforowane formatowanie liczb,
+  - cienie terenu liczone na rzadszej siatce, drzewa budowane porcjami,
+  - zwalniane tekstury mostu i materiał wody.

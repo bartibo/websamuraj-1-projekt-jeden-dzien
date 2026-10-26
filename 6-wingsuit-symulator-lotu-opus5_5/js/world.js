@@ -255,11 +255,15 @@
         if (specials.some(sp => Math.abs(s - sp.s) < 150)) continue;
         const z = s;
         const w = this.width(s);
+        // bramki stoją przy ścianach (na zmianę z lewej i prawej), żeby trasa prowadziła blisko skały
+        const r = 15;
         const side = Math.sin(s * 0.0013 + L.seed * 0.37) * G.lateral;
-        const off = clamp(side * w, -(w - 18), w - 18);
+        let lim = Math.max(0, w - r - 6);
+        if (s > L.sLand - 450) lim = Math.min(lim, 20); // ostatnia bramka w linii lądowiska
+        const off = clamp(side * w, -lim, lim);
         const t = this.tangent(z);
         const x = this.px(z) + off / t.z;
-        this.gates.push({ type: 'ring', x, y: 0, z, s, t, r: 13 });
+        this.gates.push({ type: 'ring', x, y: 0, z, s, t, r });
       }
       for (const sp of specials) this.gates.push(sp);
       this.gates.sort((a, b) => a.s - b.s);

@@ -24,13 +24,14 @@
       terrace: 0,
       water: null,
       sLand: 4650, landLen: 1800,
-      gates: { from: 450, to: 4450, step: 300, lateral: 0.35 },
+      gates: { from: 330, to: 4450, step: 300, lateral: 0.8 },
       bridge: { s: 3350, h: 55 },
       arch: null,
       palette: 'alpine',
       treeLine: 2150, snowLine: 2780,
       trees: { kind: 'pine', density: 0.55 },
-      cloudBase: 2050
+      cloudBase: 2050,
+      edgeSec: 25
     },
     {
       id: 'fiord',
@@ -51,13 +52,14 @@
       terrace: 0,
       water: 0,
       sLand: 2350, landLen: 1500, landOff: 150,
-      gates: { from: 450, to: 2250, step: 230, lateral: 0.55 },
+      gates: { from: 330, to: 2250, step: 230, lateral: 0.85 },
       bridge: { s: 1900, h: 110 },
       arch: null,
       palette: 'fjord',
       treeLine: 650, snowLine: 1150,
       trees: { kind: 'pine', density: 0.45 },
-      cloudBase: 850
+      cloudBase: 850,
+      edgeSec: 15
     },
     {
       id: 'kanion',
@@ -79,20 +81,21 @@
       terrace: 1,
       water: null,
       sLand: 3550, landLen: 1800,
-      gates: { from: 380, to: 3350, step: 250, lateral: 0.25 },
+      gates: { from: 280, to: 3350, step: 250, lateral: 0.7 },
       bridge: { s: 2780, h: 48 },
       arch: { s: 1950 },
       palette: 'desert',
       treeLine: 1800, snowLine: 9999,
       trees: { kind: 'shrub', density: 0.18 },
-      cloudBase: 1250
+      cloudBase: 1250,
+      edgeSec: 40
     }
   ];
 
   // Kąty słońca: el – wysokość nad horyzontem, az – azymut względem kierunku trasy (0 = przed nami)
   WS.WEATHER = [
     {
-      id: 'slonce', name: 'Słońce', icon: '☀', desc: 'Czyste niebo, świetna widoczność, lekki wiatr.',
+      id: 'slonce', mult: 1, name: 'Słońce', icon: '☀', desc: 'Czyste niebo, świetna widoczność, lekki wiatr.',
       sunEl: 48, sunAz: 145, skyTop: '#2c66bd', horizon: '#b8d3ee', sunCol: '#fff1da', sunInt: 1.1,
       sunFog: '#fdf0d8', ambSky: '#8fb2dc', ambGround: '#6a6250', fog: 0.000085, heightFog: 0,
       cloudCover: 0.32, cloudCol: '#ffffff', cloudDark: '#9fb0c6', cloudH: 1800,
@@ -100,7 +103,7 @@
       puffs: 0, stars: 0, aurora: 0, disk: 1, exposure: 1.0
     },
     {
-      id: 'zachod', name: 'Złota godzina', icon: '🌅', desc: 'Nisko stojące słońce, długie cienie, ciepłe światło.',
+      id: 'zachod', mult: 1.05, name: 'Złota godzina', icon: '🌅', desc: 'Nisko stojące słońce, długie cienie, ciepłe światło.',
       sunEl: 7, sunAz: 30, skyTop: '#36508f', horizon: '#f0a46c', sunCol: '#ffb06a', sunInt: 1.25,
       sunFog: '#ffb37a', ambSky: '#7f78a6', ambGround: '#5a4232', fog: 0.00011, heightFog: 0,
       cloudCover: 0.38, cloudCol: '#ffc08e', cloudDark: '#7a5a7a', cloudH: 1900,
@@ -108,15 +111,15 @@
       puffs: 0, stars: 0, aurora: 0, disk: 1, exposure: 1.0
     },
     {
-      id: 'mgla', name: 'Mgła i chmury', icon: '🌫', desc: 'Przelot przez chmury, gęsta mgła w dolinach. Teren widać dopiero z bliska.',
+      id: 'mgla', mult: 1.25, name: 'Mgła i chmury', icon: '🌫', desc: 'Przelot przez chmury, gęsta mgła w dolinach. Teren widać dopiero z bliska.',
       sunEl: 30, sunAz: 120, skyTop: '#8796a5', horizon: '#c1c8cf', sunCol: '#e9edf1', sunInt: 0.55,
       sunFog: '#dfe4e8', ambSky: '#b5bfca', ambGround: '#6a6d69', fog: 0.0009, heightFog: 1.4,
       cloudCover: 0.92, cloudCol: '#e4e8ec', cloudDark: '#8e979f', cloudH: 1500,
       wind: 5, turb: 0.35, gust: 0.35, particles: 'mzawka', snow: 0, wet: 0.35, lightning: false,
-      puffs: 1, stars: 0, aurora: 0, disk: 0, exposure: 1.0
+      puffs: 1, stars: 0, aurora: 0, disk: 0, exposure: 1.0, sat: 0.9
     },
     {
-      id: 'burza', name: 'Burza', icon: '⛈', desc: 'Ulewa, pioruny i porywy wiatru. Lot dla twardzieli.',
+      id: 'burza', mult: 1.4, name: 'Burza', icon: '⛈', desc: 'Ulewa, pioruny i porywy wiatru. Lot dla twardzieli.',
       sunEl: 25, sunAz: 100, skyTop: '#262b33', horizon: '#4d545e', sunCol: '#9aa4b2', sunInt: 0.38,
       sunFog: '#59616c', ambSky: '#59616d', ambGround: '#2b2d2a', fog: 0.0005, heightFog: 0.6,
       cloudCover: 1.0, cloudCol: '#454b54', cloudDark: '#1e2228', cloudH: 1300,
@@ -124,7 +127,7 @@
       puffs: 2, stars: 0, aurora: 0, disk: 0, exposure: 1.0
     },
     {
-      id: 'snieg', name: 'Śnieżyca', icon: '❄', desc: 'Zawieja, biel dookoła, zimny boczny wiatr.',
+      id: 'snieg', mult: 1.3, name: 'Śnieżyca', icon: '❄', desc: 'Zawieja, biel dookoła, zimny boczny wiatr.',
       sunEl: 22, sunAz: 120, skyTop: '#97a3b1', horizon: '#d6dce3', sunCol: '#e8eef5', sunInt: 0.5,
       sunFog: '#e6ebf0', ambSky: '#c9d3de', ambGround: '#878c93', fog: 0.00085, heightFog: 0.5,
       cloudCover: 0.96, cloudCol: '#e9edf2', cloudDark: '#9aa3ad', cloudH: 1400,
@@ -132,12 +135,12 @@
       puffs: 1, stars: 0, aurora: 0, disk: 0, exposure: 1.0
     },
     {
-      id: 'noc', name: 'Noc z zorzą', icon: '🌌', desc: 'Księżyc w pełni, gwiazdy i zorza polarna. Ziemia blisko, a widać mniej.',
+      id: 'noc', mult: 1.2, name: 'Noc z zorzą', icon: '🌌', desc: 'Księżyc w pełni, gwiazdy i zorza polarna. Ziemia blisko, a widać mniej.',
       sunEl: 34, sunAz: 160, skyTop: '#03070f', horizon: '#17263f', sunCol: '#a3b8e8', sunInt: 0.95,
       sunFog: '#2a3d60', ambSky: '#3a4e7c', ambGround: '#151b27', fog: 0.00014, heightFog: 0,
       cloudCover: 0.12, cloudCol: '#6f7f9e', cloudDark: '#1a2236', cloudH: 2000,
       wind: 2, turb: 0.1, gust: 0.2, particles: 'pylek', snow: 0, wet: 0, lightning: false,
-      puffs: 0, stars: 1, aurora: 1, disk: 2, exposure: 1.3
+      puffs: 0, stars: 1, aurora: 1, disk: 2, exposure: 1.3, sat: 0.62
     }
   ];
 
@@ -153,4 +156,26 @@
     { id: 'kino', name: 'Kamera filmowa' },
     { id: 'bok', name: 'Dron z boku' }
   ];
+})(typeof window !== 'undefined' ? window : globalThis);
+
+// Gwiazdki za miejsce i pogodę (każda wymaga udanego lądowania)
+(function (root) {
+  'use strict';
+  const WS = root.WS;
+  WS.STARS = [
+    { id: 'cel', name: 'Lądowanie w kole', test: (r) => r.ok && r.landDist < 26 },
+    { id: 'trasa', name: 'Most lub okno i 80% bramek', test: (r) => r.ok && r.specials >= 1 && (!r.gatesTotal || r.gatesOk >= Math.ceil(r.gatesTotal * 0.8)) },
+    { id: 'krawedz', name: 'Na krawędzi', desc: (L) => `${L.edgeSec} s przy ścianie albo przelot bliżej niż 3 m`, test: (r, L) => r.ok && (r.closeTime >= L.edgeSec || r.minProx < 3) }
+  ];
+
+  // Ikony pogody: jeden styl (obrys, currentColor), zamiast emoji, które każdy system rysuje inaczej
+  const P = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  WS.WX_ICONS = {
+    slonce: P('<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/>'),
+    zachod: P('<path d="M7.5 15a4.5 4.5 0 0 1 9 0"/><path d="M2.5 15h19M5 18.5h14M12 5v3.5M5.6 8.6l1.6 1.6M18.4 8.6l-1.6 1.6"/>'),
+    mgla: P('<path d="M7 10.5a4.5 4.5 0 0 1 8.7-1.6A3.4 3.4 0 0 1 18 15H7.5"/><path d="M3 15h2M3 18.5h14M7 21.5h10"/>'),
+    burza: P('<path d="M7 15.5A4.5 4.5 0 0 1 7.8 6.6a5 5 0 0 1 9.4 1.6 3.6 3.6 0 0 1-.7 7.3"/><path d="M13 12l-3 5h4l-2.5 4.5"/>'),
+    snieg: P('<path d="M12 2.5v19M3.8 7.2l16.4 9.6M3.8 16.8l16.4-9.6"/><path d="M9.5 3.8L12 6l2.5-2.2M9.5 20.2L12 18l2.5 2.2"/>'),
+    noc: P('<path d="M19.5 14.5A7.5 7.5 0 0 1 9.5 4.5a7.5 7.5 0 1 0 10 10z"/><path d="M17 3.5v3M15.5 5h3"/>')
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

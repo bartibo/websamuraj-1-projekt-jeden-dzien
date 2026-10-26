@@ -129,8 +129,11 @@
     }
   };
 
+  // formatery buforowane: toLocaleString tworzył nowy Intl.NumberFormat przy każdym wywołaniu (najdroższa funkcja HUD)
+  const NF = [];
   function fmt(n, d) {
-    return Number(n).toLocaleString('pl-PL', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
+    d = d || 0;
+    return (NF[d] || (NF[d] = new Intl.NumberFormat('pl-PL', { minimumFractionDigits: d, maximumFractionDigits: d }))).format(Number(n));
   }
 
   WS.U = { clamp, lerp, smoothstep, damp, rng, hash2, Simplex, makeCurve, store, fmt };

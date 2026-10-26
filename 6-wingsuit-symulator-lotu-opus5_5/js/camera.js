@@ -57,6 +57,7 @@
       let mode = WS.CAMERAS[this.mode].id;
       if (ph === 'ledge') mode = opts.ledgeView || 'ledge';
       if (opts.replay && mode === 'helm') mode = 'kino';
+      if (opts.force && ph !== 'ledge') mode = opts.force;
 
       if (mode === 'ledge') {
         // nad ramieniem, widok w przepaść
@@ -83,9 +84,15 @@
         rollT = ph === 'flight' ? fl.bank * 0.9 : 0;
         fovT = 80 + clamp((kmh - 120) * 0.14, 0, 30);
       } else if (mode === 'bok') {
+        // dron po tej stronie, gdzie jest więcej powietrza (w żlebie z drugiej strony stoi ściana)
         const rt = fl.right.clone();
+        rt.y = 0;
         if (rt.lengthSq() < 0.1) rt.set(1, 0, 0);
-        desired.copy(P).addScaledVector(rt, 11).addScaledVector(vd, 2.5).add(new V3(0, 1.2, 0));
+        rt.normalize();
+        const gR = w.ground(P.x + rt.x * 12, P.z + rt.z * 12), gL = w.ground(P.x - rt.x * 12, P.z - rt.z * 12);
+        const want = gL < gR - 3 ? -1 : gR < gL - 3 ? 1 : (this.bokSide || 1);
+        this.bokSide = damp(this.bokSide || want, want, 1.5, dt);
+        desired.copy(P).addScaledVector(rt, 11 * this.bokSide).addScaledVector(vd, 2.5).add(new V3(0, 3.2, 0));
         look.copy(P).addScaledVector(vd, 4);
         fovT = 62 + clamp((kmh - 120) * 0.08, 0, 18);
       } else {
@@ -115,7 +122,7 @@
       // drżenie: prędkość, turbulencja, bliskość skał, uderzenia
       const sh = ph === 'flight' ? smoothstep(140, 330, kmh) * 0.6 + (opts.turb || 0) * 0.35 + (opts.prox || 0) * 0.5 : 0;
       this.shake = Math.max(this.shake * Math.exp(-dt * 3), 0);
-      const amp = (sh * 0.06 + this.shake) * (mode === 'kino' ? 0.25 : 1);
+      const amp = (sh * 0.06 + this.shake) * (mode === 'kino' ? 0.25 : 1) * (this.calm ? 0.3 : 1);
       const f = 18 + kmh * 0.05;
       const ox = this.n.noise(this.t * f, 1.1) * amp, oy = this.n.noise(this.t * f, 7.3) * amp, oz = this.n.noise(this.t * f, 13.9) * amp * 0.5;
 
@@ -145,6 +152,20 @@
         this.cine = { p };
         if (p.y - P.y < 40) return;
       }
+    }
+
+    // Kamera filmowa ustawiona z boku punktu p (po stronie z niższym terenem), pilot przeleci tuż obok
+    setShot(p, vel) {
+      const w = this.world;
+      const vd = vel.lengthSq() > 1 ? vel.clone().normalize() : new V3(0, 0, 1);
+      const rt = new V3(-vd.z, 0, vd.x).normalize();
+      const side = w.ground(p.x + rt.x * 10, p.z + rt.z * 10) < w.ground(p.x - rt.x * 10, p.z - rt.z * 10) ? 1 : -1;
+      const c = p.clone().addScaledVector(rt, 8 * side).addScaledVector(vd, 14);
+      c.y += 1.5;
+      const gh = w.ground(c.x, c.z);
+      if (c.y < gh + 2) c.y = gh + 2;
+      this.cine = { p: c };
+      this.first = true;
     }
 
     impact(v) { this.shake = Math.max(this.shake, v); }

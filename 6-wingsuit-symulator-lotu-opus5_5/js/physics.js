@@ -11,6 +11,7 @@
   const CLA = 3.2;          // nachylenie krzywej siły nośnej [1/rad]
   const A_STALL = 0.42;     // kąt przeciągnięcia (~24°)
   const TRIM = 0.19;        // kąt natarcia bez sterowania (~11°)
+  const TURN = 0.3;         // wspomaganie skrętu [rad/s przy pełnym przechyle]
   const UP = new V3(0, 1, 0);
 
   class Flight {
@@ -92,7 +93,8 @@
       this.spread = !!inp.spread && !this.tuck && !chuteMode;
       this.inflate = Math.min(1, this.inflate + dt / 1.3);
       const p = chuteMode ? 0 : clamp(inp.pitch || 0, -1, 1);
-      let at = TRIM + (p > 0 ? p * 0.25 : p * 0.17);
+      // pełne podciągnięcie kończy się tuż przed przeciągnięciem (A_STALL)
+      let at = TRIM + (p > 0 ? p * 0.21 : p * 0.17);
       if (this.tuck) at -= 0.05;
       if (this.spread) at += 0.035;
       at = Math.max(0.015, at) + (env.turbA || 0);
@@ -133,6 +135,14 @@
       if (env.turbAcc) acc.addScaledVector(env.turbAcc, 1 - 0.7 * o);
 
       this.vel.addScaledVector(acc, dt);
+
+      // wspomaganie skrętu: przechył obraca tor lotu bez utraty prędkości (sam model daje tylko ~9°/s)
+      if (!chuteMode && this.inflate > 0.5) {
+        const yaw = Math.sin(this.bank) * TURN * smoothstep(14, 32, V) * dt;
+        const c = Math.cos(yaw), s = Math.sin(yaw);
+        const vx = this.vel.x, vz = this.vel.z;
+        this.vel.x = vx * c - vz * s; this.vel.z = vx * s + vz * c;
+      }
 
       // --- spadochron
       if (chuteMode) {
@@ -223,10 +233,12 @@
       if (fl.airspeed < 34) inp.pitch = Math.min(inp.pitch, -0.25);
       if (fl.airspeed > 85 && need < 0.6) inp.pitch = Math.max(inp.pitch, 0.25);
     }
-    // ziemia przed nami
+    // ziemia przed nami (punkt przesunięty do wnętrza doliny – autopilot i tak skręci za nią)
     const margin = opts.margin || 14;
     for (let t = 0.5; t <= 3.5; t += 0.5) {
-      const x = p.x + v.x * t, z = p.z + v.z * t, y = p.y + v.y * t;
+      const z = p.z + v.z * t, y = p.y + v.y * t;
+      const cx = world.px(z), lim = Math.max(10, world.width(z) * 0.85);
+      const x = cx + clamp(p.x + v.x * t - cx, -lim, lim);
       const gh = world.ground(x, z);
       if (y < gh + margin) { inp.pitch = Math.max(inp.pitch, clamp(1.25 - t * 0.28, 0.3, 1)); inp.roll *= 0.3; break; }
     }
@@ -279,17 +291,60 @@
       }
       return y;
     };
+    // pierwsza bramka wisi na wysokości lotu bez sterowania (łatwy start), kolejne schodzą coraz bliżej dna
+    // (spadek między bramkami nie stromszy niż nurkowanie, które da się przelecieć)
+    let ri = 0, prev = null;
     for (const g of world.gates) {
-      if (g.type !== 'ring') continue;
+      if (g.type !== 'ring') { prev = g; continue; }
       const b = base(g.s);
       const pl = plan(g.s);
-      let y = Math.max(b + 24, pl - 0.3 * Math.max(0, pl - b));
+      const k = clamp(0.08 + Math.max(0, ri - 1) * 0.22, 0.08, 0.8);
+      ri++;
+      let y = Math.max(b + 22, lerp(pl, b + 22, k));
+      if (prev) y = Math.max(y, prev.y - (g.s - prev.s) * 0.42);
+      y = Math.min(y, pl);
+      prev = g;
       const gh = world.ground(g.x, g.z);
       if (y < gh + 16) y = gh + 16;
       g.y = y;
     }
+    fitGates(world);
     world.refProfile = ref; world.refS0 = s0;
     return world.gates;
+  }
+
+  // Przelot autopilotem przez bramki: obręcze, które minął górą albo dołem, przesuwamy w pionie w stronę jego toru.
+  // Dzięki temu lot pokazowy w menu przelatuje całą trasę, a każda bramka jest na pewno osiągalna.
+  function fitGates(world) {
+    const env = { wind: new THREE.Vector3() };
+    const G = world.gates;
+    for (let pass = 0; pass < 4; pass++) {
+      const fl = new Flight(world);
+      fl.jump();
+      const prev = new THREE.Vector3();
+      let next = 0, t = 0, moved = 0;
+      while (t < 260 && next < G.length) {
+        const g = G[next];
+        const inp = autopilot(fl, world, g, { margin: 10 });
+        prev.copy(fl.pos);
+        fl.step(1 / 30, inp, env);
+        t += 1 / 30;
+        const P = fl.pos;
+        if (P.y < world.ground(P.x, P.z) + 0.5) break;
+        const d0 = (prev.x - g.x) * g.t.x + (prev.z - g.z) * g.t.z, d1 = (P.x - g.x) * g.t.x + (P.z - g.z) * g.t.z;
+        if (d0 < 0 && d1 >= 0) {
+          const k = d0 / (d0 - d1), cy = lerp(prev.y, P.y, k);
+          // bramki przed mostem i oknem nie idą w górę – mają sprowadzać pilota pod przeszkodę
+          const beforeSpecial = G[next + 1] && G[next + 1].type !== 'ring';
+          if (g.type === 'ring' && Math.abs(cy - g.y) > g.r * 0.45 && !(beforeSpecial && cy > g.y)) {
+            g.y = Math.max(world.ground(g.x, g.z) + 16, lerp(g.y, cy, 0.85));
+            moved++;
+          }
+          next++;
+        }
+      }
+      if (!moved) break;
+    }
   }
 
   WS.Flight = Flight;

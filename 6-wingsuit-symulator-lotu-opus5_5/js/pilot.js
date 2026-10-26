@@ -8,8 +8,9 @@
   const SUIT = [1.0, 0.36, 0.1], SUIT2 = [0.12, 0.13, 0.16], STRIPE = [0.98, 0.95, 0.9];
 
   class Pilot {
-    constructor(scene) {
+    constructor(scene, opts) {
       this.scene = scene;
+      this.isGhost = !!(opts && opts.ghost);
       this.root = new THREE.Group();
       this.model = new THREE.Group();
       this.root.add(this.model);
@@ -63,21 +64,42 @@
       this.tmp = new V3(); this.tmp2 = new V3(); this.tmp3 = new V3();
       this.footW = [new V3(), new V3()];
       this.smokeOn = true;
+      if (this.isGhost) this._ghostify();
+    }
+
+    // Duch rekordu: cały pilot i czasza w jednym półprzezroczystym niebieskim materiale, niebieski dym
+    _ghostify() {
+      const gm = this.ghostMat = WS.patchFog(new THREE.MeshLambertMaterial({ color: 0x5fb4ff, emissive: 0x1a4a80, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }));
+      const swap = (o) => { if (o.isMesh) { o.material = gm; o.renderOrder = 7; } };
+      this.root.traverse(swap);
+      this.canopy.material = gm;
+      this.smoke.material.uniforms.uGhost.value = 1;
+    }
+    setGhostFade(f) {
+      if (!this.ghostMat) return;
+      this.ghostMat.opacity = 0.45 * f;
+      this.smoke.material.uniforms.uFade.value = f;
     }
 
     _chute() {
-      const g = new THREE.BoxGeometry(8, 0.55, 2.8, 18, 1, 2);
-      const p = g.attributes.position;
+      const g0 = new THREE.BoxGeometry(8, 0.55, 2.8, 18, 1, 2);
+      const p0 = g0.attributes.position;
+      for (let i = 0; i < p0.count; i++) {
+        const x = p0.getX(i), z = p0.getZ(i);
+        p0.setY(i, p0.getY(i) - x * x * 0.045 + (z > 0 ? 0.12 : 0) - Math.max(0, -z) * 0.05);
+      }
+      const g = g0.toNonIndexed();
+      g.computeVertexNormals();
+      const p = g.attributes.position, nrm = g.attributes.normal;
       const col = new Float32Array(p.count * 3);
-      for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i), z = p.getZ(i);
-        p.setY(i, p.getY(i) - x * x * 0.045 + (z > 0 ? 0.12 : 0) - Math.max(0, -z) * 0.05);
-        const cell = Math.floor((x + 4) / (8 / 9));
-        const c = cell % 3 === 0 ? [0.12, 0.45, 0.95] : cell % 3 === 1 ? [1, 0.82, 0.15] : [0.95, 0.95, 0.95];
-        col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
+      const CELL = [[0.1, 0.36, 0.86], [1, 0.76, 0.12], [0.94, 0.94, 0.94]];
+      for (let t = 0; t < p.count; t += 3) {
+        const cx = (p.getX(t) + p.getX(t + 1) + p.getX(t + 2)) / 3;
+        const c = CELL[Math.floor((cx + 4) / (8 / 9)) % 3];
+        const under = nrm.getY(t) < -0.5 ? 0.62 : 1;
+        for (let q = 0; q < 3; q++) { col[(t + q) * 3] = c[0] * under; col[(t + q) * 3 + 1] = c[1] * under; col[(t + q) * 3 + 2] = c[2] * under; }
       }
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      g.computeVertexNormals();
       this.canopy = new THREE.Mesh(g, WS.patchFog(new THREE.MeshLambertMaterial({ vertexColors: true })));
       this.canopy.position.y = 6.2;
       const segs = [];
@@ -117,18 +139,19 @@
       g.setIndex(idx);
       this.smGeo = g;
       const mat = new THREE.ShaderMaterial({
-        uniforms: { uFogCol: WS.U3.uFogCol, uSunFog: WS.U3.uSunFog, uSunDir: WS.U3.uSunDir, uCam: WS.U3.uCam, uFogDens: WS.U3.uFogDens, uHF: WS.U3.uHF, uAmbSky: WS.U3.uAmbSky, uSunCol: WS.U3.uSunCol },
+        uniforms: { uGhost: { value: 0 }, uFade: { value: 1 }, uFogCol: WS.U3.uFogCol, uSunFog: WS.U3.uSunFog, uSunDir: WS.U3.uSunDir, uCam: WS.U3.uCam, uFogDens: WS.U3.uFogDens, uHF: WS.U3.uHF, uAmbSky: WS.U3.uAmbSky, uSunCol: WS.U3.uSunCol },
         vertexShader: `attribute float aA; attribute float aC; varying float vA; varying float vC; varying vec3 vW;
           void main(){ vA = aA; vC = aC; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-        fragmentShader: `uniform vec3 uAmbSky; uniform vec3 uSunCol; varying float vA; varying float vC; varying vec3 vW;
+        fragmentShader: `uniform vec3 uAmbSky; uniform vec3 uSunCol; uniform float uGhost; uniform float uFade; varying float vA; varying float vC; varying vec3 vW;
           ${WS.GLSL.fogPars}
           void main(){
             float trail = floor(vC + 0.001);
             float edge = 1.0 - abs(fract(vC) - 0.25) * 4.0;
-            vec3 base = mix(vec3(1.0, 0.5, 0.16), vec3(0.95, 0.18, 0.18), trail);
+            vec3 base = mix(vec3(1.0, 0.55, 0.3), vec3(0.95, 0.3, 0.28), trail);
+            base = mix(base, vec3(0.45, 0.72, 1.0), uGhost);
             vec3 col = base * (uSunCol * 0.6 + uAmbSky * 0.7);
             float dc = length(vW - uCam);
-            float a = vA * smoothstep(2.0, 12.0, dc) * smoothstep(0.0, 0.7, edge);
+            float a = vA * smoothstep(2.0, 12.0, dc) * smoothstep(0.0, 0.7, edge) * uFade * (1.0 - 0.4 * uGhost);
             gl_FragColor = vec4(applyFog(col, vW), a);
           }`,
         transparent: true, depthWrite: false, side: THREE.DoubleSide
@@ -303,8 +326,8 @@
           if (tan.lengthSq() < 1e-6) tan.set(0, 0, 1);
           tc.set(cp.x - px, cp.y - py, cp.z - pz);
           side.crossVectors(tan, tc).normalize();
-          const wdt = 0.12 + p.age * 0.7;
-          const a = Math.max(0, 1 - p.age / 4.5) * 0.4 * (i === 0 ? 0 : 1) * Math.min(1, i / 4);
+          const wdt = 0.22 + p.age * 1.4;
+          const a = Math.max(0, 1 - p.age / 4.5) * 0.3 * (i === 0 ? 0 : 1) * Math.min(1, i / 4);
           for (let q = 0; q < 2; q++) {
             const sgn = q ? 1 : -1;
             pos[(j + q) * 3] = px + side.x * wdt * sgn; pos[(j + q) * 3 + 1] = py + side.y * wdt * sgn; pos[(j + q) * 3 + 2] = pz + side.z * wdt * sgn;

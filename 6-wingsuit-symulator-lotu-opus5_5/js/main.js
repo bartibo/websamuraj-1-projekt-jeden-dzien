@@ -16,13 +16,18 @@
     'Napis „WYCIĄGAJ!” oznacza, że do ziemi zostały ok. 2 sekundy.',
     'Spadochron otwiera się ok. 2 sekund. Nie zostawiaj go na ostatnią chwilę.',
     'W burzy porywy wiatru szarpią kombinezonem. Zostaw sobie więcej zapasu.',
-    'Kamera filmowa (C) pokazuje przelot z boku, tak jak na nagraniach z zawodów.'
+    'Kamera filmowa (C) pokazuje przelot z boku, tak jak na nagraniach z zawodów.',
+    'Punkty przy skale zbierają się w serii. Odbij od ściany na sekundę, żeby ją zaliczyć, zanim coś pójdzie nie tak.',
+    'Gdy znacznik LĄDOWISKO robi się zielony, spadochron otwarty teraz doniesie Cię do koła.',
+    'Niebieski duch to Twój najlepszy lot w tym miejscu. Przy każdej bramce widzisz, czy prowadzisz.',
+    'Poniżej 150 km/h kombinezon słabo nosi. Nurkuj, zanim zabraknie prędkości.'
   ];
+  const calmDefault = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // ---------- ustawienia ----------
   const S = Object.assign({
     loc: 'dolomity', wx: 'slonce', wind: 3, windDir: 'czolowy', turb: 12, mode: 'trasa',
-    smoke: true, slowmo: true, invert: false, cam: 0
+    smoke: true, slowmo: true, invert: false, cam: 0, ghost: true, calm: calmDefault
   }, store.get('settings', {}));
   const saveS = () => store.set('settings', S);
 
@@ -36,13 +41,15 @@
     return;
   }
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-  let pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  const maxRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  let pixelRatio = maxRatio;
   renderer.setPixelRatio(pixelRatio);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(70, 1, 0.3, 60000);
   const lights = { sun: new THREE.DirectionalLight(0xffffff, 1), hemi: new THREE.HemisphereLight(0xffffff, 0x444444, 1) };
   scene.add(lights.sun, lights.sun.target, lights.hemi);
-  const post = new WS.Post(renderer);
+  const lowEnd = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && Math.min(screen.width, screen.height) < 900;
+  const post = new WS.Post(renderer, lowEnd);
 
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -62,6 +69,7 @@
     world: null, terrain: null, props: null, pilot: new WS.Pilot(scene),
     rig: null, built: null
   };
+  app.ghost = new WS.Ghost(scene);
   app.rig = new WS.CameraRig(camera, null);
   app.rig.mode = S.cam || 0;
   const game = new WS.Game(app);
@@ -69,13 +77,13 @@
 
   let state = 'menu';
   let demo = false;
-  let replayT = 0, ghost = null, demoT = 0, demoCam = 0;
+  let replayT = 0, ghost = null, demoT = 0, demoCam = 0, highlight = null;
   const locById = (id) => WS.LOCATIONS.find(l => l.id === id) || WS.LOCATIONS[0];
   const wxById = (id) => WS.WEATHER.find(w => w.id === id) || WS.WEATHER[0];
 
   function gameOpts() {
     const dir = WS.WIND_DIRS.find(d => d.id === S.windDir) || WS.WIND_DIRS[0];
-    return { mode: S.mode, wind: S.wind, windAngle: dir.angle, turb: S.turb / 100, slowmo: S.slowmo };
+    return { mode: S.mode, wind: S.wind, windAngle: dir.angle, turb: S.turb / 100, slowmo: S.slowmo, wxMult: wxById(S.wx).mult || 1 };
   }
 
   // Budowa świata (asynchronicznie, z paskiem postępu)
@@ -135,13 +143,16 @@
   // ---------- menu ----------
   function buildMenu() {
     const best = store.get('best', {});
+    const stars = store.get('stars', {});
+    const nStars = (k) => { let n = 0, m = stars[k] || 0; while (m) { n += m & 1; m >>= 1; } return n; };
     const locs = $('locs');
     locs.innerHTML = '';
     for (const l of WS.LOCATIONS) {
       const b = document.createElement('button');
       b.className = 'loc' + (S.loc === l.id ? ' on' : '');
       const rec = Math.max(best[l.id + '|trasa'] || 0, best[l.id + '|wolny'] || 0);
-      b.innerHTML = `<div class="t">${l.name}<em>${l.title}</em></div><p>${l.desc}</p><div class="tags">${l.tags.map(t => `<span>${t}</span>`).join('')}</div>${rec ? `<div class="rec">rekord ${fmt(rec)}</div>` : ''}`;
+      const st = WS.WEATHER.reduce((a, w) => a + nStars(l.id + '|' + w.id), 0);
+      b.innerHTML = `<div class="t">${l.name}<em>${l.title}</em></div><p>${l.desc}</p><div class="tags">${l.tags.map(t => `<span>${t}</span>`).join('')}</div><div class="rec">${rec ? `rekord ${fmt(rec)}` : ''}${st ? `<span class="st">★ ${st}/${WS.WEATHER.length * 3}</span>` : ''}</div>`;
       b.onclick = () => { S.loc = l.id; saveS(); buildMenu(); app.audio.start(); app.audio.play('click'); menuWorld(); };
       locs.appendChild(b);
     }
@@ -150,7 +161,8 @@
     for (const w of WS.WEATHER) {
       const b = document.createElement('button');
       b.className = 'wx' + (S.wx === w.id ? ' on' : '');
-      b.innerHTML = `<span class="i">${w.icon}</span><span class="n">${w.name}</span>`;
+      const ns = nStars(S.loc + '|' + w.id);
+      b.innerHTML = `<span class="i">${WS.WX_ICONS[w.id] || w.icon}</span><span class="n">${w.name}</span><span class="m">${w.mult > 1 ? `punkty ×${fmt(w.mult, 2).replace(/0$/, '')}` : '&nbsp;'}</span><span class="s">${'★'.repeat(ns)}<i>${'★'.repeat(3 - ns)}</i></span>`;
       b.title = w.desc;
       b.onclick = () => {
         S.wx = w.id; S.wind = w.wind; S.turb = Math.round(w.turb * 100);
@@ -176,8 +188,11 @@
       b.onclick = () => { S.mode = b.dataset.v; saveS(); buildMenu(); };
     }
     $('optSmoke').checked = S.smoke; $('optSlow').checked = S.slowmo; $('optInvert').checked = S.invert; $('optSound').checked = app.audio.enabled;
+    $('optGhost').checked = S.ghost; $('optCalm').checked = S.calm;
     const bv = best[S.loc + '|' + S.mode];
-    $('bestLbl').innerHTML = bv ? `Rekord: <b>${fmt(bv)}</b> pkt` : 'Pierwszy skok w tym miejscu';
+    const L = locById(S.loc), ks = S.loc + '|' + S.wx;
+    const starList = WS.STARS.map((x, i) => `<span class="${(stars[ks] || 0) & (1 << i) ? 'on' : ''}">★ ${x.desc ? x.desc(L) : x.name}</span>`).join('');
+    $('bestLbl').innerHTML = (bv ? `Rekord: <b>${fmt(bv)}</b> pkt` : 'Pierwszy skok w tym miejscu') + `<div class="goals">${starList}</div>`;
   }
   $('optWind').oninput = (e) => { S.wind = +e.target.value; $('windOut').textContent = S.wind + ' m/s'; saveS(); };
   $('optTurb').oninput = (e) => { S.turb = +e.target.value; $('turbOut').textContent = S.turb + '%'; saveS(); };
@@ -185,6 +200,8 @@
   $('optSlow').onchange = (e) => { S.slowmo = e.target.checked; saveS(); };
   $('optInvert').onchange = (e) => { S.invert = e.target.checked; saveS(); };
   $('optSound').onchange = (e) => { app.audio.start(); app.audio.setEnabled(e.target.checked); };
+  $('optGhost').onchange = (e) => { S.ghost = e.target.checked; saveS(); };
+  $('optCalm').onchange = (e) => { S.calm = e.target.checked; saveS(); };
 
   function showScreen(id) {
     for (const s of ['menu', 'pause', 'results']) $(s).classList.toggle('on', s === id);
@@ -221,7 +238,12 @@
       demo = false;
       app.weather.set(wxById(S.wx), gameOpts(), app.world);
       app.pilot.smokeOn = S.smoke;
-      game.start(gameOpts());
+      const rec = store.get('ghost.' + S.loc + '|' + S.mode, null);
+      app.ghost.set(rec);
+      app.ghost.pilot.smokeOn = S.smoke;
+      const o = gameOpts();
+      o.ref = rec && rec.splits;
+      game.start(o);
       app.rig.mode = S.cam || 0;
       state = 'play';
       app.hud.show(true);
@@ -236,32 +258,61 @@
     const r = game.summary();
     const best = store.get('best', {});
     const key = S.loc + '|' + S.mode;
-    const isBest = r.score > (best[key] || 0);
-    if (isBest) { best[key] = r.score; store.set('best', best); }
+    const prevBest = best[key] || 0;
+    const isBest = r.score > prevBest && r.score > 0;
+    if (isBest) {
+      best[key] = r.score; store.set('best', best);
+      if (game.frames.length > 8) store.set('ghost.' + key, { v: 1, score: r.score, splits: r.splits, f: WS.ghostEncode(game.frames) });
+    }
     const loc = locById(S.loc), wx = wxById(S.wx);
-    $('resKind').textContent = `${loc.name} · ${wx.name} · ${S.mode === 'wolny' ? 'wolny lot' : 'trasa'}`;
+    // gwiazdki za to miejsce i pogodę
+    const allStars = store.get('stars', {});
+    const sk = S.loc + '|' + S.wx;
+    const had = allStars[sk] || 0;
+    let got = 0;
+    WS.STARS.forEach((st, i) => { if (st.test(r, loc)) got |= 1 << i; });
+    allStars[sk] = had | got; store.set('stars', allStars);
+    $('resStars').innerHTML = WS.STARS.map((st, i) => {
+      const cls = got & (1 << i) ? (had & (1 << i) ? 'on' : 'on new') : had & (1 << i) ? 'had' : '';
+      return `<span class="${cls}" style="--d:${i * 0.25 + 0.3}s"><b>★</b>${st.desc ? st.desc(loc) : st.name}</span>`;
+    }).join('');
+
+    $('resKind').textContent = `${loc.name} · ${wx.name} · ${S.mode === 'wolny' ? 'wolny lot' : 'trasa'}${r.wxMult > 1 ? ` · punkty ×${fmt(r.wxMult, 2).replace(/0$/, '')}` : ''}`;
     const t = $('resTitle');
     const titles = { 'skała': 'UDERZENIE W SKAŁĘ', 'woda': 'UDERZENIE W WODĘ', 'drzewo': 'PROSTO W DRZEWO', 'most': 'UDERZENIE W MOST', 'łuk': 'UDERZENIE W ŁUK SKALNY' };
-    t.textContent = r.ok ? `LĄDOWANIE: ${r.kind.toUpperCase()}` : (titles[r.kind] || 'WYPADEK');
+    t.textContent = r.ok ? r.kind.toUpperCase() : (titles[r.kind] || 'WYPADEK');
     t.className = r.ok ? 'ok' : 'bad';
     $('resScore').textContent = fmt(r.score);
-    $('resBest').textContent = isBest ? '★ NOWY REKORD' : (best[key] ? `rekord: ${fmt(best[key])}` : '');
+    $('resBest').textContent = isBest ? (prevBest ? `★ NOWY REKORD (+${fmt(r.score - prevBest)})` : '★ PIERWSZY WYNIK – od teraz leci z Tobą duch tego lotu') : (prevBest ? `rekord: ${fmt(prevBest)} · brakło ${fmt(prevBest - r.score)}` : '');
+    $('resCause').textContent = r.ok ? (r.landDist >= 26 ? `Lądowanie ${fmt(r.landDist)} m od środka koła. Otwórz spadochron, gdy znacznik LĄDOWISKO zrobi się zielony.` : '') : r.cause;
     const items = [
       ['Czas lotu', `${Math.floor(r.time / 60)}:${String(Math.floor(r.time % 60)).padStart(2, '0')}`],
       ['Prędkość maks.', `${fmt(r.top)} km/h`],
       ['Najbliżej skał', r.minProx < 1e8 ? `${fmt(r.minProx, 1)} m` : '–'],
       ['Bliskie przeloty', fmt(r.near)],
       ['Bramki', r.gatesTotal ? `${r.gatesOk}/${r.gatesTotal}` : 'wolny lot'],
-      ['Dystans', `${fmt(r.dist / 1000, 2)} km`],
-      ['Przewyższenie', `${fmt(Math.max(0, r.drop))} m`],
-      ['Przeciążenie maks.', `${fmt(r.maxG, 1)} g`],
+      ['Najlepsza seria', r.comboBest ? `+${fmt(r.comboBest)}` : '–'],
       ['Lot przy ścianie', `${fmt(r.closeTime, 1)} s`],
+      ['Przeciążenie maks.', `${fmt(r.maxG, 1)} g`],
+      ['Dystans', `${fmt(r.dist / 1000, 2)} km`],
       r.ok ? ['Premia za lądowanie', `+${fmt(r.bonus)}`] : ['Uderzenie', `${fmt(r.impact || 0)} km/h (−${fmt(r.lost)})`]
     ];
     $('resGrid').innerHTML = items.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
     app.hud.show(false);
+    app.ghost.hide();
     showScreen('results');
+    // powtórka zaczyna się tuż przed najciekawszą chwilą lotu, w zwolnionym tempie, z kamery przy skale
+    const m = game.bestMoment();
+    const F = game.frames;
+    highlight = null;
     replayT = 0;
+    if (m && F.length > 2) {
+      const t0 = F[0][0];
+      replayT = Math.max(0, m.t - t0 - 2.2);
+      highlight = { from: replayT, at: m.t - t0, until: m.t - t0 + 1.2, shot: false };
+      const what = m.kind === 'near' ? `${fmt(m.min, 1)} m od skały przy ${fmt(m.sp)} km/h` : m.kind === 'most' ? `przelot pod mostem, ${fmt(m.sp)} km/h` : m.kind === 'łuk' ? `przelot przez skalne okno, ${fmt(m.sp)} km/h` : m.kind === 'cel' ? 'lądowanie w kole' : `uderzenie przy ${fmt(m.sp)} km/h`;
+      $('resNote').textContent = `W tle: najlepszy moment lotu (${what}), potem cała powtórka.`;
+    } else $('resNote').textContent = 'W tle leci powtórka Twojego lotu.';
     app.pilot.resetTrails();
     app.rig.snap();
   }
@@ -299,7 +350,10 @@
     else if (k === 'KeyH' && state === 'play') { S.smoke = !S.smoke; app.pilot.smokeOn = S.smoke; saveS(); app.hud.toast(S.smoke ? 'DYM WŁĄCZONY' : 'DYM WYŁĄCZONY'); }
   });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
-  window.addEventListener('blur', () => keys.clear());
+  window.addEventListener('blur', () => { keys.clear(); pause(true); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { keys.clear(); pause(true); app.audio.suspend(); } else app.audio.resume();
+  });
 
   // dotyk
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -371,6 +425,8 @@
   }
 
   // ---------- pętla ----------
+  let hudT = 0;
+  const hlSlow = () => !!highlight && replayT >= highlight.at - 1.4 && replayT < highlight.until;
   let last = performance.now();
   let fpsAcc = 0, fpsN = 0, fpsT = 0;
   const tmpV = new V3();
@@ -380,10 +436,12 @@
     let rdt = Math.min(0.05, (now - last) / 1000);
     last = now;
     // automatyczna jakość
-    fpsAcc += rdt; fpsN++; fpsT += rdt;
+    // (klatki budowania świata trwają ~40 ms i nie świadczą o płynności gry)
+    if (building || state === 'loading') { fpsAcc = fpsN = fpsT = 0; } else { fpsAcc += rdt; fpsN++; fpsT += rdt; }
     if (fpsT > 2.5) {
       const avg = fpsAcc / fpsN;
-      if (avg > 0.026 && pixelRatio > 0.75) { pixelRatio = Math.max(0.75, pixelRatio - 0.25); resize(); }
+      if (avg > 0.026 && pixelRatio > 0.75) { pixelRatio = Math.max(0.75, pixelRatio - 0.25); post.setMSAA(false); resize(); }
+      else if (avg < 0.0175 && pixelRatio < maxRatio && state !== 'pause') { pixelRatio = Math.min(maxRatio, pixelRatio + 0.25); if (pixelRatio >= maxRatio) post.setMSAA(true); resize(); }
       fpsAcc = 0; fpsN = 0; fpsT = 0;
     }
     const U = WS.U3;
@@ -409,7 +467,7 @@
       game.update(rdt, di);
       if (game.result && game.endT > 3) startDemo();
       demoCam += rdt;
-      const modes = [0, 0, 2, 0, 3];
+      const modes = [2, 3, 0, 2, 3];
       app.rig.mode = modes[Math.floor(demoCam / 6) % modes.length];
       camOpts.ledgeView = 'ledge';
     } else if (state === 'play') {
@@ -417,10 +475,19 @@
       camOpts.prox = game.pf;
       if (game.result && game.endT > (game.result.ok ? 3 : 3.2)) showResults();
     } else if (state === 'results') {
-      replayT += rdt;
+      const hl = highlight;
+      replayT += rdt * (hlSlow() ? 0.3 : 1);
+      if (hl && replayT >= hl.until + 2.5) highlight = null;
       ghost = game.replayState(replayT, ghost);
       if (ghost) target = ghost;
       camOpts.replay = true;
+      // ujęcie najlepszej chwili: kamera stoi przy torze lotu, pilot przelatuje obok
+      if (hl && ghost && !hl.shot) {
+        hl.shot = true;
+        const pm = game.replayState(hl.at, null);
+        if (pm) app.rig.setShot(pm.pos, pm.vel);
+      }
+      if (hl && replayT < hl.until + 2) camOpts.force = 'kino';
       if (replayT > 0.1 && ghost && ghost.flightTime < 0.15) app.pilot.resetTrails();
     }
     fl = target;
@@ -429,7 +496,8 @@
     // świat wokół pilota
     app.terrain.update(fl.pos.x, fl.pos.z, state === 'results' ? 8 : 5);
     app.weather.sample(time, fl.pos, 0, game.env);
-    if (state === 'results' || state === 'menu') app.rig.update(rdt, fl, camOpts);
+    if (state === 'results') app.rig.update(rdt * (hlSlow() ? 0.3 : 1), fl, camOpts);
+    else if (state === 'menu') app.rig.update(rdt, fl, camOpts);
     else if (state !== 'pause') app.rig.update(rdt * (game.timeScale || 1), fl, camOpts);
     if (window.__ws.camOverride) { const o = window.__ws.camOverride; camera.position.fromArray(o.pos); camera.up.set(0, 1, 0); camera.lookAt(new V3().fromArray(o.look)); camera.fov = o.fov || 70; camera.updateProjectionMatrix(); }
     U.uCam.value.copy(camera.position);
@@ -442,6 +510,8 @@
     app.weather.events.length = 0;
     app.props.update(rdt, time, game.next);
     app.props.animate(time, game.env.wind);
+    app.ghost.update(game.fl.flightTime, state === 'pause' ? 0 : rdt * (game.timeScale || 1), time, camera,
+      S.ghost && state === 'play' && game.fl.phase !== 'ledge' && !game.result);
     const helm = app.rig.modeId === 'helm';
     app.pilot.update(fl, state === 'pause' ? 0 : rdt * (game.timeScale || 1), time, camera, !helm || fl.phase === 'ledge' ? true : false);
     if (helm && fl.phase !== 'ledge') app.pilot.root.visible = false;
@@ -450,15 +520,18 @@
     const kmh = (fl.airspeed || 0) * 3.6;
     const flying = fl.phase === 'flight';
     const pu = post.u;
-    const blur = flying && app.rig.modeId !== 'kino' ? smoothstep(150, 400, kmh) * 0.9 + (fl.tuck ? 0.15 : 0) : 0;
+    const calm = S.calm ? 0.25 : 1;
+    app.rig.calm = S.calm;
+    const blur = (flying && app.rig.modeId !== 'kino' ? smoothstep(150, 400, kmh) * 0.9 + (fl.tuck ? 0.15 : 0) : 0) * calm;
     pu.uBlur.value = damp(pu.uBlur.value, blur, 4, rdt);
     pu.uAberr.value = damp(pu.uAberr.value, flying ? smoothstep(180, 420, kmh) + (state === 'play' ? game.pf * 0.6 : 0) : 0, 4, rdt);
     pu.uExposure.value = wxById(S.wx).exposure || 1;
+    pu.uSat.value = wxById(S.wx).sat || 1;
     pu.uVig.value = 0.32 + (state === 'play' ? game.adr * 0.35 : 0.1);
-    pu.uRed.value = state === 'play' ? Math.max(game.warn * 0.9, game.flash) : 0;
+    pu.uRed.value = state === 'play' ? Math.max(game.warn * 0.9, game.flash * calm) : 0;
     const cd = app.sky.density(camera.position);
     pu.uWhite.value = damp(pu.uWhite.value, cd, 6, rdt);
-    pu.uFlash.value = WS.U3.uFlash.value * 0.18 + (state === 'play' ? game.flash * 0.4 : 0);
+    pu.uFlash.value = (WS.U3.uFlash.value * 0.08 + (state === 'play' ? game.flash * 0.4 : 0)) * calm;
     pu.uTime.value = time % 100;
     pu.uDesat.value = state === 'pause' ? 0.7 : (game.result && !game.result.ok && state === 'play' ? 0.5 : 0);
     if (flying && fl.vel) {
@@ -468,6 +541,7 @@
 
     // dźwięk
     const hs = state === 'play' ? game.hudState() : null;
+    if (hs) { hudT -= rdt; hs.full = hudT <= 0; if (hs.full) hudT = 1 / 15; }
     app.audio.tick(rdt);
     app.audio.update(rdt, {
       speed: fl.airspeed || 0, phase: state === 'pause' ? 'paused' : fl.phase, prox: state === 'play' ? game.pf : 0, adr: state === 'play' ? game.adr : 0.1,
@@ -476,6 +550,7 @@
     });
 
     if (state === 'play' && hs) app.hud.update(hs, camera, rdt);
+    else hudT = 0;
     post.render(scene, camera);
   }
 

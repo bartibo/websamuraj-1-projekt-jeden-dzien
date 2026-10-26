@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,700;1,800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 8 L58 40 L40 36 L32 56 L24 36 L6 40 Z' fill='%23ff5a1f'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -23,11 +24,13 @@
     <div class="hud-score">
       <div id="score">0</div>
       <div id="mult">×1,0</div>
+      <div id="combo"><span class="lbl">SERIA PRZY SKALE</span><b id="comboVal">0</b><i id="comboK">×1,0</i><div class="combo-bar"><i id="comboCalm"></i></div></div>
+      <div id="delta"></div>
       <div id="phaseLbl"></div>
     </div>
     <div class="hud-left">
       <div class="big"><span id="spd">0</span><small>km/h</small></div>
-      <div class="bar"><i id="spdBar"></i></div>
+      <div class="bar"><i id="spdBar"></i><s title="najlepsza doskonałość"></s></div>
       <div class="sub" id="vspd">↓ 0 km/h</div>
       <div class="sub" id="glide">doskonałość –</div>
       <div class="sub" id="gforce">1,0 g</div>
@@ -45,7 +48,8 @@
       <div class="adr-bar"><i id="adrFill"></i></div>
       <span class="lbl">ADRENALINA</span><b id="bpm">70</b><span class="lbl">BPM</span>
     </div>
-    <div id="marker"><div class="mk-arrow"></div><div class="mk-diamond"></div><div class="mk-txt"><b id="markerLbl"></b><span id="markerDist"></span></div></div>
+    <div id="fpv"></div>
+    <div id="marker"><div class="mk-arrow"></div><div class="mk-diamond"></div><div class="mk-txt"><b id="markerLbl"></b><span id="markerDist"></span><em id="markerDy"></em></div></div>
     <div id="warn">WYCIĄGAJ!</div>
     <div id="popups"></div>
     <div id="hint"></div>
@@ -88,6 +92,8 @@
             <label><input type="checkbox" id="optSlow"> zwolnienia przy „o włos”</label>
             <label><input type="checkbox" id="optInvert"> odwrócona oś góra/dół</label>
             <label><input type="checkbox" id="optSound"> dźwięk</label>
+            <label><input type="checkbox" id="optGhost"> duch rekordu</label>
+            <label><input type="checkbox" id="optCalm"> spokojna kamera</label>
           </div>
         </section>
       </div>
@@ -110,7 +116,8 @@
             <tr><td><kbd>Esc</kbd> · <kbd>R</kbd> · <kbd>M</kbd></td><td>pauza · nowy skok · dźwięk</td></tr>
           </table>
           <div>
-            <p><b>Punkty</b> rosną z prędkością i z bliskością skał. Lot kilka metrów od ściany daje mnożnik do ×8. Za bramki dostajesz premię za serię, a przelot pod mostem albo przez skalne okno daje +3000.</p>
+            <p><b>Punkty</b> rosną z prędkością i z bliskością skał. Lot kilka metrów od ściany daje mnożnik do ×8. Punkty zdobyte przy skale trafiają do <b>serii</b>: zaliczasz ją, odbijając od ściany na ponad sekundę (im dłuższa seria, tym większy mnożnik, do ×3). Uderzenie zabiera całą niezaliczoną serię.</p>
+            <p>Bramki dają premię za serię, przelot pod mostem albo przez skalne okno daje +3000. Trudniejsza pogoda mnoży punkty (burza ×1,4). Za każde miejsce i pogodę są trzy gwiazdki, a półprzezroczysty <b>duch</b> pokazuje Twój najlepszy lot.</p>
             <p><b>Uważaj:</b> skręt w dużym przechyle kosztuje wysokość. Nurkowanie daje prędkość, którą potem zamienisz na wysokość, podciągając. Gdy pojawi się „WYCIĄGAJ!”, zostały ci ok. 2 sekundy do ziemi.</p>
             <p>Lot kończy się lądowaniem na spadochronie (najlepiej w kole na lądowisku) albo uderzeniem. Pad: lewa gałka, RT złożenie, LT rozłożenie, A skok, B spadochron, Y kamera.</p>
           </div>
@@ -145,12 +152,14 @@
       <h2 id="resTitle"></h2>
       <div class="res-score"><span id="resScore">0</span><small>pkt</small></div>
       <div class="res-best" id="resBest"></div>
+      <div class="res-cause" id="resCause"></div>
+      <div class="res-stars" id="resStars"></div>
       <div class="res-grid" id="resGrid"></div>
       <div class="res-btns">
         <button id="btnAgain" class="go">JESZCZE RAZ <small>R</small></button>
         <button id="btnToMenu">Zmień warunki</button>
       </div>
-      <div class="res-note">W tle leci powtórka Twojego lotu.</div>
+      <div class="res-note" id="resNote">W tle leci powtórka Twojego lotu.</div>
     </div>
   </div>
 
@@ -180,6 +189,7 @@
   <script src="js/weather.js"></script>
   <script src="js/props.js"></script>
   <script src="js/pilot.js"></script>
+  <script src="js/ghost.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/post.js"></script>
   <script src="js/audio.js"></script>

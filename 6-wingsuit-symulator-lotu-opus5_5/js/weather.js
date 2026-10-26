@@ -175,12 +175,27 @@
       const br = [];
       const st = pts[6].clone();
       for (let i = 0; i < 6; i++) { br.push(st.clone()); st.x += (Math.random() - 0.3) * 80; st.y -= 60 + Math.random() * 60; st.z += (Math.random() - 0.5) * 80; }
+      // wstęgi skierowane do kamery: jasny rdzeń i szeroka poświata (linia 1 px ginęła w kadrze)
       const seg = [];
-      for (let i = 0; i < pts.length - 1; i++) seg.push(pts[i], pts[i + 1]);
-      for (let i = 0; i < br.length - 1; i++) seg.push(br[i], br[i + 1]);
-      const g = new THREE.BufferGeometry().setFromPoints(seg);
-      const m = new THREE.LineBasicMaterial({ color: 0xe8eeff, transparent: true, opacity: 1, fog: false, blending: THREE.AdditiveBlending, depthWrite: false });
-      const mesh = new THREE.LineSegments(g, m);
+      for (let i = 0; i < pts.length - 1; i++) seg.push([pts[i], pts[i + 1], 1]);
+      for (let i = 0; i < br.length - 1; i++) seg.push([br[i], br[i + 1], 0.55]);
+      const pos = [], col = [];
+      const cp = cam.position, dir = new THREE.Vector3(), toC = new THREE.Vector3(), side = new THREE.Vector3();
+      for (const [a, b, k] of seg) {
+        dir.subVectors(b, a); toC.subVectors(cp, a);
+        side.crossVectors(dir, toC).normalize();
+        for (const [wd, c] of [[16 * k, 0.22], [3.2 * k, 1]]) {
+          const sx = side.x * wd, sy = side.y * wd, sz = side.z * wd;
+          pos.push(a.x - sx, a.y - sy, a.z - sz, a.x + sx, a.y + sy, a.z + sz, b.x + sx, b.y + sy, b.z + sz,
+            a.x - sx, a.y - sy, a.z - sz, b.x + sx, b.y + sy, b.z + sz, b.x - sx, b.y - sy, b.z - sz);
+          for (let q = 0; q < 6; q++) col.push(0.85 * c, 0.9 * c, 1.0 * c);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      const m = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 1, fog: false, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(g, m);
       mesh.frustumCulled = false;
       this.scene.add(mesh);
       const power = clamp(1.6 - dist / 3500, 0.35, 1);
