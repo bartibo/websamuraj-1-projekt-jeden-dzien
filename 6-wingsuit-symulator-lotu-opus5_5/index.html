@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Na Krawędzi – symulator lotu w wingsuicie 3D</title>
+  <meta name="description" content="Symulator lotu w kombinezonie skrzydłowym (wingsuit) 3D w przeglądarce: proximity flying w Dolomitach, nad fiordem i w kanionie, w słońcu, mgle, burzy, śnieżycy i nocą.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,700;1,800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="view"></canvas>
+
+  <!-- HUD lotu -->
+  <div id="hud">
+    <div class="hud-tl">
+      <div class="chip"><span class="lbl">BRAMKI</span><b id="gates">0/0</b></div>
+      <div class="chip"><span class="lbl">CZAS</span><b id="ftime">0:00</b></div>
+      <div class="chip wind"><span class="lbl">WIATR</span><i id="windArrow">↑</i><b id="windVal">0 m/s</b></div>
+    </div>
+    <div class="hud-score">
+      <div id="score">0</div>
+      <div id="mult">×1,0</div>
+      <div id="phaseLbl"></div>
+    </div>
+    <div class="hud-left">
+      <div class="big"><span id="spd">0</span><small>km/h</small></div>
+      <div class="bar"><i id="spdBar"></i></div>
+      <div class="sub" id="vspd">↓ 0 km/h</div>
+      <div class="sub" id="glide">doskonałość –</div>
+      <div class="sub" id="gforce">1,0 g</div>
+    </div>
+    <div class="hud-right">
+      <div class="big"><span id="agl">0</span><small>m nad ziemią</small></div>
+      <div class="sub" id="alt">0 m n.p.m.</div>
+      <div class="prox">
+        <div class="prox-bar"><i id="proxFill"></i></div>
+        <div class="prox-txt"><span class="lbl">BLISKOŚĆ SKAŁ</span><b id="proxVal">–</b></div>
+      </div>
+    </div>
+    <div class="hud-adr">
+      <span id="heart">♥</span>
+      <div class="adr-bar"><i id="adrFill"></i></div>
+      <span class="lbl">ADRENALINA</span><b id="bpm">70</b><span class="lbl">BPM</span>
+    </div>
+    <div id="marker"><div class="mk-arrow"></div><div class="mk-diamond"></div><div class="mk-txt"><b id="markerLbl"></b><span id="markerDist"></span></div></div>
+    <div id="warn">WYCIĄGAJ!</div>
+    <div id="popups"></div>
+    <div id="hint"></div>
+    <div id="toast"></div>
+  </div>
+
+  <!-- Menu -->
+  <div id="menu" class="screen on">
+    <div class="menu-wrap">
+      <header class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path d="M32 8 L58 40 L40 36 L32 56 L24 36 L6 40 Z" fill="currentColor"/><circle cx="32" cy="16" r="4" fill="#0b0f14"/></svg>
+        </div>
+        <div>
+          <h1>NA KRAWĘDZI</h1>
+          <p>symulator lotu w kombinezonie skrzydłowym</p>
+        </div>
+      </header>
+
+      <div class="cols">
+        <section class="panel">
+          <h2><span>1</span> Miejsce skoku</h2>
+          <div id="locs" class="locs"></div>
+        </section>
+        <section class="panel">
+          <h2><span>2</span> Warunki</h2>
+          <div id="wxs" class="wxs"></div>
+          <div class="opts">
+            <label class="row"><span>Wiatr <b id="windOut">3 m/s</b></span><input type="range" id="optWind" min="0" max="20" step="1"></label>
+            <div class="row seg" id="optDir"></div>
+            <label class="row"><span>Turbulencje <b id="turbOut">10%</b></span><input type="range" id="optTurb" min="0" max="100" step="5"></label>
+          </div>
+          <h2 class="mt"><span>3</span> Lot</h2>
+          <div class="row seg" id="optMode">
+            <button data-v="trasa">Trasa z bramkami</button>
+            <button data-v="wolny">Wolny lot</button>
+          </div>
+          <div class="toggles">
+            <label><input type="checkbox" id="optSmoke"> dym ze stóp</label>
+            <label><input type="checkbox" id="optSlow"> zwolnienia przy „o włos”</label>
+            <label><input type="checkbox" id="optInvert"> odwrócona oś góra/dół</label>
+            <label><input type="checkbox" id="optSound"> dźwięk</label>
+          </div>
+        </section>
+      </div>
+
+      <div class="go-row">
+        <button id="btnGo" class="go">SKACZ <small>Enter</small></button>
+        <div class="best" id="bestLbl"></div>
+      </div>
+
+      <details class="help">
+        <summary>Sterowanie i zasady</summary>
+        <div class="help-grid">
+          <table>
+            <tr><td><kbd>Spacja</kbd></td><td>skok z krawędzi · w locie: szeroko rozłożone ręce (więcej nośności, wolniej)</td></tr>
+            <tr><td><kbd>W</kbd> <kbd>S</kbd> / <kbd>↑</kbd> <kbd>↓</kbd></td><td>nurkowanie (przyspieszasz) / podciąganie (zwalniasz, wznosisz się na chwilę)</td></tr>
+            <tr><td><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></td><td>przechył i skręt</td></tr>
+            <tr><td><kbd>Shift</kbd></td><td>złożone ręce – szybkie nurkowanie</td></tr>
+            <tr><td><kbd>F</kbd></td><td>spadochron (pod czaszą: A/D skręt, S hamowanie tuż nad ziemią)</td></tr>
+            <tr><td><kbd>C</kbd> · <kbd>H</kbd></td><td>kamera (za plecami, kask, filmowa, dron) · dym</td></tr>
+            <tr><td><kbd>Esc</kbd> · <kbd>R</kbd> · <kbd>M</kbd></td><td>pauza · nowy skok · dźwięk</td></tr>
+          </table>
+          <div>
+            <p><b>Punkty</b> rosną z prędkością i z bliskością skał. Lot kilka metrów od ściany daje mnożnik do ×8. Za bramki dostajesz premię za serię, a przelot pod mostem albo przez skalne okno daje +3000.</p>
+            <p><b>Uważaj:</b> skręt w dużym przechyle kosztuje wysokość. Nurkowanie daje prędkość, którą potem zamienisz na wysokość, podciągając. Gdy pojawi się „WYCIĄGAJ!”, zostały ci ok. 2 sekundy do ziemi.</p>
+            <p>Lot kończy się lądowaniem na spadochronie (najlepiej w kole na lądowisku) albo uderzeniem. Pad: lewa gałka, RT złożenie, LT rozłożenie, A skok, B spadochron, Y kamera.</p>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- Ładowanie -->
+  <div id="loading" class="screen">
+    <div class="load-box">
+      <div class="load-title" id="loadTitle">Budowanie gór…</div>
+      <div class="load-bar"><i id="loadFill"></i></div>
+      <div class="load-tip" id="loadTip"></div>
+    </div>
+  </div>
+
+  <!-- Pauza -->
+  <div id="pause" class="screen">
+    <div class="card">
+      <h2>PAUZA</h2>
+      <button id="btnResume" class="go">WZNÓW</button>
+      <button id="btnRestart">Nowy skok (R)</button>
+      <button id="btnMenu">Zmień miejsce i pogodę</button>
+    </div>
+  </div>
+
+  <!-- Wyniki -->
+  <div id="results" class="screen">
+    <div class="card res">
+      <div class="res-kind" id="resKind"></div>
+      <h2 id="resTitle"></h2>
+      <div class="res-score"><span id="resScore">0</span><small>pkt</small></div>
+      <div class="res-best" id="resBest"></div>
+      <div class="res-grid" id="resGrid"></div>
+      <div class="res-btns">
+        <button id="btnAgain" class="go">JESZCZE RAZ <small>R</small></button>
+        <button id="btnToMenu">Zmień warunki</button>
+      </div>
+      <div class="res-note">W tle leci powtórka Twojego lotu.</div>
+    </div>
+  </div>
+
+  <!-- Sterowanie dotykiem -->
+  <div id="touch">
+    <div id="stick"><div id="knob"></div></div>
+    <div class="tbtns">
+      <button data-k="spread">ROZŁÓŻ<br><small>skok</small></button>
+      <button data-k="tuck">ZŁÓŻ</button>
+      <button data-k="chute">SPADO-<br>CHRON</button>
+      <button data-k="cam">KAMERA</button>
+      <button data-k="pause">❚❚</button>
+    </div>
+  </div>
+
+  <div id="fade"></div>
+  <div id="nogl" class="screen"><div class="card"><h2>Brak WebGL</h2><p>Ta przeglądarka nie obsługuje grafiki 3D (WebGL). Spróbuj w aktualnym Chrome, Edge albo Firefoksie.</p></div></div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/env.js"></script>
+  <script src="js/terrain.js"></script>
+  <script src="js/sky.js"></script>
+  <script src="js/weather.js"></script>
+  <script src="js/props.js"></script>
+  <script src="js/pilot.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/post.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/hud.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
