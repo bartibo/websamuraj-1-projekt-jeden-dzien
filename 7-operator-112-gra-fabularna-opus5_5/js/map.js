@@ -38,8 +38,21 @@ const GEO = {
   coal:  { label: 'ogrzewanie węglowe',          color: '#9aa5b1', test: b => b.heating.startsWith('węglowe') },
   house: { label: 'dom jednorodzinny',           color: '#9aa5b1', test: b => b.type === 'dom' },
   power: { label: 'ma piwnicę i prąd',           color: '#9aa5b1', test: b => b.basement && b.power },
+  ppe:   { label: 'licznik o pasującym nr PPE',  color: '#9aa5b1', test: b => ['slodowa14', 'browarna7', 'kolejowa12'].includes(b.id) },
+  hw:    { label: 'dom Henryka Wróbla',          color: '#9aa5b1', test: b => b.id === 'slodowa14' },
 };
 const GEO_MAP_LAYERS = ['rail', 'malt', 'bell', 'bts'];
+
+/* budynki zgodne ze wszystkimi ograniczeniami; jeden = dedukcja adresu */
+function candidates() {
+  const g = activeGeo();
+  return g.length ? BUILDINGS.filter(b => g.every(x => GEO[x.geo].test(b))) : BUILDINGS.slice();
+}
+function deducedBuilding() {
+  if (activeGeo().length < 2) return null;
+  const c = candidates();
+  return c.length === 1 ? c[0] : null;
+}
 
 /* aktywne ograniczenia = odkryte poszlaki z polem geo */
 function activeGeo() {
@@ -78,6 +91,12 @@ function buildMap(svg) {
     <radialGradient id="glowSel"><stop offset="0" stop-color="#ffb547" stop-opacity=".5"/><stop offset="1" stop-color="#ffb547" stop-opacity="0"/></radialGradient>`;
 
   el('rect', { x: 0, y: 0, width: 1000, height: 700, class: 'm-bg' }, svg);
+  // siatka operacyjna 400 × 400 m
+  const grid = el('g', { class: 'm-grid' }, svg);
+  for (let x = 200; x < 1000; x += 200) el('line', { x1: x, y1: 0, x2: x, y2: 700 }, grid);
+  for (let y = 200; y < 700; y += 200) el('line', { x1: 0, y1: y, x2: 1000, y2: y }, grid);
+  'ABCDE'.split('').forEach((c, i) => txt(svg, i * 200 + 100, 14, c, 'm-grid-t', { 'text-anchor': 'middle' }));
+  [1, 2, 3, 4].forEach((r, i) => txt(svg, 6, i * 200 + 104, String(r), 'm-grid-t'));
 
   // zieleń
   el('rect', { x: 330, y: 600, width: 210, height: 88, rx: 14, fill: 'url(#hatch)', class: 'm-park' }, svg);
@@ -275,8 +294,19 @@ function renderMapLegend() {
   const box = document.getElementById('map-legend');
   if (!box) return;
   const items = GEO_MAP_LAYERS.filter(geo => Object.keys(CLUES).some(id => CLUES[id].geo === geo && S.clues.has(id)));
-  if (!items.length) { box.innerHTML = '<span class="muted">Nakładki pojawią się, gdy zbierzesz poszlaki o otoczeniu (dźwięki, zapachy, lokalizacja z sieci).</span>'; return; }
-  box.innerHTML = items.map(geo => `<label class="lg"><input type="checkbox" data-geo="${geo}" ${S.ui.layers[geo] !== false ? 'checked' : ''}>
-    <i style="background:${GEO[geo].color}"></i>${GEO[geo].label}</label>`).join('');
+  const act = activeGeo();
+  let html = items.length
+    ? items.map(geo => `<label class="lg"><input type="checkbox" data-geo="${geo}" ${S.ui.layers[geo] !== false ? 'checked' : ''}>
+      <i style="background:${GEO[geo].color}"></i>${GEO[geo].label}</label>`).join('')
+    : '<span class="muted">Nakładki pojawią się, gdy zbierzesz poszlaki o otoczeniu (dźwięki, zapachy, lokalizacja z sieci).</span>';
+  // ranking budynków wg dopasowania do poszlak
+  if (act.length >= 2) {
+    const rank = BUILDINGS.map(b => ({ b, ok: buildingMatches(b).filter(m => m.ok).length }))
+      .sort((x, y) => y.ok - x.ok || x.b.addr.localeCompare(y.b.addr)).slice(0, 5);
+    html += `<div class="rank"><div class="rank-h">Dopasowanie budynków (${act.length} ograniczeń)</div>${rank.map(r =>
+      `<button class="rk ${r.ok === act.length ? 'all' : ''} ${S.ui.selBuilding === r.b.id ? 'on' : ''}" data-b="${r.b.id}"><span>${esc(r.b.addr.replace(/^ul\. /, ''))}</span><b>${r.ok}/${act.length}</b></button>`).join('')}</div>`;
+  }
+  box.innerHTML = html;
   box.querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => { S.ui.layers[inp.dataset.geo] = inp.checked; updateMap(); }));
+  box.querySelectorAll('[data-b]').forEach(b => b.addEventListener('click', () => onMapBuilding(b.dataset.b)));
 }

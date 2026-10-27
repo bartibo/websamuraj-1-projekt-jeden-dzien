@@ -102,6 +102,8 @@ const AUDIO = {
       case 'siren':
         for (let i = 0; i < 4; i++) { this.tone(700, 0.5, { at: i * 1.0, vol: 0.03, slide: 500, type: 'triangle' }); this.tone(1200, 0.5, { at: i * 1.0 + 0.5, vol: 0.03, slide: -500, type: 'triangle' }); }
         break;
+      case 'buzz': for (let k = 0; k < 2; k++) this.tone(170, 0.38, { at: k * 0.55, vol: 0.09, type: 'sawtooth', attack: 0.02 }); break;
+      case 'link': [440, 660, 880].forEach((f, i) => this.tone(f, 0.22, { at: i * 0.07, vol: 0.05, type: 'triangle' })); break;
       case 'win': [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.6, { at: i * 0.14, vol: 0.06 })); break;
       case 'bad': [392, 370, 311].forEach((f, i) => this.tone(f, 0.9, { at: i * 0.35, vol: 0.06, type: 'triangle' })); break;
     }

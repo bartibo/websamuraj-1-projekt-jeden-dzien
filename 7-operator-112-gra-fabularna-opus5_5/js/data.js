@@ -13,6 +13,7 @@ const CLUE_CATS = {
   sprawca:   { name: 'Sprawca',     icon: '⚠' },
   zdrowie:   { name: 'Zdrowie',     icon: '✚' },
   pamiec:    { name: 'Wspomnienia', icon: '✦' },
+  wniosek:   { name: 'Wnioski',     icon: '∴' },
 };
 
 /* geo – ograniczenie na mapie, które ta poszlaka nakłada na budynek */
@@ -32,7 +33,7 @@ const CLUES = {
     text: 'Pół minuty dudnienia i rytmicznego stukotu. Drżą słoiki i podłoga, więc tory są bliżej niż ok. 150 m.',
     hint: 'Dudnienie w 13. minucie to pociąg. Wystarczyło zapytać, jak długo trwało.' },
   slod: { cat: 'miejsce', geo: 'malt', title: 'Słodki zapach zboża',
-    text: 'Przez okienko czuć mokre, prażone zboże, jakby pieczony chleb. Tak pachnie słodownia browaru, a wiatr niesie ten zapach najwyżej na ok. 500 m.',
+    text: 'Przez okienko czuć mokre, prażone zboże, jakby pieczony chleb. Tak pachnie słodownia browaru, a wiatr niesie ten zapach najwyżej na ok. 480 m.',
     hint: 'Zapach pieczonego chleba to słodownia browaru. Wystarczyło zapytać o zapachy.' },
   dzwon: { cat: 'miejsce', geo: 'bell', title: 'Zegar wybija północ',
     text: 'O 00:00 dwanaście uderzeń dzwonu, głośno i blisko. W nocy godziny wybija tylko zegar na wieży kościoła św. Anny, słyszalny w promieniu ok. 700 m.',
@@ -40,11 +41,12 @@ const CLUES = {
   bts: { cat: 'miejsce', geo: 'bts', title: 'Lokalizacja z sieci',
     text: 'Brak pozycji GPS (AML bez współrzędnych). Telefon jest zalogowany do stacji KAL-04, sektor północno-wschodni, zasięg do ok. 1,2 km.',
     hint: 'Narzędzie „Lokalizacja AML/BTS” od razu zawęża obszar do jednego sektora miasta.' },
-  licznik: { cat: 'miejsce', title: 'Numer licznika prądu',
-    text: 'Na liczniku przy schodach jest naklejka z numerem PPE 590 543 017 004 417 781. Dystrybutor energii wie, gdzie stoi ten licznik.',
-    hint: 'Licznik prądu w piwnicy ma numer PPE. Dystrybutor energii podaje adres licznika.' },
-  adres_ppe: { cat: 'miejsce', title: 'Licznik stoi przy Słodowej 14',
-    text: 'Dystrybutor energii: licznik PPE …417 781 jest zamontowany w domu przy ul. Słodowej 14. Odbiorca: Henryk Wróbel (zm. 2024), wniosek o zmianę na Marka Wróbla w toku.' },
+  licznik: { cat: 'miejsce', title: 'Numer licznika prądu (niepełny)',
+    text: 'Na liczniku przy schodach jest naklejka z numerem PPE, ale końcówka jest zdrapana: 590 543 017 004 41… Dystrybutor energii może wskazać liczniki, które pasują.',
+    hint: 'Licznik prądu w piwnicy ma numer PPE. Nawet niepełny numer zawęża adres do kilku budynków.' },
+  adres_ppe: { cat: 'miejsce', geo: 'ppe', title: 'Licznik: jeden z trzech adresów',
+    text: 'Dystrybutor energii: niepełny numer PPE pasuje do liczników przy ul. Słodowej 14 (odbiorca Henryk Wróbel, zm. 2024), ul. Browarnej 7 (Józef Mielczarek) i ul. Kolejowej 12 (komórka lok. 3, wspólnota mieszkaniowa).',
+    hint: 'Dystrybutor wskazał trzy liczniki. Inicjały „H.W.” na słoikach pasowały tylko do jednego odbiorcy (połącz poszlaki).' },
   pies: { cat: 'miejsce', title: 'Duży pies na podwórku',
     text: 'Na zewnątrz szczeka duży pies, niskim, grubym głosem. Pies na tapecie telefonu to też duży, czarny owczarek.' },
   sloiki: { cat: 'miejsce', title: 'Przetwory „H.W.”',
@@ -70,15 +72,18 @@ const CLUES = {
     text: 'Szara bluza z napisem na plecach: PSIA PRZYSTAŃ – WOLONTARIAT i psia łapa.',
     hint: 'Na plecach jej bluzy był napis „Psia Przystań – wolontariat”. Wystarczyło poprosić, żeby ją zdjęła i przeczytała.' },
   bilet: { cat: 'tozsamosc', title: 'Bilet linii 7',
-    text: 'Bilet skasowany 25.10.2026 o 18:12 w autobusie linii 7. Linia 7 kończy trasę na pętli przy ul. Polnej, obok schroniska.' },
+    text: 'Bilet skasowany 26.10.2026 o 18:12 w autobusie linii 7. Linia 7 kończy trasę na pętli przy ul. Polnej, obok schroniska.' },
   majka: { cat: 'tozsamosc', title: '„Majka”',
     text: 'Pamięta głos, który woła „Majka, chodź!”. Możliwe imię: Maja.' },
   tozsamosc: { cat: 'tozsamosc', title: 'Maja Sikorska, 19 lat',
-    text: 'Potwierdzone: to Maja Sikorska z Kalnowa, zaginiona od niedzieli 25.10. Siostra: Aleksandra (Ola). Adres: ul. Kasztanowa 3/7.' },
+    text: 'Potwierdzone: to Maja Sikorska z Kalnowa, zaginiona dziś wieczorem (26.10). Siostra: Aleksandra (Ola). Adres: ul. Kasztanowa 3/7.' },
 
   /* ---------- SPRAWCA ---------- */
   telefon: { cat: 'sprawca', title: 'Cudzy telefon',
-    text: 'Telefon był w kieszeni jej bluzy, ale chyba nie jest jej: jest zablokowany kodem PIN, a na tapecie jest czarny owczarek.' },
+    text: 'Telefon leżał obok niej na posadzce, kiedy się ocknęła. Chyba wypadł temu, kto ją tu zniósł: jest zablokowany kodem PIN, a na tapecie jest czarny owczarek.' },
+  sms: { cat: 'sprawca', title: 'SMS do „Marka”',
+    text: 'Na ekran blokady przyszedł SMS od kontaktu „Rysiek transport”: „Marek, bus o 5 pod szopą. 12 szt. zapakuj. A z tą małą zrób porządek, nie chcę nic wiedzieć”. Telefon należy do jakiegoś Marka.',
+    hint: 'Około 00:05 na telefon przyszedł SMS do „Marka”. Razem z rejestrem fundacji wskazywał prezesa.' },
   sim: { cat: 'sprawca', title: 'Numer służbowy fundacji',
     text: 'Numer jest zarejestrowany na Fundację Psia Przystań, ul. Polna 40 (schronisko dla zwierząt). To abonament firmowy.' },
   krs: { cat: 'sprawca', title: 'Prezes fundacji: Marek Wróbel',
@@ -91,7 +96,7 @@ const CLUES = {
   auto: { cat: 'sprawca', title: 'Odjeżdżające auto',
     text: 'Ok. 00:02 trzasnęły drzwi i odjechało auto z klekoczącym dieslem. Sprawca chyba wyszedł z domu.' },
   paragon: { cat: 'sprawca', title: 'Paragon z kurtki',
-    text: 'W kurtce roboczej był paragon ze stacji paliw przy ul. Kolejowej: 25.10, godz. 21:40, 40 l oleju napędowego, płatność kartą „FUNDACJA PP”.' },
+    text: 'W kurtce roboczej był paragon ze stacji paliw przy ul. Kolejowej: dziś (26.10), godz. 21:40, 40 l oleju napędowego, płatność kartą „FUNDACJA PP”.' },
   ewid_marek: { cat: 'sprawca', title: 'Marek Wróbel – adresy',
     text: 'Zameldowany: ul. Ogrodowa 22/5 (blok). Właściciel domu przy ul. Słodowej 14 (spadek po ojcu, 2024).' },
   ewid_henryk: { cat: 'sprawca', title: 'Henryk Wróbel',
@@ -101,7 +106,7 @@ const CLUES = {
   sasiadka: { cat: 'sprawca', title: 'Relacja sąsiadki z Ogrodowej',
     text: 'Pan Wróbel rzadko bywa w mieszkaniu na Ogrodowej. „Siedzi w domu po ojcu, na Słodowej, przy torach.”' },
   siostra: { cat: 'sprawca', title: 'Relacja siostry',
-    text: 'Ola: Maja od roku jest wolontariuszką w Psiej Przystani. Mówiła, że kierownik, pan Marek, „coś ukrywa z psami”. W niedzielę wieczorem pojechała tam zrobić zdjęcia i nie wróciła. Jej własny telefon wyłączył się o 20:03.' },
+    text: 'Ola: Maja od roku jest wolontariuszką w Psiej Przystani. Mówiła, że kierownik, pan Marek, „coś ukrywa z psami”. Dziś po szóstej pojechała tam zrobić zdjęcia i nie wróciła. Jej własny telefon wyłączył się o 20:03, a o 22:30 Ola zgłosiła zaginięcie.' },
 
   /* ---------- ZDROWIE ---------- */
   glowa: { cat: 'zdrowie', title: 'Uraz głowy',
@@ -126,7 +131,40 @@ const CLUES = {
     text: 'Ktoś szarpał ją za ramię na schodach. Potem uderzenie i ciemność.' },
   m_fasola: { cat: 'pamiec', title: 'Fasola',
     text: 'Mały kundel z krzywym uchem, który śpi w jej nogach. Ma do kogo wracać.' },
+
+  /* ---------- WNIOSKI (z połączenia dwóch poszlak) ---------- */
+  w_hw: { cat: 'wniosek', geo: 'hw', title: 'H.W. to Henryk Wróbel',
+    text: 'Inicjały na słoikach pasują do Henryka Wróbla, odbiorcy licznika i ostatniego mieszkańca domu przy ul. Słodowej 14. Ona siedzi w piwnicy tego domu.' },
+  w_fundator: { cat: 'wniosek', title: 'Przetwory fundatora',
+    text: 'H.W. ze słoików to pewnie Henryk Wróbel, zmarły fundator Psiej Przystani i ojciec prezesa. Piwnica może być w jego domu. Ewidencja powie, gdzie mieszkał.' },
+  w_pies: { cat: 'wniosek', title: 'Pies z tapety',
+    text: 'Czarny owczarek z tapety telefonu i duży pies szczekający na podwórku to pewnie ten sam pies. Telefon należy do kogoś z tego domu, najpewniej do sprawcy.' },
+  w_schronisko: { cat: 'wniosek', title: 'Wszystko prowadzi do schroniska',
+    text: 'Ona jest wolontariuszką Psiej Przystani, a pieniądze i telefon sprawcy należą do tej samej fundacji. Sprawca jest z otoczenia schroniska.' },
+  w_trasa: { cat: 'wniosek', title: 'Pętla przy schronisku',
+    text: 'Linia 7 kończy trasę przy schronisku na Polnej, tam gdzie „szczeka bardzo dużo psów”. Wieczorem jechała do schroniska.' },
+  w_marek: { cat: 'wniosek', title: '„Marek” z SMS-a',
+    text: 'SMS do „Marka” przyszedł na telefon fundacji, której prezesem jest Marek Wróbel. Telefon, a więc i ta piwnica, łączy się z nim.' },
+  w_motyw: { cat: 'wniosek', title: 'Motyw',
+    text: 'Fotografowała stłoczone, chore psy w garażu schroniska, którym kieruje Marek Wróbel. Miał powód, żeby ją uciszyć. „12 szt.” z SMS-a to pewnie szczenięta na sprzedaż.' },
+  w_ducato: { cat: 'wniosek', title: 'Biały Fiat Ducato',
+    text: 'Klekoczący diesel spod domu i olej napędowy z paragonu pasują do białego Fiata Ducato Marka Wróbla. Patrol może wypatrywać tego busa.' },
+  w_dom_ojca: { cat: 'wniosek', title: 'Dom po ojcu przy browarze',
+    text: 'Wróbel „remontuje dom po ojcu, gdzieś przy browarze”, a ona przez okienko czuje słodownię. To może być ten dom. Ewidencja powie, gdzie mieszkał ojciec.' },
 };
+
+/* Łączenie poszlak: a + jedna z b → wniosek out */
+const LINKS = [
+  { a: 'sloiki', b: ['adres_ppe', 'ewid_henryk'], out: 'w_hw' },
+  { a: 'sloiki', b: ['krs'], out: 'w_fundator' },
+  { a: 'telefon', b: ['pies'], out: 'w_pies' },
+  { a: 'bluza', b: ['sim', 'paragon', 'krs'], out: 'w_schronisko' },
+  { a: 'bilet', b: ['m_psy'], out: 'w_trasa' },
+  { a: 'sms', b: ['krs', 'straznik', 'ewid_marek'], out: 'w_marek' },
+  { a: 'zdjecia', b: ['krs', 'straznik', 'sms'], out: 'w_motyw' },
+  { a: 'auto', b: ['ewid_marek', 'paragon'], out: 'w_ducato' },
+  { a: 'straznik', b: ['slod'], out: 'w_dom_ojca' },
+];
 
 /* =====================================================================
    PYTANIA I POLECENIA OPERATORA
@@ -134,6 +172,7 @@ const CLUES = {
    light: true – potrzebne światło (żarówka albo zapalniczka)
    calm: true – działa nawet przy panice
    repeat: N – można powtórzyć po N minutach
+   memory: true – sięga do wspomnień; przy silnym strachu pamięć się blokuje
    ===================================================================== */
 const Q_CATS = {
   stan:      'Stan',
@@ -215,7 +254,7 @@ const QUESTIONS = [
       'na haku przy schodach wisi stara kurtka robocza. śmierdzi papierosami i psem',
       'założyłam. siedzę na skrzynce',
       'w kieszeni jest zapalniczka i paragon',
-      'stacja paliw kolejowa. 25.10 21:40. olej napędowy 40 l. zapłacone kartą FUNDACJA PP'] } },
+      'stacja paliw kolejowa. 26.10 21:40. olej napędowy 40 l. zapłacone kartą FUNDACJA PP'] } },
 
   { id: 'pic', cat: 'stan', text: 'Masz tam cokolwiek do picia?',
     avail: () => has('piwnica'),
@@ -290,11 +329,11 @@ const QUESTIONS = [
       }
       const m = ['muszę wejść na skrzynkę. chwila'];
       if (S.perp === 'home' && !has('cicho')) {
-        S.perpSuspicious = true; dS(+15);
+        S.perpSuspicious = true; dS(+15); mistake('Hałas przy liczniku zaalarmował sprawcę (zabrakło polecenia ciszy)');
         m.push('skrzynka zgrzytnęła o beton', 'on krzyknął z góry „co tam się dzieje?!”', 'nie ruszam się. cisza. chyba odpuścił');
       }
       clue('licznik'); dB(-1);
-      m.push('jest naklejka. PPE 590 543 017 004 417 781', 'i logo firmy. ENERPOL dystrybucja');
+      m.push('jest naklejka. PPE 590 543 017 004 41…', 'dalej zdrapane. ktoś to zdarł paznokciem albo nożem', 'i logo firmy. ENERPOL dystrybucja');
       return m; } },
 
   { id: 'katy', cat: 'otoczenie', light: true, text: 'Obejdź powoli piwnicę i sprawdź wszystkie kąty.',
@@ -355,12 +394,12 @@ const QUESTIONS = [
       dS(+4); return ['nie. próbuję i jest pusto', 'jakby ktoś wyrwał kartkę z książki']; },
     repeat: 20 },
 
-  { id: 'ostatnie', cat: 'ona', text: 'Co pamiętasz jako ostatnie, zanim się tu obudziłaś?',
+  { id: 'ostatnie', cat: 'ona', memory: true, text: 'Co pamiętasz jako ostatnie, zanim się tu obudziłaś?',
     run() { clue('m_autobus'); return [
       { mem: 'autobus. siedziałam z tyłu i patrzyłam w telefon' },
       'byłam zła. albo się bałam. serce mi waliło'] } },
 
-  { id: 'autobus', cat: 'ona', text: 'Dokąd jechałaś tym autobusem?',
+  { id: 'autobus', cat: 'ona', memory: true, text: 'Dokąd jechałaś tym autobusem?',
     avail: () => has('m_autobus'),
     run() { clue('m_psy'); return [
       'na koniec trasy',
@@ -370,13 +409,13 @@ const QUESTIONS = [
   { id: 'kieszenie', cat: 'ona', light: true, text: 'Sprawdź wszystkie kieszenie. Co w nich masz?',
     run() { clue('bilet'); flag('kieszenie'); return [
       'gumka do włosów. chusteczka',
-      'bilet autobusowy. linia 7. skasowany 25.10 o 18:12',
-      'telefon był w kieszeni bluzy. ale nie wiem czy jest mój'] } },
+      'bilet autobusowy. linia 7. skasowany 26.10 o 18:12',
+      'a telefon leżał obok mnie na betonie jak się ocknęłam. nie wiem czy jest mój'] } },
 
   { id: 'telefon', cat: 'ona', text: 'Czy ten telefon jest twój? Co widać na ekranie blokady?',
     avail: () => has('kieszenie'),
     run() { clue('telefon'); return [
-      'zablokowany. pin. nie znam pinu. mogę tylko pisać na 112',
+      'zablokowany. pin. nie znam pinu. z ekranu blokady da się tylko pisać na 112',
       'na tapecie wielki czarny pies. owczarek',
       'nie znam go. ale się go boję. dziwne'] } },
 
@@ -401,8 +440,8 @@ const QUESTIONS = [
 
   { id: 'wlosy', cat: 'ona', text: 'Jakie masz włosy?',
     run() { clue('wlosy'); return [
-      'rude. długie, w kucyku',
-      'dziwne. wiem jakie mam włosy a nie wiem jak mam na imię'] } },
+      'rude. długie, w kucyku. widzę kosmyk na ramieniu',
+      'dziwne. patrzę na własne włosy i nic mi nie mówią'] } },
 
   { id: 'aparat', cat: 'ona', text: 'Włącz przedni aparat i opisz mi swoją twarz. (Zużyje dużo baterii.)',
     run() { dB(-3); clue('twarz'); dS(+6); return [
@@ -411,21 +450,21 @@ const QUESTIONS = [
       'rozcięta brew i zaschnięta krew na policzku',
       'nie znam tej dziewczyny'] } },
 
-  { id: 'mo', cat: 'ona', text: 'Litery M i O na bransoletce. Czy coś ci mówią?',
+  { id: 'mo', cat: 'ona', memory: true, text: 'Litery M i O na bransoletce. Czy coś ci mówią?',
     avail: () => has('bransoletka'),
     run() { clue('m_ola'); clue('majka'); dS(+4); return [
       'O…',
       { mem: 'Ola. kuchnia. pachnie naleśnikami. ktoś woła „Majka, chodź!”' },
       'Majka. czy ja jestem Majka?'] } },
 
-  { id: 'kto', cat: 'ona', text: 'Pamiętasz, jak się tu znalazłaś? Kto cię tu przyprowadził?',
+  { id: 'kto', cat: 'ona', memory: true, text: 'Pamiętasz, jak się tu znalazłaś? Kto cię tu przyprowadził?',
     avail: () => has('m_psy') || has('telefon'),
     run() { clue('glos'); clue('m_upadek'); dS(+8); return [
       'mężczyzna. spokojny głos. to było najgorsze że spokojny',
       { mem: '„nie powinnaś była tu przychodzić”' },
       { mem: 'schody. szarpał mnie za ramię. potem uderzenie i nic' }] } },
 
-  { id: 'dlaczego', cat: 'ona', text: 'Dlaczego jechałaś tam, gdzie są psy? Co tam robiłaś?',
+  { id: 'dlaczego', cat: 'ona', memory: true, text: 'Dlaczego jechałaś tam, gdzie są psy? Co tam robiłaś?',
     avail: () => has('glos') && has('m_psy'),
     run() { clue('zdjecia'); return [
       'zdjęcia',
@@ -520,6 +559,11 @@ const PANIC = [
   'przepraszam. ręce mi się trzęsą. o co pytałeś… o co pytałaś',
   'nie wiem!! nie wiem nic!!',
 ];
+const BLANK = [
+  'nie umiem. jak się boję to w głowie jest biało',
+  'próbuję sobie przypomnieć i widzę tylko te schody. nie. nie mogę',
+  'za bardzo się boję żeby myśleć o czymkolwiek',
+];
 const DARK = [
   'jest ciemno. nic nie widzę',
   'nie widzę. trzeba by wkręcić żarówkę',
@@ -556,7 +600,7 @@ const EVENTS = [
               await opSay('Krzycz o pomoc!');
               await her(['POMOCY!!!', '…', 'on wali w drzwi. „jeszcze raz a pożałujesz”', 'przepraszam. przepraszam']); } },
         ],
-        async onTimeout() { dS(+10); await her(['nie wiem co robić', '…', 'poszedł. nie zszedł. trzęsę się cała']); },
+        async onTimeout() { dS(+10); mistake('Brak polecenia, gdy nad piwnicą chodził sprawca'); await her(['nie wiem co robić', '…', 'poszedł. nie zszedł. trzęsę się cała']); },
       });
     } },
 
@@ -593,6 +637,17 @@ const EVENTS = [
         'silnik. stuka jak stary diesel',
         'odjechał. chyba jestem sama w domu',
         'pies dalej szczeka']);
+    } },
+
+  { id: 'sms', when: () => S.t >= 24,
+    async run() {
+      sfx('buzz'); dS(+8);
+      await her(['telefon zawibrował mi w ręce. prawie go upuściłam',
+        'na ekranie blokady wyskoczył sms. od „Rysiek transport”',
+        '„Marek, bus o 5 pod szopą. 12 szt. zapakuj. A z tą małą zrób porządek, nie chcę nic wiedzieć”',
+        'z tą małą. to o mnie?']);
+      clue('sms');
+      if (S.perp === 'home') await her(['chyba nie słyszał. telewizor dalej gra']);
     } },
 
   { id: 'szczur', when: () => S.t >= 29,
@@ -669,7 +724,7 @@ async function perpComesDown(kind) {
       { label: 'Krzycz, że policja już jedzie!', show: () => S.order && S.order.status !== 'wolny', run: () => bluffOutcome() },
       { label: 'Nie przerywaj, pisz do mnie dalej.', run: () => caughtOutcome(true) },
     ],
-    onTimeout: () => (has('plan_ukrycia') || S.bulb !== 'on') ? hideOutcome(kind, true) : caughtOutcome(false),
+    onTimeout: () => (has('plan_ukrycia') || S.bulb !== 'on') ? hideOutcome(kind, true) : (mistake('Brak reakcji, gdy sprawca schodził do piwnicy'), caughtOutcome(false)),
   });
 }
 
@@ -808,7 +863,7 @@ const BUILDINGS = [
   { id: 'kasztanowa3', addr: 'ul. Kasztanowa 3/7', street: 'kasztanowa', x: 120, y: 488, w: 64, h: 22, type: 'blok', year: 1984,
     heating: 'miejska sieć ciepłownicza', power: true, basement: true,
     note: 'Blok mieszkalny.',
-    report: 'Kasztanowa 3/7: otworzyła roztrzęsiona młoda kobieta, Aleksandra Sikorska. Jej siostra Maja zaginęła w niedzielę. Od dwóch dni szuka jej na własną rękę.' },
+    report: 'Kasztanowa 3/7: otworzyła roztrzęsiona młoda kobieta, Aleksandra Sikorska. Jej siostra Maja nie wróciła wieczorem do domu. Od kilku godzin obdzwania szpitale i znajomych.' },
   { id: 'polna40', addr: 'ul. Polna 40 (schronisko)', street: 'polna', x: 955, y: 625, w: 36, h: 24, type: 'obiekt', year: 1996,
     heating: 'gazowe', power: true, basement: false,
     note: 'Schronisko dla zwierząt „Psia Przystań”.',
@@ -836,7 +891,7 @@ const RECON = {
    BAZA OSÓB ZAGINIONYCH (fikcyjna)
    ===================================================================== */
 const MISSING = [
-  { id: 'maja', name: 'Maja Sikorska', age: 19, hair: 'rude', eyes: 'zielone', height: 168, city: 'Kalnów', since: '2026-10-25',
+  { id: 'maja', name: 'Maja Sikorska', age: 19, hair: 'rude', eyes: 'zielone', height: 168, city: 'Kalnów', since: '2026-10-26',
     features: 'piegi; tatuaż psiej łapy na lewym nadgarstku; bransoletka z koralików', clothes: 'szara bluza z kapturem, jeansy, białe adidasy',
     notes: 'Studentka I roku weterynarii, wolontariuszka schroniska Psia Przystań. Choruje na astmę. Ostatnio widziana na przystanku Kasztanowa ok. 18:05.',
     reporter: 'Aleksandra Sikorska (siostra)' },

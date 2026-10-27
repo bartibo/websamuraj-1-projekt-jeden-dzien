@@ -7,6 +7,10 @@
   <title>Pod jedną żarówką – gra operatora numeru 112</title>
   <meta name="description" content="Interaktywny dramat w oknie czatu operatora numeru alarmowego 112. Dziewczyna z amnezją jest zamknięta w piwnicy z jedną żarówką. Zadawaj pytania, zbieraj poszlaki, ustal, kim jest i gdzie jest, i wyślij pomoc, zanim padnie jej telefon.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cpath d='M32 6v12' stroke='%23556' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='22' fill='%23ffb547' opacity='.25'/%3E%3Cpath d='M24 30a8 8 0 1 1 16 0c0 4-3 6-3 10H27c0-4-3-6-3-10z' fill='%23ffcf70'/%3E%3Crect x='27' y='42' width='10' height='6' rx='2' fill='%23889'/%3E%3C/svg%3E">
+  <meta property="og:title" content="Pod jedną żarówką – gra operatora numeru 112">
+  <meta property="og:description" content="Nocna zmiana w CPR. Dziewczyna bez pamięci w piwnicy, telefon z kończącą się baterią i ty po drugiej stronie czatu.">
+  <meta property="og:image" content="https://projekty.vibemaster.pl/7-operator-112-gra-fabularna-opus5_5/img/og.jpg">
+  <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
@@ -25,18 +29,21 @@
 
     <div class="intro-grid">
       <div class="intro-card">
-        <h3>Jak grać</h3>
+        <h3><span>01</span> Jak grać</h3>
         <ul>
           <li><b>Zadawaj pytania i wydawaj polecenia.</b> Każda jej odpowiedź zużywa baterię telefonu.</li>
           <li><b>Zbieraj poszlaki:</b> dźwięki, zapachy, przedmioty, wspomnienia. Pojawiają się po prawej.</li>
           <li><b>Korzystaj z narzędzi:</b> lokalizacja z sieci, ewidencja, baza zaginionych, telefony. To kosztuje czas.</li>
           <li><b>Zawężaj obszar na mapie</b> i sprawdzaj budynki w ewidencji.</li>
           <li><b>Zadysponuj służby</b> pod właściwy adres, zanim kontakt się urwie.</li>
+          <li><b>Łącz poszlaki</b> na tablicy: z dwóch faktów powstaje wniosek.</li>
           <li>Czasem trzeba zdecydować w kilka sekund.</li>
         </ul>
       </div>
-      <div class="intro-card">
-        <h3>Ustawienia</h3>
+      <div class="intro-card login">
+        <h3><span>02</span> SWD-PRM · logowanie · stanowisko 03</h3>
+        <div class="login-row"><span>operator</span><b>OP-03 · nocna zmiana</b></div>
+        <div class="login-row"><span>dyżur</span><b>26.10.2026 · 19:00 – 07:00</b></div>
         <label class="sw"><input type="checkbox" id="set-sound" checked><span></span> Dźwięk</label>
         <label class="sw"><input type="checkbox" id="set-pressure" checked><span></span> Presja czasu (czas płynie, gdy zwlekasz)</label>
         <label class="sw"><input type="checkbox" id="set-fast"><span></span> Szybsze pisanie rozmówczyni</label>
@@ -45,7 +52,7 @@
       </div>
     </div>
 
-    <button class="btn primary big" id="btn-start">Rozpocznij dyżur</button>
+    <button class="btn primary big" id="btn-start">Zaloguj i rozpocznij dyżur ▸</button>
     <p class="intro-foot">Fikcja. Miasto Kalnów, osoby, firmy i instytucje są zmyślone. W prawdziwym zagrożeniu dzwoń pod <b>112</b>.</p>
   </div>
 </section>
@@ -57,10 +64,13 @@
     <div class="tb-mid">
       <div class="tb-item"><small>zgłoszenie</small><b id="incident-no">—</b></div>
       <div class="tb-item"><small>czas zgłoszenia</small><b id="call-time" class="mono">00:00</b></div>
+      <div class="tb-item"><small>priorytet</small><b class="prio">P1</b></div>
+      <div class="tb-item kw"><small>kwalifikacja</small><b id="tb-kwal">DO USTALENIA</b></div>
+      <div class="tb-item"><small>status</small><b class="live"><i></i>W TOKU</b></div>
     </div>
     <div class="tb-right">
-      <div class="tb-clock"><b id="clock" class="mono">23:41</b><small id="clock-date">26.10.2026</small></div>
-      <button class="icon-btn" id="btn-sound" title="Dźwięk">🔊</button>
+      <div class="tb-clock" title="Przy presji czasu minuta gry mija w 30 sekund"><b class="mono"><span id="clock">23:41</span><span id="clock-s" class="sec">:00</span></b><small id="clock-date">26.10.2026</small></div>
+      <button class="icon-btn" id="btn-sound" title="Dźwięk">SND</button>
       <button class="icon-btn" id="btn-help" title="Pomoc">?</button>
     </div>
   </header>
@@ -69,7 +79,7 @@
     <!-- LEWA: stan zgłoszenia -->
     <aside class="col col-left">
       <section class="panel caller">
-        <div class="p-h">Zgłaszający</div>
+        <div class="p-h"><span>01 Zgłaszający</span></div>
         <div class="caller-name" id="caller-name">NN · kobieta</div>
         <div class="caller-row"><span>tel.</span><b id="caller-num" class="mono">—</b></div>
         <div class="caller-row"><span>miejsce</span><b id="caller-loc">nieustalona</b></div>
@@ -79,11 +89,11 @@
         <div class="caller-row"><span>sygnał</span><b><i id="sig" class="sig s3"><u></u><u></u><u></u></i></b></div>
       </section>
       <section class="panel sketch-p">
-        <div class="p-h">Szkic miejsca <small>na podstawie relacji</small></div>
+        <div class="p-h"><span>02 Szkic miejsca</span><small>na podstawie relacji</small></div>
         <svg id="sketch" class="sketch"></svg>
       </section>
       <section class="panel">
-        <div class="p-h">Procedura</div>
+        <div class="p-h"><span>03 Procedura</span><small>kwestionariusz SWD</small></div>
         <ul class="protocol" id="protocol"></ul>
       </section>
     </aside>
@@ -93,8 +103,10 @@
       <div class="chat-head">
         <div class="avatar"><span id="chat-bulb" class="bulb-ico on"></span></div>
         <div class="ch-t"><b id="chat-title">NN · kobieta</b><small id="chat-status">oczekiwanie na połączenie</small></div>
-        <div class="ch-bat" id="chat-bat">🔋 42%</div>
+        <div class="ch-bat" id="chat-bat">BAT 42%</div>
       </div>
+      <div id="lowbat" class="lowbat" hidden></div>
+      <div id="toasts" class="toasts"></div>
       <div id="chat" class="chat" aria-live="polite"></div>
       <div id="composer" class="composer">
         <div id="decision" class="decision" hidden></div>
@@ -115,7 +127,7 @@
         <button data-tab="sluzby">Służby</button>
         <button data-tab="karta">Karta</button>
       </nav>
-      <div class="tabpane" id="tab-poszlaki"><div id="clues" class="clues"></div></div>
+      <div class="tabpane" id="tab-poszlaki"><div id="linkbar" class="linkbar" hidden></div><div id="clues" class="clues"></div></div>
       <div class="tabpane" id="tab-mapa" hidden>
         <div class="map-bar"><span>Kalnów – fragment miasta</span><button class="btn small ghost" id="btn-map-expand">⤢ Powiększ</button></div>
         <div class="map-wrap"><svg id="map" class="map"></svg></div>
@@ -135,16 +147,18 @@
       </div>
       <div class="tabpane" id="tab-karta" hidden>
         <div id="card" class="card"></div>
+        <h4 class="sub-h">Notatki operatora</h4>
+        <textarea id="notes" class="notes" rows="8" placeholder="Twoje notatki z dyżuru: hipotezy, adresy do sprawdzenia, nazwiska…"></textarea>
       </div>
     </aside>
   </main>
+  <footer id="statusbar" class="statusbar"></footer>
 
   <nav id="mnav" class="mnav">
     <button data-col="left">Stan</button>
-    <button data-col="center" class="on">Rozmowa</button>
+    <button data-col="center" class="on">Rozmowa<i hidden></i></button>
     <button data-col="right">Narzędzia<i hidden></i></button>
   </nav>
-  <div id="toasts" class="toasts"></div>
 </div>
 
 <!-- ================= POMOC ================= -->
@@ -161,6 +175,9 @@
       <li><b>Bazy.</b> Lokalizacja z sieci, abonent numeru, KRS, ewidencja, baza zaginionych, dystrybutor energii i telefony. Każde zapytanie kosztuje minuty.</li>
       <li><b>Służby.</b> Patrol możesz wysłać pod adres albo na rekonesans ulicy. Błędny adres to stracony czas. Pomyśl też o karetce i o syrenach.</li>
       <li><b>Decyzje na czas.</b> Gdy zjawia się pasek odliczania, masz kilka sekund. Możesz wybierać klawiszami 1–4.</li>
+      <li><b>Tablica poszlak.</b> W zakładce „Poszlaki” zaznacz ◇ dwie poszlaki, które według ciebie się łączą, i kliknij „Połącz”. Trafne połączenie daje wniosek, czasem nowe ograniczenie na mapie. Pomyłka nic nie kosztuje. „↳ w rozmowie” przewija czat do miejsca, w którym padła poszlaka.</li>
+      <li><b>Pamięć i strach.</b> Pytania oznaczone „wspomnienie” działają dopiero, gdy ona trochę się uspokoi.</li>
+      <li><b>Klawiatura.</b> 1–9 wybiera pytanie z bieżącej kategorii, strzałki ← → zmieniają kategorię, spacja odbiera połączenie.</li>
     </ol>
     <p class="muted">Siedem zakończeń. Żadne nie jest jedynym właściwym, ale tylko jedno jest naprawdę dobre.</p>
   </div>
