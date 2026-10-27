@@ -18,6 +18,7 @@ Strona z projektami: **[projekty.vibemaster.pl](https://projekty.vibemaster.pl)*
 | 4 | [Oczami innych](4-zaburzenia-wzroku-symulator-opus5_5/) | [jeden-prompt/4-zaburzenia-wzroku-symulator-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/4-zaburzenia-wzroku-symulator-opus5_5) |
 | 5 | [Absurdoro](5-pomodoro-absurdalny-timer-opus5_5/) | [jeden-prompt/5-pomodoro-absurdalny-timer-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/5-pomodoro-absurdalny-timer-opus5_5) |
 | 6 | [Na Krawędzi](6-wingsuit-symulator-lotu-opus5_5/) | [jeden-prompt/6-wingsuit-symulator-lotu-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/6-wingsuit-symulator-lotu-opus5_5) |
+| 7 | [Pod jedną żarówką](7-operator-112-gra-fabularna-opus5_5/) | [jeden-prompt/7-operator-112-gra-fabularna-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/7-operator-112-gra-fabularna-opus5_5) |
 
 ## Jak to działa
 
