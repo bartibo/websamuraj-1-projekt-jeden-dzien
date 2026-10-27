@@ -12,9 +12,15 @@
   const VERT = /* glsl */`
     attribute float shade;
     varying vec3 vW; varying vec3 vN; varying vec3 vC; varying float vS;
+    #ifdef CAV
+      attribute float cav; varying float vCav;
+    #endif
     void main() {
       vec4 w = modelMatrix * vec4(position, 1.0);
       vW = w.xyz; vN = normal; vC = color; vS = shade;
+      #ifdef CAV
+        vCav = cav;
+      #endif
       gl_Position = projectionMatrix * viewMatrix * w;
     }`;
   const FRAG = /* glsl */`
@@ -23,12 +29,39 @@
     uniform vec4 uHole;
     uniform vec3 uBand[5];
     varying vec3 vW; varying vec3 vN; varying vec3 vC; varying float vS;
+    #ifdef CAV
+      varying float vCav;
+    #endif
+    #ifndef RELIEF_FAR
+      #define RELIEF_FAR 650.0
+    #endif
+    #ifndef BLOCK_FAR
+      #define BLOCK_FAR 420.0
+    #endif
     ${WS.GLSL.noise}
     ${WS.GLSL.fogPars}
     // rzeźba skały: nieregularne bloki i półki (do zaburzenia normalnej na ścianach)
+    // (oktawy obrócone względem siebie, żeby wzór nie układał się w siatkę)
+    const mat2 ROT = mat2(0.8, -0.6, 0.6, 0.8);
     float relief(vec2 p) {
-      return vnoise(p * 0.07) * 0.6 + vnoise(p * vec2(0.19, 0.31) + 5.0) * 0.4;
+      return vnoise(p * 0.07) * 0.6 + vnoise(ROT * p * vec2(0.19, 0.31) + 5.0) * 0.4;
     }
+    #ifdef HQ
+      // szum komórkowy: x – odległość od środka bloku, y – odległość od spękania (F2 − F1), z – los bloku
+      vec3 vor(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        float d1 = 8.0, d2 = 8.0, id = 0.0;
+        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+          vec2 g = vec2(float(x), float(y));
+          vec2 c = i + g;
+          vec2 r = g + vec2(hash12(c), hash12(c + 19.7)) * 0.85 + 0.075 - f;
+          float d = dot(r, r);
+          if (d < d1) { d2 = d1; d1 = d; id = hash12(c + 7.3); } else if (d < d2) d2 = d;
+        }
+        d1 = sqrt(d1);
+        return vec3(d1, sqrt(d2) - d1, id);
+      }
+    #endif
     void main() {
       #ifdef HOLE
         if (vW.x > uHole.x && vW.x < uHole.z && vW.z > uHole.y && vW.z < uHole.w) discard;
@@ -44,21 +77,65 @@
       float n1 = vnoise(wp2 * 0.021);
       float n2 = vnoise(wp2 * 0.11 + 7.0);
       float fNear = exp(-dist / 160.0);
-      float n3 = fNear > 0.02 ? vnoise(wp2 * 0.43 + 3.0) * 0.65 + vnoise(wp2 * vec2(0.95, 0.8) + 11.0) * 0.35 : 0.5;
-      float n4 = vnoise(vec2((vW.x + vW.z) * 0.25, vW.y * 0.32));
+      float n3 = fNear > 0.02 ? vnoise(ROT * wp2 * 0.43 + 3.0) * 0.65 + vnoise(ROT * ROT * wp2 * vec2(0.95, 0.8) + 11.0) * 0.35 : 0.5;
+      float n4 = vnoise(ROT * vec2((vW.x + vW.z) * 0.25, vW.y * 0.32));
       float det = n1 * 0.45 + n2 * 0.35 + (n3 - 0.5) * 0.5 * fNear + 0.1;
       float rock = smoothstep(0.3, 0.6, steep);
       det = mix(det, n4 * 0.55 + n2 * 0.3 + (n3 - 0.5) * 0.4 * fNear + 0.12, rock);
       // ściany: normalna zaburzona rzeźbą, żeby światło łamało się na blokach (zamiast gładkiej „zasłony”)
-      if (rock > 0.01 && dist < 650.0) {
+      if (rock > 0.01 && dist < RELIEF_FAR) {
         vec2 rp = vec2(dot(vW.xz, tdir), vW.y);
         float e = 1.5;
         float r0 = relief(rp);
         float gx = relief(rp + vec2(e, 0.0)) - r0, gy = relief(rp + vec2(0.0, e)) - r0;
         vec3 T = normalize(vec3(tdir.x, 0.0, tdir.y)), B = vec3(0.0, 1.0, 0.0);
-        float k = 9.0 * rock * (1.0 - smoothstep(250.0, 650.0, dist));
+        float k = 9.0 * rock * (1.0 - smoothstep(RELIEF_FAR * 0.38, RELIEF_FAR, dist));
+        #ifdef HQ
+          // (bloki skalne niżej dają większość rzeźby; gładka rzeźba z szumu wyglądała jak słoje drewna)
+          k *= 0.38;
+        #endif
         N = normalize(N - (T * gx + B * gy) / e * k);
       }
+      float crackAO = 0.0, blockTone = 0.5;
+      #ifdef HQ
+        if (rock > 0.05 && dist < BLOCK_FAR) {
+          float fb = rock * (1.0 - smoothstep(BLOCK_FAR * 0.55, BLOCK_FAR, dist));
+          vec2 up = vec2(dot(vW.xz, tdir), vW.y);
+          // pionowe filary (wyższe niż szersze) i drobniejsze spękania w środku
+          #ifdef DESERT
+            // piaskowiec: szerokie poziome płyty
+            vec2 bp = vec2(up.x * 0.045, up.y * 0.11) + vec2(0.0, vnoise(up * 0.02) * 0.5);
+          #else
+            vec2 bp = vec2(up.x * 0.075, up.y * 0.036) + vec2(vnoise(up * 0.02) * 0.6, 0.0);
+          #endif
+          vec3 v1 = vor(bp);
+          // spękania tylko na części krawędzi bloków, różnej szerokości
+          float cm = smoothstep(0.38, 0.62, vnoise(up * 0.045 + 3.0));
+          float c1 = (1.0 - smoothstep(0.0, 0.022 + 0.03 * vnoise(up * 0.3), v1.y)) * (0.3 + 0.7 * cm);
+          float c2 = 0.0;
+          vec3 v2 = vec3(0.5);
+          if (dist < BLOCK_FAR * 0.5) {
+            v2 = vor(ROT * vec2(up.x * 0.21, up.y * 0.13) + 31.0);
+            c2 = (1.0 - smoothstep(0.0, 0.03, v2.y)) * (1.0 - cm) * (1.0 - smoothstep(BLOCK_FAR * 0.25, BLOCK_FAR * 0.5, dist));
+          }
+          blockTone = mix(0.5, v1.z * 0.7 + v2.z * 0.3, fb);
+          // z daleka zostają odcienie i nachylenie bloków, same rysy znikają (inaczej góra wygląda jak spękane błoto)
+          crackAO = (c1 * 0.7 + c2 * 0.35) * fb * (1.0 - smoothstep(110.0, BLOCK_FAR * 0.75, dist));
+          // każdy blok trochę inaczej nachylony: płaszczyzny łapią światło jak prawdziwe ściany
+          vec3 T2 = normalize(vec3(tdir.x, 0.0, tdir.y));
+          vec2 tilt = (vec2(v1.z, fract(v1.z * 13.7)) - 0.5) * 0.55 + (vec2(v2.z, fract(v2.z * 7.1)) - 0.5) * 0.25;
+          N = normalize(N + (T2 * tilt.x + vec3(0.0, tilt.y, 0.0)) * fb);
+        }
+      #endif
+      #ifdef HQ
+        // drobne nierówności płaskiego terenu (trawa, piarg, śnieg) z bliska
+        if (dist < 140.0 && rock < 0.99) {
+          vec2 gp = vW.xz * 0.45;
+          float g0 = vnoise(gp), gxn = vnoise(gp + vec2(0.35, 0.0)) - g0, gzn = vnoise(gp + vec2(0.0, 0.35)) - g0;
+          float kg = 0.9 * (1.0 - rock) * (1.0 - smoothstep(50.0, 140.0, dist));
+          N = normalize(N - vec3(gxn, 0.0, gzn) * kg);
+        }
+      #endif
       vec3 col = vC * (0.7 + 0.6 * det);
       #ifdef DESERT
         // warstwy piaskowca liczone na pikselu (na wierzchołkach siatki 4 m rozmazywały się w pionowe smugi)
@@ -72,6 +149,10 @@
         if (bi > 3.5) { b0 = uBand[4]; b1 = uBand[0]; }
         col = mix(col, mix(b0, b1, bf) * (0.72 + 0.56 * det), rock);
       #endif
+      #ifdef HQ
+        col *= 1.0 + (blockTone - 0.5) * 0.45 * rock;
+        col *= 1.0 - crackAO * 0.42;
+      #endif
       // poziome spękania i pionowe żłobienia na ścianach
       float crack = smoothstep(0.9, 0.975, fract(vW.y / 7.3 + n2 * 0.35 + n1 * 0.6));
       float groove = smoothstep(0.55, 0.85, vnoise(vec2(dot(vW.xz, tdir) * 0.09, vW.y * 0.012)));
@@ -82,6 +163,19 @@
       col *= 1.0 - uWet * 0.22 * (1.0 - sn);
       float diff = max(dot(N, uSunDir), 0.0) * vS;
       vec3 amb = mix(uAmbGround, uAmbSky, N.y * 0.5 + 0.5);
+      #ifdef HQ
+        // światło rozproszone z kierunkiem (niebo naprzeciw słońca): rzeźba skały widoczna też w cieniu
+        vec3 fillDir = normalize(vec3(-uSunDir.x, 0.75, -uSunDir.z));
+        amb *= (0.8 + 0.42 * max(dot(N, fillDir), 0.0)) * (1.0 - crackAO * 0.35);
+      #endif
+      #ifdef CAV
+        // zagłębienia (żleby, rysy, podnóża ścian) dostają mniej światła z nieba, grzbiety i kanty więcej
+        float fc = 1.0 - smoothstep(550.0, 900.0, dist);
+        float ao = mix(1.0, clamp(1.0 - max(vCav, 0.0) * 1.3, 0.62, 1.0), fc);
+        amb *= ao;
+        diff *= mix(1.0, ao, 0.25);
+        col *= 1.0 + clamp(-vCav, 0.0, 0.3) * 0.6 * fc;
+      #endif
       // błysk pioruna oświetla z góry: ściany zostają ciemniejsze, kadr nie robi się płasko szary
       vec3 lit = col * (uSunCol * diff + amb * (0.72 + 0.28 * vS) + uFlash * max(N.y, 0.0) * 0.8 * vec3(0.75, 0.8, 1.0));
       if (uWet > 0.0) {
@@ -89,23 +183,41 @@
         vec3 H = normalize(uSunDir - V);
         lit += uSunCol * pow(max(dot(N, H), 0.0), 30.0) * 0.18 * uWet * vS;
       }
+      #ifdef HQ
+        if (sn > 0.01) {
+          // połysk śniegu i iskrzenie kryształków z bliska
+          vec3 V = d / max(dist, 0.01);
+          vec3 H = normalize(uSunDir - V);
+          float nh = max(dot(N, H), 0.0);
+          lit += uSunCol * pow(nh, 14.0) * 0.16 * sn * vS;
+          if (dist < 120.0) {
+            vec2 cell = floor(vW.xz * 5.0);
+            float sp = step(0.992, hash12(cell + floor(dot(V.xz, vec2(37.0, 53.0)))));
+            lit += uSunCol * sp * pow(nh, 4.0) * 2.5 * sn * vS * (1.0 - dist / 120.0);
+          }
+        }
+      #endif
       gl_FragColor = vec4(applyFog(lit, vW), 1.0);
     }`;
 
   const DESERT_BANDS = [[0.72, 0.37, 0.2], [0.82, 0.52, 0.31], [0.6, 0.29, 0.17], [0.86, 0.68, 0.48], [0.68, 0.42, 0.26]];
 
-  function terrainMaterial(hole, desert) {
+  function terrainMaterial(hole, desert, cav) {
     const uniforms = {
       uBand: { value: DESERT_BANDS.map(c => new THREE.Vector3(c[0], c[1], c[2])) },
       uSunCol: U.uSunCol, uAmbSky: U.uAmbSky, uAmbGround: U.uAmbGround,
       uSnow: U.uSnow, uWet: U.uWet, uFlash: U.uFlash,
-      uFogCol: U.uFogCol, uSunFog: U.uSunFog, uSunDir: U.uSunDir, uCam: U.uCam, uFogDens: U.uFogDens, uHF: U.uHF,
+      uFogCol: U.uFogCol, uSkyTop: U.uSkyTop, uSunFog: U.uSunFog, uSunDir: U.uSunDir, uCam: U.uCam, uFogDens: U.uFogDens, uHF: U.uHF,
       uHole: { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) }
     };
     const m = new THREE.ShaderMaterial({ uniforms, vertexShader: VERT, fragmentShader: FRAG, vertexColors: true });
     m.defines = {};
     if (hole) m.defines.HOLE = 1;
     if (desert) m.defines.DESERT = 1;
+    const q = WS.Q;
+    if (q.hq) m.defines.HQ = 1;
+    if (q.hq && cav) m.defines.CAV = 1;
+    if (q.hq >= 2) { m.defines.RELIEF_FAR = '900.0'; m.defines.BLOCK_FAR = '600.0'; }
     return m;
   }
 
@@ -226,7 +338,33 @@
     return out;
   }
 
-  function treeGeometry(kind) {
+  function treeGeometry(kind, hq) {
+    if (kind === 'shrub' && hq) {
+      const a = new THREE.IcosahedronGeometry(1.4, 1); a.scale(1.2, 0.8, 1.2); a.translate(0, 0.9, 0);
+      const b = new THREE.IcosahedronGeometry(1.0, 1); b.translate(0.9, 0.7, 0.3);
+      const c = new THREE.IcosahedronGeometry(0.8, 1); c.translate(-0.7, 0.6, -0.5);
+      jitter(a, 0.18); jitter(b, 0.15); jitter(c, 0.12);
+      return mergeGeos([{ geo: a, color: [0.42, 0.45, 0.25] }, { geo: b, color: [0.36, 0.4, 0.22] }, { geo: c, color: [0.46, 0.44, 0.27] }]);
+    }
+    if (hq) {
+      // świerk z pięcioma piętrami gałęzi, opadającymi brzegami i nierównym obrysem
+      const parts = [];
+      const trunk = new THREE.CylinderGeometry(0.16, 0.34, 4.0, 7); trunk.translate(0, 2.0, 0);
+      parts.push({ geo: trunk, color: [0.31, 0.22, 0.15] });
+      const tiers = [[3.0, 4.2, 3.4], [2.6, 3.8, 5.6], [2.1, 3.4, 7.6], [1.6, 3.0, 9.5], [1.05, 2.8, 11.3]];
+      tiers.forEach(([r, h, y], i) => {
+        const c = new THREE.ConeGeometry(r, h, 11, 2);
+        const p = c.attributes.position;
+        for (let k = 0; k < p.count; k++) {
+          const x = p.getX(k), z = p.getZ(k), yy = p.getY(k);
+          const rr = Math.hypot(x, z);
+          if (rr > r * 0.6) { const a = Math.atan2(z, x); const f = 1 + 0.16 * Math.sin(a * 5 + i * 1.7); p.setX(k, x * f); p.setZ(k, z * f); p.setY(k, yy - 0.35 * (rr / r)); }
+        }
+        c.translate(0, y, 0);
+        parts.push({ geo: c, color: [0.15 + i * 0.012, 0.27 + i * 0.022, 0.14 + i * 0.008] });
+      });
+      return mergeGeos(parts);
+    }
     if (kind === 'shrub') {
       const a = new THREE.IcosahedronGeometry(1.4, 0); a.scale(1.2, 0.8, 1.2); a.translate(0, 0.9, 0);
       const b = new THREE.IcosahedronGeometry(1.0, 0); b.translate(0.9, 0.7, 0.3);
@@ -244,6 +382,16 @@
     ]);
   }
 
+  function jitter(g, a) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const n = Math.sin(x * 12.9 + y * 78.2 + z * 37.7) * 43758.5453;
+      const f = 1 + ((n - Math.floor(n)) - 0.5) * a;
+      p.setXYZ(i, x * f, y * f, z * f);
+    }
+  }
+
   // ---------- system terenu ----------
   class Terrain {
     constructor(scene, world) {
@@ -251,11 +399,13 @@
       this.group = new THREE.Group();
       scene.add(this.group);
       this.palette = makePalette(world);
+      const q = WS.Q;
+      this.SEG = q.seg; this.R = q.R; this.midCell = q.mid; this.hq = q.hq;
       const desert = world.L.palette === 'desert';
-      this.matNear = terrainMaterial(false, desert);
+      this.matNear = terrainMaterial(false, desert, true);
       this.matMid = terrainMaterial(true, desert);
       this.matFar = terrainMaterial(true, desert);
-      this.treeGeo = treeGeometry(world.L.trees.kind);
+      this.treeGeo = treeGeometry(world.L.trees.kind, q.hq > 0);
       this.treeMat = WS.patchFog(new THREE.MeshLambertMaterial({ vertexColors: true }));
       this.chunks = new Map();
       this.queue = [];
@@ -281,7 +431,7 @@
       // pierścień środkowy (50 m oczko) i daleki (400 m)
       const midRect = { x0: -6000, z0: -5000, x1: 6000, z1: Math.max(9000, w.L.sLand + w.L.landLen + 2500) };
       this.midRect = midRect;
-      let g = yield* this._gridGen(midRect.x0, midRect.z0, midRect.x1, midRect.z1, 50, 1, 120);
+      let g = yield* this._gridGen(midRect.x0, midRect.z0, midRect.x1, midRect.z1, this.midCell, 1, 120);
       this.mid = new THREE.Mesh(g, this.matMid);
       this.mid.frustumCulled = false;
       this.group.add(this.mid);
@@ -296,7 +446,7 @@
       this.update(cx, cz, 0, true);
       while (this.queue.length || this.job) {
         this._work(12);
-        yield 0.75 + 0.25 * (1 - this.queue.length / ((2 * R + 1) ** 2));
+        yield 0.75 + 0.25 * (1 - this.queue.length / ((2 * this.R + 1) ** 2));
       }
       this.update(cx, cz, 0, true);
     }
@@ -378,13 +528,12 @@
       geo.rotateX(-Math.PI / 2);
       const mat = new THREE.ShaderMaterial({
         uniforms: {
-          uFogCol: U.uFogCol, uSunFog: U.uSunFog, uSunDir: U.uSunDir, uCam: U.uCam, uFogDens: U.uFogDens, uHF: U.uHF,
-          uSunCol: U.uSunCol, uAmbSky: U.uAmbSky, uTime: U.uTime, uWet: U.uWet, uFlash: U.uFlash,
-          uSkyTop: { value: new THREE.Color(WS.currentWeather ? WS.currentWeather.skyTop : '#3366aa') }
+          uFogCol: U.uFogCol, uSkyTop: U.uSkyTop, uSunFog: U.uSunFog, uSunDir: U.uSunDir, uCam: U.uCam, uFogDens: U.uFogDens, uHF: U.uHF,
+          uSunCol: U.uSunCol, uAmbSky: U.uAmbSky, uTime: U.uTime, uWet: U.uWet, uFlash: U.uFlash
         },
         vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`,
         fragmentShader: `
-          uniform vec3 uSunCol; uniform vec3 uAmbSky; uniform vec3 uSkyTop; uniform float uTime; uniform float uWet; uniform float uFlash;
+          uniform vec3 uSunCol; uniform vec3 uAmbSky; uniform float uTime; uniform float uWet; uniform float uFlash;
           varying vec3 vW;
           ${WS.GLSL.noise}
           ${WS.GLSL.fogPars}
@@ -416,11 +565,12 @@
       this.group.add(this.water);
     }
 
-    setSkyTop(c) { if (this.water) this.water.material.uniforms.uSkyTop.value.set(c); }
+    setSkyTop(c) { U.uSkyTop.value.set(c); }
 
     key(cx, cz) { return cx + ',' + cz; }
 
     update(px, pz, budget, force) {
+      const R = this.R;
       const cx = Math.floor(px / CHUNK), cz = Math.floor(pz / CHUNK);
       if (force || !this.center || this.center.x !== cx || this.center.z !== cz) {
         this.center = { x: cx, z: cz };
@@ -469,12 +619,14 @@
 
     *_chunkGen(cx, cz) {
       const w = this.world, pal = this.palette, sd = this.sunDir;
-      const N = SEG, st = CHUNK / N, x0 = cx * CHUNK, z0 = cz * CHUNK;
-      const M = N + 3; // z ramką
+      const N = this.SEG, st = CHUNK / N, x0 = cx * CHUNK, z0 = cz * CHUNK;
+      // ramka wokół kawałka: 1 oczko na normalne, 3 przy liczeniu zagłębień
+      const cav = this.hq > 0, F = cav ? 3 : 1;
+      const M = N + 1 + 2 * F;
       const H = new Float32Array(M * M);
       for (let j = 0; j < M; j++) {
-        const z = z0 + (j - 1) * st;
-        for (let i = 0; i < M; i++) H[j * M + i] = w.height(x0 + (i - 1) * st, z, 0);
+        const z = z0 + (j - F) * st;
+        for (let i = 0; i < M; i++) H[j * M + i] = w.height(x0 + (i - F) * st, z, 0);
         if (j % 6 === 5) yield;
       }
       // cień od słońca na rzadszej siatce (co 4. wierzchołek) – był ~70% kosztu kawałka
@@ -483,20 +635,23 @@
       for (let j = 0; j < SN; j++) {
         for (let i = 0; i < SN; i++) {
           const ii = i * SS, jj = j * SS;
-          SH[j * SN + i] = sunShade(w, x0 + ii * st, H[(jj + 1) * M + ii + 1], z0 + jj * st, sd);
+          SH[j * SN + i] = sunShade(w, x0 + ii * st, H[(jj + F) * M + ii + F], z0 + jj * st, sd);
         }
         if (j % 4 === 3) yield;
       }
       const nv = (N + 1) * (N + 1);
       const extra = 4 * (N + 1);
       const pos = new Float32Array((nv + extra) * 3), nor = new Float32Array((nv + extra) * 3), col = new Float32Array((nv + extra) * 3), sh = new Float32Array(nv + extra);
+      const cv = cav ? new Float32Array(nv + extra) : null;
+      const cavK = 1 / (3 * st);
       for (let j = 0; j <= N; j++) {
         const z = z0 + j * st;
         const fl = w.floor(z);
         for (let i = 0; i <= N; i++) {
           const k = j * (N + 1) + i, x = x0 + i * st;
-          const hi = (j + 1) * M + (i + 1);
+          const hi = (j + F) * M + (i + F);
           const h = H[hi];
+          if (cv) cv[k] = clamp(((H[hi - 3] + H[hi + 3] + H[hi - 3 * M] + H[hi + 3 * M]) * 0.25 - h) * cavK, -1, 1);
           let ax = H[hi - 1] - H[hi + 1], az = H[hi - M] - H[hi + M], ay = 2 * st;
           const il = 1 / Math.hypot(ax, ay, az);
           ax *= il; ay *= il; az *= il;
@@ -522,6 +677,8 @@
       g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
       g.setAttribute('shade', new THREE.BufferAttribute(sh, 1));
+      // (fartuch ma zagłębienie 0 – i tak schowany pod ziemią)
+      if (cv) g.setAttribute('cav', new THREE.BufferAttribute(cv, 1));
       g.setIndex(idx);
       g.computeBoundingSphere();
       g.boundingSphere.radius += 30;

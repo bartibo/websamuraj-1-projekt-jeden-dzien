@@ -100,7 +100,7 @@
       sunFog: '#fdf0d8', ambSky: '#8fb2dc', ambGround: '#6a6250', fog: 0.000085, heightFog: 0,
       cloudCover: 0.32, cloudCol: '#ffffff', cloudDark: '#9fb0c6', cloudH: 1800,
       wind: 3, turb: 0.12, gust: 0.25, particles: 'pylek', snow: 0, wet: 0, lightning: false,
-      puffs: 0, stars: 0, aurora: 0, disk: 1, exposure: 1.0
+      puffs: 0, stars: 0, aurora: 0, disk: 1, exposure: 1.0, bloom: [0.12, 1.0], rays: 0.4
     },
     {
       id: 'zachod', mult: 1.05, name: 'Złota godzina', icon: '🌅', desc: 'Nisko stojące słońce, długie cienie, ciepłe światło.',
@@ -108,7 +108,7 @@
       sunFog: '#ffb37a', ambSky: '#7f78a6', ambGround: '#5a4232', fog: 0.00011, heightFog: 0,
       cloudCover: 0.38, cloudCol: '#ffc08e', cloudDark: '#7a5a7a', cloudH: 1900,
       wind: 2, turb: 0.08, gust: 0.2, particles: 'pylek', snow: 0, wet: 0, lightning: false,
-      puffs: 0, stars: 0, aurora: 0, disk: 1, exposure: 1.0
+      puffs: 0, stars: 0, aurora: 0, disk: 1, exposure: 1.0, bloom: [0.14, 1.15], rays: 0.7
     },
     {
       id: 'mgla', mult: 1.25, name: 'Mgła i chmury', icon: '🌫', desc: 'Przelot przez chmury, gęsta mgła w dolinach. Teren widać dopiero z bliska.',
@@ -116,7 +116,7 @@
       sunFog: '#dfe4e8', ambSky: '#b5bfca', ambGround: '#6a6d69', fog: 0.0009, heightFog: 1.4,
       cloudCover: 0.92, cloudCol: '#e4e8ec', cloudDark: '#8e979f', cloudH: 1500,
       wind: 5, turb: 0.35, gust: 0.35, particles: 'mzawka', snow: 0, wet: 0.35, lightning: false,
-      puffs: 1, stars: 0, aurora: 0, disk: 0, exposure: 1.0, sat: 0.9
+      puffs: 1, stars: 0, aurora: 0, disk: 0, exposure: 1.0, sat: 0.9, bloom: [0.1, 1.0], rays: 0
     },
     {
       id: 'burza', mult: 1.4, name: 'Burza', icon: '⛈', desc: 'Ulewa, pioruny i porywy wiatru. Lot dla twardzieli.',
@@ -124,7 +124,7 @@
       sunFog: '#59616c', ambSky: '#59616d', ambGround: '#2b2d2a', fog: 0.0005, heightFog: 0.6,
       cloudCover: 1.0, cloudCol: '#454b54', cloudDark: '#1e2228', cloudH: 1300,
       wind: 12, turb: 0.9, gust: 0.6, particles: 'deszcz', snow: 0, wet: 1, lightning: true,
-      puffs: 2, stars: 0, aurora: 0, disk: 0, exposure: 1.0
+      puffs: 2, stars: 0, aurora: 0, disk: 0, exposure: 1.0, bloom: [0.3, 0.9], rays: 0
     },
     {
       id: 'snieg', mult: 1.3, name: 'Śnieżyca', icon: '❄', desc: 'Zawieja, biel dookoła, zimny boczny wiatr.',
@@ -132,7 +132,7 @@
       sunFog: '#e6ebf0', ambSky: '#c9d3de', ambGround: '#878c93', fog: 0.00085, heightFog: 0.5,
       cloudCover: 0.96, cloudCol: '#e9edf2', cloudDark: '#9aa3ad', cloudH: 1400,
       wind: 9, turb: 0.55, gust: 0.45, particles: 'snieg', snow: 0.85, wet: 0, lightning: false,
-      puffs: 1, stars: 0, aurora: 0, disk: 0, exposure: 1.0
+      puffs: 1, stars: 0, aurora: 0, disk: 0, exposure: 1.0, bloom: [0.08, 1.05], rays: 0
     },
     {
       id: 'noc', mult: 1.2, name: 'Noc z zorzą', icon: '🌌', desc: 'Księżyc w pełni, gwiazdy i zorza polarna. Ziemia blisko, a widać mniej.',
@@ -140,7 +140,7 @@
       sunFog: '#2a3d60', ambSky: '#3a4e7c', ambGround: '#151b27', fog: 0.00014, heightFog: 0,
       cloudCover: 0.12, cloudCol: '#6f7f9e', cloudDark: '#1a2236', cloudH: 2000,
       wind: 2, turb: 0.1, gust: 0.2, particles: 'pylek', snow: 0, wet: 0, lightning: false,
-      puffs: 0, stars: 1, aurora: 1, disk: 2, exposure: 1.3, sat: 0.62
+      puffs: 0, stars: 1, aurora: 1, disk: 2, exposure: 1.3, sat: 0.62, bloom: [0.2, 0.75], rays: 0.18
     }
   ];
 

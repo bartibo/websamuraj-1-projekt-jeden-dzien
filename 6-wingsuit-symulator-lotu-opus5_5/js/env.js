@@ -11,6 +11,7 @@
     uAmbSky: { value: new THREE.Color(0.5, 0.6, 0.7) },
     uAmbGround: { value: new THREE.Color(0.3, 0.3, 0.25) },
     uFogCol: { value: new THREE.Color(0.7, 0.8, 0.9) },
+    uSkyTop: { value: new THREE.Color(0.2, 0.4, 0.75) },
     uFogDens: { value: 0.0001 },
     uHF: { value: new THREE.Vector3(0, 200, 0) },
     uCam: { value: new THREE.Vector3() },
@@ -23,15 +24,16 @@
   const GLSL = {};
   GLSL.noise = /* glsl */`
     float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+    // interpolacja piątego stopnia: bez kanciastych „kafli” szumu wartości (widocznych na skałach jako cyfrowe moro)
     float vnoise(vec2 p) {
       vec2 i = floor(p), f = fract(p);
-      vec2 u = f * f * (3.0 - 2.0 * f);
+      vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
       return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), u.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), u.x), u.y);
     }
     float fbm3(vec2 p) { return vnoise(p) * 0.55 + vnoise(p * 2.07 + 13.1) * 0.3 + vnoise(p * 4.13 + 7.7) * 0.15; }
   `;
   GLSL.fogPars = /* glsl */`
-    uniform vec3 uFogCol; uniform vec3 uSunFog; uniform vec3 uSunDir; uniform vec3 uCam;
+    uniform vec3 uFogCol; uniform vec3 uSunFog; uniform vec3 uSunDir; uniform vec3 uCam; uniform vec3 uSkyTop;
     uniform float uFogDens; uniform vec3 uHF;
     vec3 applyFog(vec3 col, vec3 wp) {
       vec3 d = wp - uCam;
@@ -39,8 +41,13 @@
       float hf = 1.0 + uHF.z * exp(-max(wp.y - uHF.x, 0.0) / uHF.y);
       float fd = dist * uFogDens * hf;
       float f = 1.0 - exp(-fd * fd);
-      float sd = pow(max(dot(d / max(dist, 0.001), uSunDir), 0.0), 8.0);
-      return mix(col, mix(uFogCol, uSunFog, sd * 0.7), f);
+      vec3 dir = d / max(dist, 0.001);
+      float hy = clamp(dir.y, 0.0, 1.0);
+      // kolor mgły jak niebo w tym samym kierunku (gradient i poświata słońca jak w kopule nieba):
+      // dalekie góry nad horyzontem nie odcinają się jasną „ścianą”
+      vec3 fc = mix(uFogCol, uSkyTop, pow(hy, 0.45) * 0.85);
+      float sd = pow(max(dot(dir, uSunDir), 0.0), 6.0) * 0.6 * (1.0 - min(hy * 2.0, 1.0) * 0.5);
+      return mix(col, mix(fc, uSunFog, sd), f);
     }
   `;
 
@@ -48,7 +55,7 @@
   function patchFog(mat) {
     mat.fog = false;
     mat.onBeforeCompile = (sh) => {
-      for (const k of ['uFogCol', 'uSunFog', 'uSunDir', 'uCam', 'uFogDens', 'uHF', 'uFlash']) sh.uniforms[k] = U[k];
+      for (const k of ['uFogCol', 'uSkyTop', 'uSunFog', 'uSunDir', 'uCam', 'uFogDens', 'uHF', 'uFlash']) sh.uniforms[k] = U[k];
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vFogW;')
         .replace('#include <project_vertex>', `#include <project_vertex>
@@ -78,6 +85,7 @@
     U.uAmbSky.value.set(wx.ambSky);
     U.uAmbGround.value.set(wx.ambGround);
     U.uFogCol.value.set(wx.horizon);
+    U.uSkyTop.value.set(wx.skyTop);
     U.uFogDens.value = wx.fog;
     U.uSnow.value = wx.snow;
     U.uWet.value = wx.wet;

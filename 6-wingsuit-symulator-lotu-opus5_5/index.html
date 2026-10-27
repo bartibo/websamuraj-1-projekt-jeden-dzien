@@ -56,17 +56,50 @@
     <div id="toast"></div>
   </div>
 
-  <!-- Menu -->
-  <div id="menu" class="screen on">
+  <!-- Ekran startowy: tytuł („naciśnij dowolny klawisz”) i menu główne na tle lotu pokazowego -->
+  <div id="title" class="screen on press">
+    <div class="t-black" id="tBlack"></div>
+    <div class="t-bars" aria-hidden="true"><i></i><i></i></div>
+    <div class="t-press">
+      <div class="t-logo">
+        <svg class="t-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8 L58 40 L40 36 L32 56 L24 36 L6 40 Z" fill="currentColor"/><circle cx="32" cy="16" r="4" fill="#0b0f14"/></svg>
+        <h1><span>NA</span>KRAWĘDZI</h1>
+        <p>symulator lotu w kombinezonie skrzydłowym</p>
+        <i class="t-line" aria-hidden="true"></i>
+      </div>
+      <div class="t-load" id="tLoad"><span id="tLoadTxt">Budowanie gór…</span><div class="t-load-bar"><i id="tLoadFill"></i></div></div>
+      <div class="t-any" id="tAny"><span class="kb">NACIŚNIJ DOWOLNY KLAWISZ</span><span class="tc">DOTKNIJ EKRANU</span></div>
+    </div>
+    <nav class="t-main" id="tMain" aria-label="Menu główne">
+      <div class="t-brand">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8 L58 40 L40 36 L32 56 L24 36 L6 40 Z" fill="currentColor"/><circle cx="32" cy="16" r="4" fill="#0b0f14"/></svg>
+        <div><b>NA KRAWĘDZI</b><small>wingsuit · proximity flying</small></div>
+      </div>
+      <div class="t-items">
+        <button class="mi hero" data-a="quick"><b>SKACZ</b><span id="miQuick"></span></button>
+        <button class="mi" data-a="jump"><b>WYBIERZ SKOK</b><span>miejsce, pogoda, wiatr, tryb lotu</span></button>
+        <button class="mi" data-a="settings"><b>USTAWIENIA</b><span id="miGfx"></span></button>
+        <button class="mi" data-a="help"><b>STEROWANIE</b><span>klawiatura, pad, dotyk, zasady</span></button>
+      </div>
+      <div class="t-stats" id="tStats"></div>
+      <div class="t-keys"><kbd>↑</kbd><kbd>↓</kbd> wybór <kbd>Enter</kbd> dalej <kbd>Esc</kbd> wstecz</div>
+    </nav>
+    <div class="t-cap" id="tCap">
+      <i class="c-bar" aria-hidden="true"></i>
+      <div>
+        <b id="capLoc"></b>
+        <span id="capSub"></span>
+        <em><span id="capSpd">0</span> km/h <s>·</s> <span id="capAgl">0</span> m nad ziemią</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wybór skoku -->
+  <div id="menu" class="screen side">
     <div class="menu-wrap">
-      <header class="brand">
-        <div class="logo" aria-hidden="true">
-          <svg viewBox="0 0 64 64"><path d="M32 8 L58 40 L40 36 L32 56 L24 36 L6 40 Z" fill="currentColor"/><circle cx="32" cy="16" r="4" fill="#0b0f14"/></svg>
-        </div>
-        <div>
-          <h1>NA KRAWĘDZI</h1>
-          <p>symulator lotu w kombinezonie skrzydłowym</p>
-        </div>
+      <header class="sub-head">
+        <button class="back" data-back>← Menu</button>
+        <h2>Wybierz skok</h2>
       </header>
 
       <div class="cols">
@@ -87,14 +120,6 @@
             <button data-v="trasa">Trasa z bramkami</button>
             <button data-v="wolny">Wolny lot</button>
           </div>
-          <div class="toggles">
-            <label><input type="checkbox" id="optSmoke"> dym ze stóp</label>
-            <label><input type="checkbox" id="optSlow"> zwolnienia przy „o włos”</label>
-            <label><input type="checkbox" id="optInvert"> odwrócona oś góra/dół</label>
-            <label><input type="checkbox" id="optSound"> dźwięk</label>
-            <label><input type="checkbox" id="optGhost"> duch rekordu</label>
-            <label><input type="checkbox" id="optCalm"> spokojna kamera</label>
-          </div>
         </section>
       </div>
 
@@ -102,29 +127,68 @@
         <button id="btnGo" class="go">SKACZ <small>Enter</small></button>
         <div class="best" id="bestLbl"></div>
       </div>
-
-      <details class="help">
-        <summary>Sterowanie i zasady</summary>
-        <div class="help-grid">
-          <table>
-            <tr><td><kbd>Spacja</kbd></td><td>skok z krawędzi · w locie: szeroko rozłożone ręce (więcej nośności, wolniej)</td></tr>
-            <tr><td><kbd>W</kbd> <kbd>S</kbd> / <kbd>↑</kbd> <kbd>↓</kbd></td><td>nurkowanie (przyspieszasz) / podciąganie (zwalniasz, wznosisz się na chwilę)</td></tr>
-            <tr><td><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></td><td>przechył i skręt</td></tr>
-            <tr><td><kbd>Shift</kbd></td><td>złożone ręce – szybkie nurkowanie</td></tr>
-            <tr><td><kbd>F</kbd></td><td>spadochron (pod czaszą: A/D skręt, S hamowanie tuż nad ziemią)</td></tr>
-            <tr><td><kbd>C</kbd> · <kbd>H</kbd></td><td>kamera (za plecami, kask, filmowa, dron) · dym</td></tr>
-            <tr><td><kbd>Esc</kbd> · <kbd>R</kbd> · <kbd>M</kbd></td><td>pauza · nowy skok · dźwięk</td></tr>
-          </table>
-          <div>
-            <p><b>Punkty</b> rosną z prędkością i z bliskością skał. Lot kilka metrów od ściany daje mnożnik do ×8. Punkty zdobyte przy skale trafiają do <b>serii</b>: zaliczasz ją, odbijając od ściany na ponad sekundę (im dłuższa seria, tym większy mnożnik, do ×3). Uderzenie zabiera całą niezaliczoną serię.</p>
-            <p>Bramki dają premię za serię, przelot pod mostem albo przez skalne okno daje +3000. Trudniejsza pogoda mnoży punkty (burza ×1,4). Za każde miejsce i pogodę są trzy gwiazdki, a półprzezroczysty <b>duch</b> pokazuje Twój najlepszy lot.</p>
-            <p><b>Uważaj:</b> skręt w dużym przechyle kosztuje wysokość. Nurkowanie daje prędkość, którą potem zamienisz na wysokość, podciągając. Gdy pojawi się „WYCIĄGAJ!”, zostały ci ok. 2 sekundy do ziemi.</p>
-            <p>Lot kończy się lądowaniem na spadochronie (najlepiej w kole na lądowisku) albo uderzeniem. Pad: lewa gałka, RT złożenie, LT rozłożenie, A skok, B spadochron, Y kamera.</p>
-          </div>
-        </div>
-      </details>
     </div>
   </div>
+
+  <!-- Ustawienia -->
+  <div id="settings" class="screen side">
+    <div class="menu-wrap narrow">
+      <header class="sub-head">
+        <button class="back" data-back>← Menu</button>
+        <h2>Ustawienia</h2>
+      </header>
+      <section class="panel">
+        <h2>Grafika</h2>
+        <div class="seg qseg" id="optQ"></div>
+        <p class="q-desc" id="qDesc"></p>
+        <div class="q-feats" id="qFeats"></div>
+        <div class="q-hw" id="qHw"></div>
+        <div class="toggles">
+          <label><input type="checkbox" id="optFps"> licznik klatek</label>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Lot</h2>
+        <div class="toggles">
+          <label><input type="checkbox" id="optSmoke"> dym ze stóp</label>
+          <label><input type="checkbox" id="optSlow"> zwolnienia przy „o włos”</label>
+          <label><input type="checkbox" id="optInvert"> odwrócona oś góra/dół</label>
+          <label><input type="checkbox" id="optGhost"> duch rekordu</label>
+          <label><input type="checkbox" id="optCalm"> spokojna kamera</label>
+          <label><input type="checkbox" id="optSound"> dźwięk</label>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Sterowanie i zasady -->
+  <div id="helpScr" class="screen side">
+    <div class="menu-wrap">
+      <header class="sub-head">
+        <button class="back" data-back>← Menu</button>
+        <h2>Sterowanie i zasady</h2>
+      </header>
+      <div class="help-grid panel">
+        <table>
+          <tr><td><kbd>Spacja</kbd></td><td>skok z krawędzi · w locie: szeroko rozłożone ręce (więcej nośności, wolniej)</td></tr>
+          <tr><td><kbd>W</kbd> <kbd>S</kbd> / <kbd>↑</kbd> <kbd>↓</kbd></td><td>nurkowanie (przyspieszasz) / podciąganie (zwalniasz, wznosisz się na chwilę)</td></tr>
+          <tr><td><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></td><td>przechył i skręt</td></tr>
+          <tr><td><kbd>Shift</kbd></td><td>złożone ręce – szybkie nurkowanie</td></tr>
+          <tr><td><kbd>F</kbd></td><td>spadochron (pod czaszą: A/D skręt, S hamowanie tuż nad ziemią)</td></tr>
+          <tr><td><kbd>C</kbd> · <kbd>H</kbd></td><td>kamera (za plecami, kask, filmowa, dron) · dym</td></tr>
+          <tr><td><kbd>Esc</kbd> · <kbd>R</kbd> · <kbd>M</kbd></td><td>pauza · nowy skok · dźwięk</td></tr>
+        </table>
+        <div>
+          <p><b>Punkty</b> rosną z prędkością i z bliskością skał. Lot kilka metrów od ściany daje mnożnik do ×8. Punkty zdobyte przy skale trafiają do <b>serii</b>: zaliczasz ją, odbijając od ściany na ponad sekundę (im dłuższa seria, tym większy mnożnik, do ×3). Uderzenie zabiera całą niezaliczoną serię.</p>
+          <p>Bramki dają premię za serię, przelot pod mostem albo przez skalne okno daje +3000. Trudniejsza pogoda mnoży punkty (burza ×1,4). Za każde miejsce i pogodę są trzy gwiazdki, a półprzezroczysty <b>duch</b> pokazuje Twój najlepszy lot.</p>
+          <p><b>Uważaj:</b> skręt w dużym przechyle kosztuje wysokość. Nurkowanie daje prędkość, którą potem zamienisz na wysokość, podciągając. Gdy pojawi się „WYCIĄGAJ!”, zostały ci ok. 2 sekundy do ziemi.</p>
+          <p>Lot kończy się lądowaniem na spadochronie (najlepiej w kole na lądowisku) albo uderzeniem. Pad: lewa gałka, RT złożenie, LT rozłożenie, A skok, B spadochron, Y kamera. Na telefonie: gałka po lewej, przyciski po prawej.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="fps" aria-hidden="true"></div>
 
   <!-- Ładowanie -->
   <div id="loading" class="screen">
@@ -142,6 +206,7 @@
       <button id="btnResume" class="go">WZNÓW</button>
       <button id="btnRestart">Nowy skok (R)</button>
       <button id="btnMenu">Zmień miejsce i pogodę</button>
+      <button id="btnMain">Menu główne</button>
     </div>
   </div>
 
@@ -181,6 +246,7 @@
   <script src="lib/three.min.js"></script>
   <script src="js/util.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/quality.js"></script>
   <script src="js/world.js"></script>
   <script src="js/physics.js"></script>
   <script src="js/env.js"></script>

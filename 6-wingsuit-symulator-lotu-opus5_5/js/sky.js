@@ -54,25 +54,46 @@
             if (uDisk > 0.5) {
               float disk = smoothstep(0.99955, 0.99975, sd);
               if (uDisk > 1.5) col += vec3(0.85, 0.9, 1.0) * disk * 1.2 + vec3(0.2, 0.25, 0.4) * pow(sd, 400.0);
-              else col += uSunCol * (disk * 6.0 + pow(sd, 300.0) * 1.2 + pow(sd, 24.0) * 0.18);
+              #ifdef HQ
+                // mniejsza, ostrzejsza tarcza: resztę blasku dodaje poświata w obróbce obrazu
+                else col += uSunCol * (disk * 7.0 + pow(sd, 2500.0) * 1.6 + pow(sd, 160.0) * 0.28 + pow(sd, 24.0) * 0.16);
+              #else
+                else col += uSunCol * (disk * 6.0 + pow(sd, 300.0) * 1.2 + pow(sd, 24.0) * 0.18);
+              #endif
             }
             // chmury na wysokości uCloudH
+            // (alfa = ile chmura zasłania niebo: z tego obróbka obrazu liczy promienie słońca przez szczeliny)
+            float occ = 0.0;
             if (h > 0.0 && uCover > 0.01) {
               float t = (uCloudH - uCam.y) / max(h, 0.015);
               if (t > 0.0) {
                 vec2 p = (uCam.xz + d.xz * t) * 0.00035 + uWind * uTime * 0.0004;
                 float n = fbm3(p) * 0.65 + fbm3(p * 3.1 + 5.0) * 0.35;
-                float c = smoothstep(1.0 - uCover - 0.05, 1.0 - uCover + 0.35, n);
-                float lit = clamp(0.55 + (n - 0.5) * 1.2 + sd * 0.4, 0.0, 1.0);
-                vec3 cc = mix(uCloudDark, uCloudCol, lit) + uSunCol * pow(sd, 10.0) * 0.25 * (1.0 - c);
+                #ifdef HQ
+                  // drobne kłęby na brzegach i światło od strony słońca (gęściej w stronę słońca = ciemniej)
+                  n += (fbm3(p * 9.7 - uWind * uTime * 0.0002) - 0.5) * 0.16;
+                  vec2 ps = p + normalize(uSunDir.xz + 1e-4) * 0.05;
+                  float ns = fbm3(ps) * 0.65 + fbm3(ps * 3.1 + 5.0) * 0.35;
+                  float c = smoothstep(1.0 - uCover - 0.05, 1.0 - uCover + 0.3, n);
+                  float lit = clamp(0.62 - (ns - n) * 2.6 + sd * 0.35, 0.0, 1.0);
+                  vec3 cc = mix(uCloudDark, uCloudCol, lit);
+                  // jasne obrzeża chmur pod słońce
+                  cc += uSunCol * pow(sd, 7.0) * (1.0 - c) * 0.9 + uSunCol * pow(sd, 40.0) * 0.6 * (1.0 - c * 0.7);
+                #else
+                  float c = smoothstep(1.0 - uCover - 0.05, 1.0 - uCover + 0.35, n);
+                  float lit = clamp(0.55 + (n - 0.5) * 1.2 + sd * 0.4, 0.0, 1.0);
+                  vec3 cc = mix(uCloudDark, uCloudCol, lit) + uSunCol * pow(sd, 10.0) * 0.25 * (1.0 - c);
+                #endif
                 float fade = exp(-t * 0.000045);
-                col = mix(col, cc, c * fade * smoothstep(0.0, 0.06, h));
+                occ = c * fade * smoothstep(0.0, 0.06, h);
+                col = mix(col, cc, occ);
               }
             }
             col += vec3(0.55, 0.6, 0.8) * uFlash * 0.5 * (0.5 + h);
-            gl_FragColor = vec4(col, 1.0);
+            gl_FragColor = vec4(col, h < -0.02 ? 1.0 : occ);
           }`
       });
+      this.mat = mat;
       this.mesh = new THREE.Mesh(geo, mat);
       this.mesh.frustumCulled = false;
       this.mesh.renderOrder = -10;
@@ -82,6 +103,8 @@
 
     setWeather(wx, loc, world) {
       const u = this.uniforms;
+      const hq = WS.Q && WS.Q.hq > 0;
+      if (!!this.mat.defines.HQ !== hq) { this.mat.defines = hq ? { HQ: 1 } : {}; this.mat.needsUpdate = true; }
       u.uTop.value.set(wx.skyTop);
       u.uCover.value = wx.cloudCover;
       u.uCloudCol.value.set(wx.cloudCol);
@@ -127,7 +150,7 @@
       const dark = new THREE.Color(wx.cloudDark), lit = new THREE.Color(wx.cloudCol);
       const mat = new THREE.ShaderMaterial({
         uniforms: {
-          uSunDir: U.uSunDir, uSunCol: U.uSunCol, uCam: U.uCam, uFogCol: U.uFogCol, uSunFog: U.uSunFog, uFogDens: U.uFogDens, uHF: U.uHF, uTime: U.uTime, uFlash: U.uFlash,
+          uSunDir: U.uSunDir, uSunCol: U.uSunCol, uCam: U.uCam, uFogCol: U.uFogCol, uSkyTop: U.uSkyTop, uSunFog: U.uSunFog, uFogDens: U.uFogDens, uHF: U.uHF, uTime: U.uTime, uFlash: U.uFlash,
           uLit: { value: lit }, uDark: { value: dark }
         },
         transparent: true, depthWrite: false,

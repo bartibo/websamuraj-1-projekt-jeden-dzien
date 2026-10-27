@@ -17,7 +17,7 @@ Dzień 6 eksperymentu [1 prompt, 1 zdanie](../README.md): jeden prompt, zero pop
 
 ## Jak uruchomić
 
-Kliknij dwa razy plik **`index.html`**. Gra otworzy się w przeglądarce (Chrome, Edge, Firefox).
+Kliknij dwa razy plik **`index.html`**. Gra otworzy się w przeglądarce (Chrome, Edge, Firefox). Na ekranie tytułowym naciśnij dowolny klawisz (na telefonie dotknij ekranu), a w menu wybierz „Skacz” albo „Wybierz skok”.
 Nie trzeba niczego instalować ani budować. Three.js leży w folderze `lib/`, więc działa też bez internetu.
 Na telefonie i tablecie pojawia się sterowanie dotykiem (gałka i przyciski).
 
@@ -81,16 +81,18 @@ Siłę wiatru (0–20 m/s), jego kierunek (czołowy, z boku, w plecy) i turbulen
 - Wokół pilota jest 81 kawałków terenu z oczkiem 4 m, które doczytują się w trakcie lotu. Dalej są dwa pierścienie z grubszą siatką aż po horyzont (ok. 35 km). Cienie gór od słońca są wyliczane dla każdego wierzchołka.
 - Shadery są własne: skała, trawa, śnieg i mokre skały, mgła wysokościowa z poświatą słońca, woda z odbiciem nieba, niebo z chmurami, gwiazdami i zorzą, chmury do przelotu oraz opady jako smugi pędu.
 - Cały dźwięk jest syntezowany na żywo przez Web Audio, bez plików audio.
-- Jakość dostosowuje się sama: gdy klatek jest za mało, gra zmniejsza rozdzielczość renderu, a gdy znów jest płynnie, przywraca ją.
+- Jakość grafiki ma cztery poziomy (niska, średnia, wysoka, ultra). W trybie „auto” gra rozpoznaje sprzęt (nazwa karty graficznej z WebGL, liczba wątków procesora, pamięć, telefon czy komputer), a potem przez kilka sekund mierzy płynność lotu pokazowego w menu. Gdy jest za wolno, schodzi poziom niżej i zapamiętuje wynik dla tej karty.
+- W trakcie gry rozdzielczość renderu dopasowuje się sama w granicach poziomu: gdy klatek jest za mało, spada, a gdy znów jest płynnie, wraca.
 
 ## Struktura
 
 ```
-index.html        – strona gry: HUD, menu, ładowanie, pauza, wyniki, sterowanie dotykiem
+index.html        – strona gry: ekran tytułowy, menu główne, wybór skoku, ustawienia, HUD, ładowanie, pauza, wyniki, sterowanie dotykiem
 css/style.css     – wygląd interfejsu
 lib/three.min.js  – Three.js r159
 js/util.js        – matematyka, szum simplex, losowość, zapis w przeglądarce
-js/data.js        – miejsca skoków i warunki pogodowe
+js/data.js        – miejsca skoków i warunki pogodowe (też siła poświaty i promieni słońca)
+js/quality.js     – poziomy jakości grafiki i rozpoznanie sprzętu
 js/world.js       – funkcja wysokości terenu, trasa, bramki, most, łuk, lądowisko, drzewa, kolizje
 js/physics.js     – model lotu kombinezonu i spadochronu, autopilot, lot wzorcowy pod bramki
 js/env.js         – oświetlenie, mgła, wspólne kawałki shaderów
@@ -101,11 +103,11 @@ js/props.js       – bramki, most linowy, skalny łuk, lądowisko z rękawem, m
 js/pilot.js       – pilot w kombinezonie, czasza spadochronu, smugi dymu
 js/ghost.js       – duch rekordu: zapis najlepszego lotu i odtwarzanie go obok pilota
 js/camera.js      – kamery i drżenie
-js/post.js        – obróbka obrazu (rozmycie, aberracja, winieta, efekty)
+js/post.js        – obróbka obrazu (rozmycie, aberracja, winieta, poświata, promienie słońca, odblaski obiektywu)
 js/audio.js       – syntezowany dźwięk
 js/hud.js         – HUD i komunikaty
 js/game.js        – przebieg lotu, punkty, lądowanie, wypadek, powtórka
-js/main.js        – start, menu, pętla gry, sterowanie
+js/main.js        – start, ekrany menu, jakość grafiki, pętla gry, sterowanie
 ```
 
 ## Rozwój po eksperymencie
@@ -149,3 +151,31 @@ js/main.js        – start, menu, pętla gry, sterowanie
   - liczby HUD odświeżane 15 razy na sekundę, buforowane formatowanie liczb,
   - cienie terenu liczone na rzadszej siatce, drzewa budowane porcjami,
   - zwalniane tekstury mostu i materiał wody.
+
+## Ekran startowy i grafika (27.10.2026)
+
+Druga prośba po eksperymencie: ładne menu startowe, dopracowana grafika i automatyczne rozpoznawanie, czy sprzęt udźwignie najwyższą jakość.
+
+- **Ekran startowy:**
+  - tytuł na tle lotu pokazowego, z kinowymi pasami kadru, połyskiem na logo i napisem „naciśnij dowolny klawisz”. Za pierwszym razem pod logo widać postęp budowy gór, a świat wyłania się z ciemności,
+  - menu główne: Skacz (od razu, z ostatnimi ustawieniami), Wybierz skok, Ustawienia, Sterowanie. Obsługa myszą, klawiaturą (strzałki, Enter, Esc) i padem (krzyżak, A, B),
+  - w rogu podpis jak w filmie: miejsce, pogoda, prędkość i wysokość pilota z lotu pokazowego,
+  - liczba gwiazdek i najlepszy wynik w menu, osobne ekrany ustawień i sterowania, w pauzie przycisk „Menu główne”.
+- **Jakość grafiki** (Ustawienia → Grafika: Auto, Niska, Średnia, Wysoka, Ultra):
+  - ekran ustawień pokazuje rozpoznaną kartę, ocenę sprzętu, włączone efekty i rozdzielczość renderu,
+  - opcjonalny licznik klatek,
+  - Ultra renderuje gęściej niż ekran (do ×2, z limitem megapikseli), ma gęstszy teren (oczko 3 m) i szczegóły do 1100 m wokół pilota.
+- **Nowe efekty od średniej jakości:**
+  - poświata jasnych miejsc (słońce, śnieg, odblaski na wodzie, piorun, zorza),
+  - od wysokiej: promienie słońca przez szczeliny w chmurach i graniach oraz odblaski obiektywu (gwiazdka, pierścień, pozioma smuga), widoczne tylko, gdy słońce nie jest zasłonięte.
+- **Skały i teren od wysokiej jakości:**
+  - ściany zbudowane z bloków: każdy ma swój odcień i nachylenie, między nimi są rysy. W Dolomitach to pionowe filary, w kanionie poziome płyty piaskowca,
+  - zagłębienia (żleby, rysy, podnóża ścian) są ciemniejsze, a grzbiety jaśniejsze,
+  - światło rozproszone z kierunkiem, więc rzeźbę widać też w cieniu,
+  - połysk i iskrzenie śniegu, drobne nierówności trawy i piargu, dokładniejsze świerki i krzewy, chmury z jasnymi brzegami pod słońce i mniejsza, ostrzejsza tarcza słońca.
+- **Poprawki dla wszystkich poziomów:**
+  - mgła ma kolor nieba w danym kierunku, więc dalekie góry nie odcinają się na horyzoncie jasną „ścianą”,
+  - gładszy szum w shaderach, bez kanciastych „kafli”, które wyglądały na skałach jak cyfrowe moro,
+  - miękkie przejście w jasnych miejscach zamiast obcinania do bieli,
+  - napisy z lotu pokazowego nie przechodzą już do prawdziwego lotu.
+- Na RTX 5060 Ti tryb auto wybiera Ultra, a gra trzyma 60 kl/s przy renderze 2400×1350.

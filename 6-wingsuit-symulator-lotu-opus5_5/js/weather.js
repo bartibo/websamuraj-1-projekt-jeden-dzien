@@ -73,7 +73,7 @@
     }
 
     _particles(P) {
-      const n = P.n;
+      const n = Math.round(P.n * ((WS.Q && WS.Q.parts) || 1));
       const base = new Float32Array(n * 2 * 3), end = new Float32Array(n * 2), rnd = new Float32Array(n * 2);
       for (let i = 0; i < n; i++) {
         const x = Math.random(), y = Math.random(), z = Math.random(), r = Math.random();

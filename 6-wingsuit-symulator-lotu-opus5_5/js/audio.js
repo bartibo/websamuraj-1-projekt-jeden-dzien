@@ -215,6 +215,7 @@
           break;
         }
         case 'click': this._beep(1200, 0.03, 0.05); break;
+        case 'tick': this._beep(2400, 0.015, 0.02); break;
       }
     }
 

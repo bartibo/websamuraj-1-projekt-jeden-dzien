@@ -27,7 +27,7 @@
   // ---------- ustawienia ----------
   const S = Object.assign({
     loc: 'dolomity', wx: 'slonce', wind: 3, windDir: 'czolowy', turb: 12, mode: 'trasa',
-    smoke: true, slowmo: true, invert: false, cam: 0, ghost: true, calm: calmDefault
+    smoke: true, slowmo: true, invert: false, cam: 0, ghost: true, calm: calmDefault, gfx: 'auto', fps: false
   }, store.get('settings', {}));
   const saveS = () => store.set('settings', S);
 
@@ -41,18 +41,30 @@
     return;
   }
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-  const maxRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+
+  // ---------- jakość grafiki ----------
+  // Poziom „auto” bierze ocenę sprzętu (karta graficzna, procesor, pamięć), a potem sprawdza płynność lotu pokazowego.
+  // Wynik sprawdzenia zapamiętuje się dla tej karty, więc przy następnej wizycie od razu startuje właściwy poziom.
+  const TIERS = WS.Quality.TIERS;
+  const hw = WS.Quality.detect(renderer);
+  const autoSaved = store.get('gfxAuto', null);
+  let autoTier = autoSaved && autoSaved.gpu === hw.rawGpu ? Math.min(hw.tier, autoSaved.tier) : hw.tier;
+  if (S.gfx !== 'auto' && !TIERS.some(t => t.id === S.gfx)) S.gfx = 'auto';
+  const tierIndex = () => S.gfx === 'auto' ? autoTier : TIERS.findIndex(t => t.id === S.gfx);
+  WS.Q = TIERS[tierIndex()];
+  let maxRatio = WS.Quality.ratioFor(WS.Q, window.innerWidth, window.innerHeight);
   let pixelRatio = maxRatio;
   renderer.setPixelRatio(pixelRatio);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(70, 1, 0.3, 60000);
   const lights = { sun: new THREE.DirectionalLight(0xffffff, 1), hemi: new THREE.HemisphereLight(0xffffff, 0x444444, 1) };
   scene.add(lights.sun, lights.sun.target, lights.hemi);
-  const lowEnd = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && Math.min(screen.width, screen.height) < 900;
-  const post = new WS.Post(renderer, lowEnd);
+  const post = new WS.Post(renderer, WS.Q);
 
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
+    maxRatio = WS.Quality.ratioFor(WS.Q, w, h);
+    pixelRatio = Math.min(pixelRatio, maxRatio);
     renderer.setPixelRatio(pixelRatio);
     renderer.setSize(w, h, false);
     post.setSize(Math.floor(w * pixelRatio), Math.floor(h * pixelRatio));
@@ -89,14 +101,15 @@
   // Budowa świata (asynchronicznie, z paskiem postępu)
   let building = null;
   function buildWorld(locId, wxId) {
-    const key = locId + '|' + wxId;
+    const key = locId + '|' + wxId + '|' + WS.Q.id;
     if (app.built === key) return Promise.resolve();
     if (building && building.key === key) return building.p;
     const loc = locById(locId), wx = wxById(wxId);
     $('loadTitle').textContent = `${loc.name} · ${wx.name}`;
     $('loadTip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
     $('loadFill').style.width = '0%';
-    $('loading').classList.add('on');
+    // na ekranie tytułowym postęp pokazuje cienki pasek pod logo
+    if (!(state === 'menu' && view === 'press')) $('loading').classList.add('on');
     const token = {};
     building = { key, token };
     building.p = new Promise((resolve) => {
@@ -127,7 +140,7 @@
           if (typeof r.value === 'number') prog = r.value;
           else prog = Math.min(0.74, prog + 0.004);
         }
-        $('loadFill').style.width = (prog * 100).toFixed(0) + '%';
+        $('loadFill').style.width = $('tLoadFill').style.width = (prog * 100).toFixed(0) + '%';
         if (r && r.done) {
           app.built = key;
           $('loading').classList.remove('on');
@@ -187,8 +200,6 @@
       b.classList.toggle('on', b.dataset.v === S.mode);
       b.onclick = () => { S.mode = b.dataset.v; saveS(); buildMenu(); };
     }
-    $('optSmoke').checked = S.smoke; $('optSlow').checked = S.slowmo; $('optInvert').checked = S.invert; $('optSound').checked = app.audio.enabled;
-    $('optGhost').checked = S.ghost; $('optCalm').checked = S.calm;
     const bv = best[S.loc + '|' + S.mode];
     const L = locById(S.loc), ks = S.loc + '|' + S.wx;
     const starList = WS.STARS.map((x, i) => `<span class="${(stars[ks] || 0) & (1 << i) ? 'on' : ''}">★ ${x.desc ? x.desc(L) : x.name}</span>`).join('');
@@ -202,10 +213,109 @@
   $('optSound').onchange = (e) => { app.audio.start(); app.audio.setEnabled(e.target.checked); };
   $('optGhost').onchange = (e) => { S.ghost = e.target.checked; saveS(); };
   $('optCalm').onchange = (e) => { S.calm = e.target.checked; saveS(); };
+  $('optFps').onchange = (e) => { S.fps = e.target.checked; saveS(); $('fps').classList.toggle('on', S.fps); };
 
+  // ---------- ekrany menu ----------
+  // press – tytuł („naciśnij dowolny klawisz”), main – menu główne, jump – wybór skoku, settings, help
+  let view = 'press';
+  let ready = false;
+  const VIEW_SCREEN = { press: 'title', main: 'title', jump: 'menu', settings: 'settings', help: 'helpScr' };
   function showScreen(id) {
-    for (const s of ['menu', 'pause', 'results']) $(s).classList.toggle('on', s === id);
+    for (const s of ['title', 'menu', 'settings', 'helpScr', 'pause', 'results']) $(s).classList.toggle('on', s === id);
     $('touch').classList.toggle('on', state === 'play');
+  }
+  function showView(v) {
+    view = v;
+    showScreen(VIEW_SCREEN[v]);
+    $('title').classList.toggle('press', v === 'press');
+    if (v === 'main') { buildMain(); selItem(menuSel, true); }
+    if (v === 'jump') buildMenu();
+    if (v === 'settings') buildSettings();
+  }
+
+  const items = [...document.querySelectorAll('.mi')];
+  let menuSel = 0;
+  function selItem(i, focus) {
+    menuSel = (i + items.length) % items.length;
+    items.forEach((b, k) => b.classList.toggle('sel', k === menuSel));
+    if (focus) items[menuSel].focus({ preventScroll: true });
+  }
+  function menuAction(a) {
+    app.audio.start(); app.audio.play('click');
+    if (a === 'quick') startFlight();
+    else if (a === 'jump') showView('jump');
+    else if (a === 'settings') showView('settings');
+    else if (a === 'help') showView('help');
+  }
+  items.forEach((b, i) => {
+    b.onmouseenter = () => { if (menuSel !== i) { selItem(i); app.audio.play('tick'); } };
+    b.onclick = () => menuAction(b.dataset.a);
+  });
+  for (const b of document.querySelectorAll('[data-back]')) b.onclick = () => { app.audio.play('click'); showView('main'); };
+
+  function enterMain() {
+    app.audio.start();
+    app.audio.play('whoosh', { v: 0.45 });
+    showView('main');
+  }
+  $('title').addEventListener('pointerdown', (e) => { if (view === 'press' && ready) { e.preventDefault(); enterMain(); } });
+
+  const gfxName = () => WS.Q.name + (S.gfx === 'auto' ? ' (auto)' : '');
+  function buildMain() {
+    const L = locById(S.loc), W = wxById(S.wx);
+    $('miQuick').textContent = `${L.name} · ${W.name} · ${S.mode === 'wolny' ? 'wolny lot' : 'trasa z bramkami'}`;
+    $('miGfx').textContent = `grafika: ${gfxName()}, sterowanie, dźwięk`;
+    $('capLoc').textContent = L.name;
+    $('capSub').textContent = `${L.title} · ${W.name}`;
+    const best = store.get('best', {}), stars = store.get('stars', {});
+    let nst = 0;
+    for (const k in stars) { let m = stars[k]; while (m) { nst += m & 1; m >>= 1; } }
+    const top = Math.max(0, ...Object.values(best));
+    $('tStats').innerHTML = `<span>★ <b>${nst}</b>/${WS.LOCATIONS.length * WS.WEATHER.length * 3}</span>` +
+      (top ? `<span>najlepszy lot <b>${fmt(top)}</b></span>` : '') + `<span class="q">grafika <b>${gfxName()}</b></span>`;
+  }
+
+  function buildSettings() {
+    const seg = $('optQ');
+    seg.innerHTML = '';
+    const opts = [{ id: 'auto', name: 'Auto', sub: TIERS[autoTier].name }].concat(TIERS.map(t => ({ id: t.id, name: t.name })));
+    for (const o of opts) {
+      const b = document.createElement('button');
+      b.innerHTML = o.name + (o.sub ? `<small>${o.sub}</small>` : '');
+      b.className = S.gfx === o.id ? 'on' : '';
+      b.onclick = () => { if (S.gfx === o.id) return; S.gfx = o.id; saveS(); app.audio.play('click'); applyQuality(true); };
+      seg.appendChild(b);
+    }
+    const q = WS.Q, w = window.innerWidth, h = window.innerHeight;
+    $('qDesc').textContent = (S.gfx === 'auto' ? `Automatycznie: ${q.name}. ` : '') + q.desc;
+    const feats = [
+      ['wygładzanie krawędzi', q.msaa > 0], ['poświata świateł', q.bloom], ['promienie słońca', q.rays], ['odblaski obiektywu', q.flare],
+      ['rzeźba skał, połysk śniegu', q.hq > 0], ['dokładniejsze drzewa i chmury', q.hq > 0], ['gęstszy teren', q.seg > 48],
+      [`detale terenu do ${fmt((q.R + 0.5) * 200)} m`, true], [`render ${Math.round(w * maxRatio)}×${Math.round(h * maxRatio)}`, true]
+    ];
+    $('qFeats').innerHTML = feats.map(([n, on]) => `<span class="${on ? 'on' : ''}">${n}</span>`).join('');
+    let hwTxt = `Karta graficzna: <b>${hw.gpu}</b> · procesor: <b>${hw.cores}</b> wątków${hw.mem ? ` · pamięć: <b>${hw.mem} GB</b>` : ''}.<br>Ocena sprzętu: <b>${TIERS[hw.tier].name}</b>`;
+    if (hw.why.length) hwTxt += ` (${hw.why.join(', ')})`;
+    if (autoTier < hw.tier) hwTxt += `, po sprawdzeniu płynności: <b>${TIERS[autoTier].name}</b>`;
+    $('qHw').innerHTML = hwTxt + '.';
+    $('optSmoke').checked = S.smoke; $('optSlow').checked = S.slowmo; $('optInvert').checked = S.invert; $('optSound').checked = app.audio.enabled;
+    $('optGhost').checked = S.ghost; $('optCalm').checked = S.calm; $('optFps').checked = S.fps;
+  }
+
+  // Zmiana poziomu: obróbka obrazu i rozdzielczość od razu, teren i drzewa przy następnej budowie świata
+  // (rebuild = true przebudowuje świat w menu od razu, np. po wyborze w ustawieniach)
+  function applyQuality(rebuild) {
+    const q = TIERS[tierIndex()];
+    if (q !== WS.Q) {
+      WS.Q = q;
+      post.setQuality(q);
+      pixelRatio = WS.Quality.ratioFor(q, window.innerWidth, window.innerHeight);
+      resize();
+      post.setMSAA(true);
+      fpsAcc = fpsN = fpsT = 0;
+      if (rebuild && state === 'menu') menuWorld();
+    }
+    if (view === 'settings') buildSettings();
   }
 
   function menuWorld() {
@@ -222,11 +332,10 @@
     app.hud.show(false);
   }
 
-  function goMenu() {
+  function goMenu(v) {
     state = 'menu';
     app.hud.show(false);
-    showScreen('menu');
-    buildMenu();
+    showView(v || 'jump');
     menuWorld();
   }
 
@@ -246,6 +355,8 @@
       game.start(o);
       app.rig.mode = S.cam || 0;
       state = 'play';
+      // napisy z lotu pokazowego nie przechodzą do prawdziwego lotu
+      $('popups').innerHTML = '';
       app.hud.show(true);
       showScreen(null);
       $('fade').classList.add('on');
@@ -325,9 +436,10 @@
   $('btnGo').onclick = startFlight;
   $('btnResume').onclick = () => pause(false);
   $('btnRestart').onclick = () => { state = 'play'; showScreen(null); startFlight(); };
-  $('btnMenu').onclick = goMenu;
+  $('btnMenu').onclick = () => goMenu('jump');
+  $('btnMain').onclick = () => goMenu('main');
   $('btnAgain').onclick = startFlight;
-  $('btnToMenu').onclick = goMenu;
+  $('btnToMenu').onclick = () => goMenu('jump');
 
   // ---------- sterowanie ----------
   const keys = new Set();
@@ -341,7 +453,16 @@
     keys.add(k);
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
     app.audio.start();
-    if (k === 'Enter' && state === 'menu') startFlight();
+    if (state === 'menu') {
+      if (view === 'press') { if (ready && !e.repeat) enterMain(); e.preventDefault(); return; }
+      if (view === 'main') {
+        if (k === 'ArrowDown' || k === 'KeyS') { selItem(menuSel + 1, true); app.audio.play('tick'); return; }
+        if (k === 'ArrowUp' || k === 'KeyW') { selItem(menuSel - 1, true); app.audio.play('tick'); return; }
+        if (k === 'Enter' || k === 'Space') { e.preventDefault(); menuAction(items[menuSel].dataset.a); return; }
+        if (k === 'Escape') { showView('press'); return; }
+      } else if (k === 'Escape') { app.audio.play('click'); showView('main'); return; }
+    }
+    if (k === 'Enter' && state === 'menu' && view === 'jump') { e.preventDefault(); startFlight(); }
     else if (k === 'Enter' && state === 'results') startFlight();
     else if ((k === 'Escape' || k === 'KeyP') && (state === 'play' || state === 'pause')) pause(state === 'play');
     else if (k === 'KeyR' && (state === 'play' || state === 'results' || state === 'pause')) startFlight();
@@ -385,6 +506,7 @@
   }
 
   let padPrev = {};
+  let padNavT = 0;
   function readInput(dt) {
     let pT = 0, rT = 0;
     const inv = S.invert ? -1 : 1;
@@ -413,7 +535,14 @@
       if (btn(7)) inp.tuck = true;
       if (btn(6)) inp.spread = true;
       const edge = (i) => btn(i) && !padPrev[i];
-      if (edge(0)) { inp.jumpPressed = true; if (state === 'menu' || state === 'results') startFlight(); }
+      if (state === 'menu') {
+        const up = btn(12) || ay < -0.6, down = btn(13) || ay > 0.6;
+        padNavT -= dt;
+        if ((up || down) && padNavT <= 0 && view === 'main') { selItem(menuSel + (down ? 1 : -1), true); app.audio.play('tick'); padNavT = 0.28; }
+        if (!up && !down) padNavT = 0;
+        if (edge(0)) { if (view === 'press') { if (ready) enterMain(); } else if (view === 'main') menuAction(items[menuSel].dataset.a); else if (view === 'jump') startFlight(); }
+        if (edge(1) && view !== 'main' && view !== 'press') showView('main');
+      } else if (edge(0)) { inp.jumpPressed = true; if (state === 'results') startFlight(); }
       if (edge(1)) inp.chutePressed = true;
       if (edge(3)) { const c = app.rig.next(); app.hud.toast(c.name.toUpperCase()); }
       if (edge(9)) pause(state === 'play');
@@ -429,7 +558,10 @@
   const hlSlow = () => !!highlight && replayT >= highlight.at - 1.4 && replayT < highlight.until;
   let last = performance.now();
   let fpsAcc = 0, fpsN = 0, fpsT = 0;
-  const tmpV = new V3();
+  const tmpV = new V3(), tmpD = new V3();
+  // sprawdzenie płynności w trybie auto: kilka sekund lotu pokazowego; za wolno → poziom niżej (najwyżej dwa razy)
+  const bench = { warm: 0, t: 0, n: 0, drops: 0, done: S.gfx !== 'auto' };
+  let meter = { t: 0, n: 0 }, capT = 0;
 
   function loop(now) {
     requestAnimationFrame(loop);
@@ -438,11 +570,34 @@
     // automatyczna jakość
     // (klatki budowania świata trwają ~40 ms i nie świadczą o płynności gry)
     if (building || state === 'loading') { fpsAcc = fpsN = fpsT = 0; } else { fpsAcc += rdt; fpsN++; fpsT += rdt; }
+    if (!bench.done && S.gfx === 'auto' && state === 'menu' && demo && !building && !document.hidden) {
+      if ((bench.warm += rdt) > 1.5) {
+        bench.t += rdt; bench.n++;
+        if (bench.t > 3) {
+          const avg = bench.t / bench.n;
+          if (avg > 1 / 40 && autoTier > 0 && bench.drops < 2) {
+            autoTier--; bench.drops++;
+            applyQuality(false);
+            if (view === 'main') buildMain();
+            bench.warm = bench.t = bench.n = 0;
+          } else bench.done = true;
+          store.set('gfxAuto', { gpu: hw.rawGpu, tier: autoTier });
+        }
+      }
+      fpsAcc = fpsN = fpsT = 0;
+    }
     if (fpsT > 2.5) {
-      const avg = fpsAcc / fpsN;
-      if (avg > 0.026 && pixelRatio > 0.75) { pixelRatio = Math.max(0.75, pixelRatio - 0.25); post.setMSAA(false); resize(); }
+      const avg = fpsAcc / fpsN, lo = WS.Q.minRatio;
+      if (avg > 0.026 && pixelRatio > lo) { pixelRatio = Math.max(lo, pixelRatio - 0.25); post.setMSAA(false); resize(); }
       else if (avg < 0.0175 && pixelRatio < maxRatio && state !== 'pause') { pixelRatio = Math.min(maxRatio, pixelRatio + 0.25); if (pixelRatio >= maxRatio) post.setMSAA(true); resize(); }
       fpsAcc = 0; fpsN = 0; fpsT = 0;
+    }
+    if (S.fps) {
+      meter.t += rdt; meter.n++;
+      if (meter.t > 0.5) {
+        $('fps').textContent = `${Math.round(meter.n / meter.t)} kl/s · ${WS.Q.name} · ${Math.round(window.innerWidth * pixelRatio)}×${Math.round(window.innerHeight * pixelRatio)}`;
+        meter.t = meter.n = 0;
+      }
     }
     const U = WS.U3;
     U.uTime.value += rdt;
@@ -518,6 +673,11 @@
 
     // obróbka obrazu
     const kmh = (fl.airspeed || 0) * 3.6;
+    if (state === 'menu' && view === 'main' && (capT -= rdt) <= 0) {
+      capT = 0.12;
+      $('capSpd').textContent = fmt(kmh);
+      $('capAgl').textContent = fmt(Math.max(0, game.agl || 0));
+    }
     const flying = fl.phase === 'flight';
     const pu = post.u;
     const calm = S.calm ? 0.25 : 1;
@@ -525,8 +685,22 @@
     const blur = (flying && app.rig.modeId !== 'kino' ? smoothstep(150, 400, kmh) * 0.9 + (fl.tuck ? 0.15 : 0) : 0) * calm;
     pu.uBlur.value = damp(pu.uBlur.value, blur, 4, rdt);
     pu.uAberr.value = damp(pu.uAberr.value, flying ? smoothstep(180, 420, kmh) + (state === 'play' ? game.pf * 0.6 : 0) : 0, 4, rdt);
-    pu.uExposure.value = wxById(S.wx).exposure || 1;
-    pu.uSat.value = wxById(S.wx).sat || 1;
+    const wxc = wxById(S.wx);
+    pu.uExposure.value = wxc.exposure || 1;
+    pu.uSat.value = wxc.sat || 1;
+    // poświata i słońce na ekranie: promienie przez szczeliny chmur i grani, odblaski obiektywu
+    const bl = wxc.bloom || [0.15, 1];
+    pu.uBloom.value = bl[0];
+    post.bloomCfg.thr = bl[1]; post.bloomCfg.knee = bl[1] * 0.5;
+    camera.updateMatrixWorld();
+    tmpV.copy(U.uSunDir.value).multiplyScalar(5000).add(camera.position).project(camera);
+    camera.getWorldDirection(tmpD);
+    const sunOn = tmpV.z < 1 ? smoothstep(0, 0.25, tmpD.dot(U.uSunDir.value)) * (1 - smoothstep(1, 1.6, Math.max(Math.abs(tmpV.x), Math.abs(tmpV.y)))) : 0;
+    pu.uSunUV.value.set(tmpV.x * 0.5 + 0.5, tmpV.y * 0.5 + 0.5);
+    const inCloud = 1 - pu.uWhite.value;
+    pu.uRays.value = (wxc.rays || 0) * sunOn * inCloud;
+    pu.uFlare.value = (wxc.disk === 1 ? 1 : wxc.disk === 2 ? 0.3 : 0) * sunOn * inCloud;
+    pu.uRayCol.value.copy(U.uSunCol.value);
     pu.uVig.value = 0.32 + (state === 'play' ? game.adr * 0.35 : 0.1);
     pu.uRed.value = state === 'play' ? Math.max(game.warn * 0.9, game.flash * calm) : 0;
     const cd = app.sky.density(camera.position);
@@ -556,10 +730,10 @@
 
   // ---------- start ----------
   resize();
-  buildMenu();
   app.pilot.smokeOn = S.smoke;
-  showScreen('menu');
-  menuWorld();
+  $('fps').classList.toggle('on', S.fps);
+  showView('press');
+  menuWorld().then(() => { ready = true; $('title').classList.add('ready'); });
   requestAnimationFrame(loop);
-  window.__ws = { app, game, S, startFlight, goMenu, menuWorld, buildMenu };
+  window.__ws = { app, game, S, hw, post, startFlight, goMenu, menuWorld, buildMenu, showView, applyQuality, get tier() { return WS.Q.id; }, bench };
 })();

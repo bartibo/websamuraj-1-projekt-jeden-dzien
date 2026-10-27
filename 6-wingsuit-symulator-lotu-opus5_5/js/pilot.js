@@ -139,7 +139,7 @@
       g.setIndex(idx);
       this.smGeo = g;
       const mat = new THREE.ShaderMaterial({
-        uniforms: { uGhost: { value: 0 }, uFade: { value: 1 }, uFogCol: WS.U3.uFogCol, uSunFog: WS.U3.uSunFog, uSunDir: WS.U3.uSunDir, uCam: WS.U3.uCam, uFogDens: WS.U3.uFogDens, uHF: WS.U3.uHF, uAmbSky: WS.U3.uAmbSky, uSunCol: WS.U3.uSunCol },
+        uniforms: { uGhost: { value: 0 }, uFade: { value: 1 }, uFogCol: WS.U3.uFogCol, uSkyTop: WS.U3.uSkyTop, uSunFog: WS.U3.uSunFog, uSunDir: WS.U3.uSunDir, uCam: WS.U3.uCam, uFogDens: WS.U3.uFogDens, uHF: WS.U3.uHF, uAmbSky: WS.U3.uAmbSky, uSunCol: WS.U3.uSunCol },
         vertexShader: `attribute float aA; attribute float aC; varying float vA; varying float vC; varying vec3 vW;
           void main(){ vA = aA; vC = aC; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
         fragmentShader: `uniform vec3 uAmbSky; uniform vec3 uSunCol; uniform float uGhost; uniform float uFade; varying float vA; varying float vC; varying vec3 vW;
