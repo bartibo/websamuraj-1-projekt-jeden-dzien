@@ -22,7 +22,6 @@ const CASE = {
   },
 
   intro: {
-    visual: '<div class="intro-bulb"><div class="cord"></div><div class="glass"></div><div class="halo"></div></div>',
     kicker: 'Centrum Powiadamiania Ratunkowego · Kalnów · nocna zmiana',
     lead: ['Jest 23:41. Za chwilę odbierzesz zgłoszenie, w którym nikt nic nie mówi. Ktoś tylko pisze, szeptem palców po ekranie: dziewczyna zamknięta w piwnicy, z jedną żarówką nad głową, która nie pamięta nawet własnego imienia.',
       'Masz tylko czat, bazy danych, mapę miasta i jeden radiowóz. Ona ma telefon z kończącą się baterią.'],

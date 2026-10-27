@@ -13,49 +13,148 @@
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preload" as="image" href="img/keyart.jpg">
 </head>
 <body>
 
-<!-- ================= EKRAN TYTUŁOWY ================= -->
-<section id="intro" class="screen">
-  <div class="intro-wrap">
-    <nav class="case-tabs" id="case-tabs" aria-label="Wybór sprawy"></nav>
-    <div id="intro-visual" aria-hidden="true"></div>
-    <div class="intro-kicker" id="intro-kicker"></div>
-    <h1 class="intro-title" id="intro-title"></h1>
-    <div id="intro-lead"></div>
+<!-- ================= EKRAN STARTOWY ================= -->
+<section id="intro" class="screen fe" data-fe="boot">
+  <div class="fe-bg" aria-hidden="true"><div class="fe-art on" id="fe-art-a"></div><div class="fe-art" id="fe-art-b"></div><div class="fe-siren"></div></div>
+  <canvas class="fe-fx" id="fe-fx" aria-hidden="true"></canvas>
+  <div class="fe-shade" aria-hidden="true"></div>
+  <div class="fe-grain" aria-hidden="true"></div>
 
-    <div class="intro-grid">
-      <div class="intro-card">
-        <h3><span>01</span> Jak grać</h3>
-        <ul>
-          <li><b>Zadawaj pytania i wydawaj polecenia.</b> Każda jej odpowiedź zużywa baterię telefonu.</li>
-          <li><b>Zbieraj poszlaki:</b> dźwięki, zapachy, przedmioty, wspomnienia. Pojawiają się po prawej.</li>
-          <li><b>Korzystaj z narzędzi:</b> lokalizacja z sieci, ewidencja, baza zaginionych, telefony. To kosztuje czas.</li>
-          <li><b>Zawężaj obszar na mapie</b> i sprawdzaj budynki w ewidencji.</li>
-          <li><b>Zadysponuj służby</b> pod właściwy adres, zanim kontakt się urwie.</li>
-          <li><b>Łącz poszlaki</b> na tablicy: z dwóch faktów powstaje wniosek.</li>
-          <li>Czasem trzeba zdecydować w kilka sekund.</li>
-        </ul>
-      </div>
-      <div class="intro-card login">
-        <h3><span>02</span> SWD-PRM · logowanie · stanowisko 03</h3>
-        <div class="login-row"><span>operator</span><b>OP-03 · nocna zmiana</b></div>
-        <div class="login-row"><span>dyżur</span><b id="intro-shift">—</b></div>
-        <label class="sw"><input type="checkbox" id="set-sound" checked><span></span> Dźwięk</label>
-        <label class="sw"><input type="checkbox" id="set-pressure" checked><span></span> Presja czasu (czas płynie, gdy zwlekasz)</label>
-        <label class="sw"><input type="checkbox" id="set-fast"><span></span> Szybsze pisanie rozmówczyni</label>
-        <p class="intro-warn" id="intro-warn"></p>
-        <label class="sw adult" id="age-gate" hidden><input type="checkbox" id="set-adult"><span></span> Mam ukończone 18 lat i chcę zagrać w tę sprawę</label>
-        <p class="intro-endings" id="intro-endings"></p>
-      </div>
+  <header class="fe-top" aria-hidden="true">
+    <span><i class="fe-dot"></i>SWD-PRM · CPR Kalnów · stanowisko 03</span>
+    <span class="fe-top-r">operator: <b>OP-03</b> · <b class="mono" id="fe-clock">--:--:--</b></span>
+  </header>
+
+  <!-- plansze startowe -->
+  <div class="fe-screen" id="fe-boot">
+    <div class="boot-card" id="boot-0">
+      <small>vibemaster.pl</small>
+      <b>przedstawia</b>
+    </div>
+    <div class="boot-card" id="boot-1">
+      <svg class="boot-ico" viewBox="0 0 48 48" aria-hidden="true"><path d="M8 30v-6a16 16 0 0 1 32 0v6" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="6" y="28" width="9" height="13" rx="2" fill="currentColor"/><rect x="33" y="28" width="9" height="13" rx="2" fill="currentColor"/></svg>
+      <b>Najlepiej w słuchawkach, po zmroku.</b>
+      <p>Wszystkie zdarzenia, miejsca i osoby w tej grze są zmyślone.<br>W prawdziwym zagrożeniu dzwoń pod <b>112</b>.</p>
+    </div>
+  </div>
+
+  <!-- naciśnij dowolny klawisz -->
+  <div class="fe-screen" id="fe-press">
+    <div class="fe-logo big">
+      <small>gra operatora numeru alarmowego</small>
+      <h1><span class="lg-op">OPERATOR</span><span class="lg-num">112</span></h1>
+      <svg class="fe-ekg" viewBox="0 0 600 40" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1000" d="M0 20H180l10-14 12 30 10-26 8 10H330l6-6 6 6H420l10 16 8-30 10 14H600"/></svg>
+      <p class="fe-claim">Każda sekunda kosztuje baterię jej telefonu.</p>
+    </div>
+    <p class="press-key"><span class="pk-desk">Naciśnij dowolny klawisz</span><span class="pk-touch">Dotknij ekranu</span></p>
+    <p class="fe-legal">Fikcja. W prawdziwym zagrożeniu dzwoń pod 112.</p>
+  </div>
+
+  <!-- menu główne -->
+  <div class="fe-screen" id="fe-menu">
+    <div class="fe-side">
+      <div class="fe-logo small"><h1><span class="lg-op">OPERATOR</span><span class="lg-num">112</span></h1></div>
+      <nav class="fe-nav" id="fe-nav" aria-label="Menu główne">
+        <button class="fe-item" data-go="continue" id="fe-continue" hidden><b>Kontynuuj</b><small id="fe-continue-sub"></small></button>
+        <button class="fe-item" data-go="cases"><b>Nowy dyżur</b><small>Wybierz sprawę</small></button>
+        <button class="fe-item" data-go="archive"><b>Archiwum</b><small id="fe-archive-sub">Odkryte zakończenia</small></button>
+        <button class="fe-item" data-go="howto"><b>Jak grać</b><small>Zasady pracy operatora</small></button>
+        <button class="fe-item" data-go="settings"><b>Ustawienia</b><small>Dźwięk, czas, efekty</small></button>
+        <button class="fe-item" data-go="credits"><b>Autorzy</b><small>Kto to zrobił</small></button>
+      </nav>
     </div>
 
-    <button class="btn primary big" id="btn-start">Zaloguj i rozpocznij dyżur ▸</button>
-    <p class="intro-foot">Fikcja. Miasto Kalnów, osoby, firmy i instytucje są zmyślone. W prawdziwym zagrożeniu dzwoń pod <b>112</b>.</p>
+    <aside class="fe-panel" id="fe-panel" hidden>
+      <button class="fe-x" data-back aria-label="Zamknij">✕</button>
+
+      <div class="fp" id="fp-howto">
+        <h2><small>Instrukcja stanowiska</small>Jak grać</h2>
+        <ol class="fp-steps">
+          <li><b>Odbierz zgłoszenie.</b> Ktoś nie może mówić, więc pisze. Masz czat i nic więcej.</li>
+          <li><b>Pytaj i wydawaj polecenia.</b> Każda jej odpowiedź zużywa baterię telefonu. Pytaj o to, co ważne.</li>
+          <li><b>Zbieraj poszlaki.</b> Dźwięki, zapachy, przedmioty, wspomnienia. Pojawiają się w zakładce Poszlaki.</li>
+          <li><b>Korzystaj z baz i telefonów.</b> Lokalizacja z sieci, ewidencja, zaginieni, rozmowy. To kosztuje czas.</li>
+          <li><b>Łącz poszlaki na tablicy.</b> Z dwóch faktów powstaje wniosek, który zawęża mapę.</li>
+          <li><b>Wyślij patrol pod właściwy adres,</b> zanim kontakt się urwie. Pomyłka kosztuje minuty, których ona nie ma.</li>
+          <li><b>Decyzje na czas.</b> Czasem masz kilka sekund. Brak decyzji też jest decyzją.</li>
+        </ol>
+        <p class="fp-note"><b>Klawiatura w grze:</b> 1–9 pytania, ← → kategorie, spacja odbiera połączenie, 1–4 decyzje.</p>
+      </div>
+
+      <div class="fp" id="fp-settings">
+        <h2><small>Konfiguracja stanowiska</small>Ustawienia</h2>
+        <label class="fe-sw"><input type="checkbox" id="set-sound" checked><span></span><b>Dźwięk<small>Wszystkie dźwięki gry</small></b></label>
+        <label class="fe-sw"><input type="checkbox" id="set-music" checked><span></span><b>Muzyka w menu<small>Deszcz, radio i ciche pianino</small></b></label>
+        <label class="fe-sw"><input type="checkbox" id="set-pressure" checked><span></span><b>Presja czasu<small>Czas płynie, gdy zwlekasz z pytaniem</small></b></label>
+        <label class="fe-sw"><input type="checkbox" id="set-fast"><span></span><b>Szybsze pisanie rozmówczyni<small>Krótsze czekanie na odpowiedź</small></b></label>
+        <label class="fe-sw"><input type="checkbox" id="set-fx" checked><span></span><b>Efekty ekranu<small>Ruch tła, kurz i ziarno filmu</small></b></label>
+      </div>
+
+      <div class="fp" id="fp-archive">
+        <h2><small>Akta zamkniętych zgłoszeń</small>Archiwum</h2>
+        <div id="fe-archive"></div>
+      </div>
+
+      <div class="fp" id="fp-credits">
+        <h2><small>Napisy</small>Autorzy</h2>
+        <dl class="fp-credits">
+          <dt>Scenariusz, projekt i kod</dt><dd>Claude Opus 5.5 (Anthropic) w Claude Code</dd>
+          <dt>Pomysł i produkcja</dt><dd>vibemaster.pl · eksperyment „1 prompt, 1 zdanie”, dzień 7</dd>
+          <dt>Grafika</dt><dd>Nano Banana (Google Gemini)</dd>
+          <dt>Dźwięk i muzyka</dt><dd>syntezowane na żywo w przeglądarce (Web Audio)</dd>
+          <dt>Czcionki</dt><dd>IBM Plex, Barlow Condensed, Special Elite</dd>
+        </dl>
+        <p class="fp-dedic">Dla operatorów numerów alarmowych, którzy co noc robią to naprawdę.</p>
+      </div>
+    </aside>
+
+    <div class="fe-feed" id="fe-feed" aria-hidden="true"><small><i class="fe-dot"></i>Na żywo · kolejka CPR</small><p id="fe-feed-line"></p></div>
   </div>
+
+  <!-- wybór sprawy -->
+  <div class="fe-screen" id="fe-cases">
+    <header class="fe-head"><button class="fe-backlink" data-back>‹ Menu</button><small>Nowy dyżur</small><h2>Wybierz sprawę</h2></header>
+    <div class="fe-cards" id="fe-cards"></div>
+  </div>
+
+  <!-- odprawa przed dyżurem -->
+  <div class="fe-screen" id="fe-brief">
+    <div class="brief-main">
+      <button class="fe-backlink" data-back>‹ Sprawy</button>
+      <div class="brief-no" id="brief-no"></div>
+      <div class="intro-kicker" id="intro-kicker"></div>
+      <h1 class="intro-title" id="intro-title"></h1>
+      <div id="intro-lead"></div>
+      <dl class="brief-meta" id="brief-meta"></dl>
+      <p class="intro-warn" id="intro-warn"></p>
+      <label class="fe-sw adult" id="age-gate" hidden><input type="checkbox" id="set-adult"><span></span><b>Mam ukończone 18 lat<small>i chcę zagrać w tę sprawę</small></b></label>
+      <div class="brief-actions">
+        <button class="fe-cta" id="btn-start"><span>Zaloguj i rozpocznij dyżur</span></button>
+      </div>
+      <p class="intro-endings" id="intro-endings"></p>
+    </div>
+  </div>
+
+  <!-- wczytywanie sprawy -->
+  <div class="fe-screen" id="fe-load">
+    <div class="load-info">
+      <small id="load-no">Wczytywanie sprawy</small>
+      <h2 id="load-title"></h2>
+      <p class="load-tip"><b>Wskazówka</b><span id="load-tip"></span></p>
+      <div class="load-bar"><i id="load-bar"></i></div>
+      <p class="press-key" id="load-press" hidden><span class="pk-desk">Naciśnij dowolny klawisz</span><span class="pk-touch">Dotknij ekranu</span></p>
+    </div>
+  </div>
+
+  <footer class="fe-hints" id="fe-hints" aria-hidden="true"></footer>
+  <div class="fe-login" id="fe-login" hidden><pre id="fe-login-log"></pre></div>
+  <div class="fe-curtain" id="fe-curtain"></div>
 </section>
 
 <!-- ================= KONSOLA OPERATORA ================= -->
@@ -109,6 +208,7 @@
       <div id="lowbat" class="lowbat" hidden></div>
       <div id="toasts" class="toasts"></div>
       <div id="chat" class="chat" aria-live="polite"></div>
+      <button id="chat-new" class="chat-new" hidden>↓ nowe wiadomości</button>
       <div id="composer" class="composer">
         <div id="decision" class="decision" hidden></div>
         <div id="lostbox" class="lostbox" hidden></div>
@@ -155,6 +255,7 @@
   </main>
   <footer id="statusbar" class="statusbar"></footer>
 
+  <div id="toasts-m" class="toasts mob"></div>
   <nav id="mnav" class="mnav">
     <button data-col="left">Stan</button>
     <button data-col="center" class="on">Rozmowa<i hidden></i></button>
@@ -178,7 +279,7 @@
       <li><b>Decyzje na czas.</b> Gdy zjawia się pasek odliczania, masz kilka sekund. Możesz wybierać klawiszami 1–4.</li>
       <li><b>Tablica poszlak.</b> W zakładce „Poszlaki” zaznacz ◇ dwie poszlaki, które według ciebie się łączą, i kliknij „Połącz”. Trafne połączenie daje wniosek, czasem nowe ograniczenie na mapie. Pomyłka nic nie kosztuje. „↳ w rozmowie” przewija czat do miejsca, w którym padła poszlaka.</li>
       <li><b>Pamięć i strach.</b> Pytania oznaczone „wspomnienie” działają dopiero, gdy ona trochę się uspokoi.</li>
-      <li><b>Klawiatura.</b> 1–9 wybiera pytanie z bieżącej kategorii, strzałki ← → zmieniają kategorię, spacja odbiera połączenie.</li>
+      <li class="help-kbd"><b>Klawiatura.</b> 1–9 wybiera pytanie z bieżącej kategorii, strzałki ← → zmieniają kategorię, spacja odbiera połączenie.</li>
     </ol>
     <p class="muted">Siedem zakończeń. Żadne nie jest jedynym właściwym, ale tylko jedno jest naprawdę dobre.</p>
   </div>
@@ -190,6 +291,7 @@
 <script src="js/audio.js"></script>
 <script src="js/map.js"></script>
 <script src="js/game.js"></script>
+<script src="js/front.js"></script>
 <script src="js/cases.js"></script>
 </body>
 </html>

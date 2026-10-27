@@ -26,7 +26,7 @@ Dzień 7 eksperymentu [1 prompt, 1 zdanie](../README.md): jeden prompt, zero pop
 
 ## Jak uruchomić
 
-Kliknij dwa razy plik **`index.html`**. Gra otworzy się w przeglądarce (Chrome, Edge, Firefox). Sprawę wybierasz na ekranie tytułowym. Można też wejść od razu w konkretną sprawę: `index.html?sprawa=zarowka` albo `index.html?sprawa=oddzial`. Druga sprawa wymaga potwierdzenia, że masz 18 lat.
+Kliknij dwa razy plik **`index.html`**. Gra otworzy się w przeglądarce (Chrome, Edge, Firefox). Po planszach startowych naciśnij dowolny klawisz, a w menu wybierz „Nowy dyżur” i sprawę. Można też wejść od razu w konkretną sprawę: `index.html?sprawa=zarowka` albo `index.html?sprawa=oddzial`. Druga sprawa wymaga potwierdzenia, że masz 18 lat.
 Nie trzeba niczego instalować ani budować. Działa też bez internetu (wtedy z czcionką systemową zamiast IBM Plex).
 Na telefonie kolumny przełącza dolny pasek: Stan, Rozmowa, Narzędzia.
 
@@ -85,13 +85,15 @@ Sprawa zawiera martwe ciała, przemoc, porwanie i sceny grozy, bez drastycznych 
 ## Struktura
 
 ```
-index.html          – ekran tytułowy z wyborem sprawy, konsola operatora, pomoc, raport końcowy
+index.html          – ekran startowy (plansze, menu, wybór sprawy, odprawa), konsola operatora, pomoc, raport końcowy
+img/keyart.jpg      – tło menu: operator przy stanowisku w deszczową noc (Nano Banana)
 img/og.jpg          – obraz do udostępniania
 css/style.css       – wygląd konsoli, czatu, mapy, szkicu i raportu (też elementy spraw)
 js/game.js          – silnik wspólny: czas, bateria, stan, zdarzenia, decyzje, narzędzia, tablica poszlak, dysponowanie, raport
 js/map.js           – część wspólna mapy: dopasowanie budynków do poszlak, radiowóz, legenda
 js/audio.js         – syntezowany dźwięk
-js/cases.js         – rejestr spraw i wczytywanie plików wybranej sprawy
+js/cases.js         – rejestr spraw (z danymi do kart wyboru) i wczytywanie plików wybranej sprawy
+js/front.js         – ekran startowy: przełączanie ekranów, sterowanie klawiaturą, archiwum zakończeń, kurz i ruch tła, logowanie
 sprawy/zarowka/     – sprawa 1: data.js, story.js, map.js (Kalnów), sketch.js (piwnica), intro.jpg
 sprawy/oddzial/     – sprawa 2: data.js, story.js, map.js (szpital w Borku), sketch.js (sala 12), intro.jpg
 ```
@@ -102,7 +104,7 @@ sprawy/oddzial/     – sprawa 2: data.js, story.js, map.js (szpital w Borku), s
 2. `data.js`: poszlaki (`CLUES`), wnioski (`LINKS`), kategorie pytań i pytania (`Q_CATS`, `QUESTIONS`), zdarzenia w czasie (`EVENTS`), budynki i trasy (`BUILDINGS`, `STREETS`, `RECON`), bazy (`MISSING`, `REGISTRY`) i zakończenia (`ENDINGS`).
 3. `story.js`: obiekt `CASE` (godzina, telefon, bateria, opis na ekran tytułowy, hooki: początek rozmowy, przybycie patrolu, karta, procedura, kod zakończenia, epilogi) i lista narzędzi `TOOLS`.
 4. `map.js`: ograniczenia z poszlak (`GEO`), rysunek terenu (`buildMap`) i nakładki. `sketch.js`: szkic miejsca.
-5. Dopisz sprawę do `CASES` w `js/cases.js`.
+5. Dopisz sprawę do `CASES` w `js/cases.js` (z opisem na kartę: `tagline`, `place`, `when`, `length`, `endings`). Karta „Wkrótce” przesunie się sama.
 
 ## Rozwój po eksperymencie
 
@@ -148,3 +150,19 @@ sprawy/oddzial/     – sprawa 2: data.js, story.js, map.js (szpital w Borku), s
   - komunikaty z głośnika jako osobny typ wiadomości, latarka zużywająca baterię, nowe dźwięki (głośnik, agregat, klamka, pukanie, krzyk przez rury),
   - bramka 18+ na ekranie tytułowym, tło z korytarzem szpitala (Nano Banana).
   - poprawki po teście drugiej sprawy przez agenta UX: patrol wysłany bez żadnej poszlaki przeszukuje pawilon 9 min i obniża ocenę, sprawca słyszy nadjeżdżający radiowóz i rusza po nią (kulminacja nie omija szybkiego gracza), poprawiona orientacja widoku z okna (wieża po lewej, kaplica po prawej), wyjaśnienie porażki przy ukryciu bez barykady, spójniejsze teksty (agregat, numery sal, prosektorium, opatrunek), jej „zabieg” nie przed jego, przewijanie do nowego wyniku w bazach, krótsze zakładki na telefonie.
+- **Ekran startowy jak w grach AAA (27.10.2026, wieczór):**
+  - plansze startowe (studio, „najlepiej w słuchawkach”), ekran „naciśnij dowolny klawisz” z logo, linią EKG i uderzeniem dźwięku,
+  - menu główne na tle key artu z ruchem kamery, odblaskiem koguta, kurzem i ziarnem filmu; pasek stanowiska z zegarem i „na żywo” kolejka zgłoszeń CPR,
+  - Kontynuuj (ostatnia sprawa), Nowy dyżur, Archiwum zakończeń, Jak grać, Ustawienia (w tym muzyka i efekty ekranu), Autorzy,
+  - wybór sprawy na kartach z grafiką i postępem zakończeń, odprawa przed dyżurem, ekran wczytywania ze wskazówką i sekwencja logowania do systemu,
+  - muzyka menu syntezowana na żywo: deszcz, dron, pianino z echem i trzaski radiostacji,
+  - pełne sterowanie klawiaturą (strzałki, Enter, Esc) z podpowiedziami u dołu ekranu, układ na telefon w pionie i w poziomie.
+- **Gra na telefonie (27.10.2026, po teście dotykiem w obu sprawach):**
+  - decyzje przewijają się nad dolnym paskiem, a odliczanie jest zawsze na górze; w trakcie decyzji na czas nie da się uciec do innych kolumn,
+  - powiadomienia (nowa poszlaka, wniosek, pomyłka na tablicy) są widoczne także w Narzędziach, a trafiony wniosek przewija się na środek,
+  - czat trzyma się ostatniej wiadomości mimo zmiany wysokości panelu pytań, a gdy czytasz starsze, pojawia się pasek „nowe wiadomości”,
+  - „Wyślij patrol” z karty budynku od razu wypełnia formularz służb (poprawka działa też na komputerze),
+  - powiększona mapa ma podwójną skalę z przesuwaniem i ustawia się na wybranym budynku,
+  - po wyszukiwaniu w bazach klawiatura się zamyka i widać wynik; pola tekstowe mają 16 px, więc iOS nie przybliża ekranu,
+  - większe cele dotyku (kategorie, pytania, zakładki, przyciski, ranking budynków), marginesy na notch i pasek gestów,
+  - nowy układ w poziomie: czat po lewej, pytania i decyzje po prawej, nawigacja w pasku z boku.

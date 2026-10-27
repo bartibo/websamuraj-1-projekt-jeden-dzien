@@ -13,7 +13,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const norm = s => String(s).toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
-const SET = { sound: true, pressure: true, fast: false };
+const SET = { sound: true, pressure: true, fast: false, music: true, fx: true };
 const SET_KEY = 'pjz_settings_v1';
 const endingsKey = () => CASE.id === 'zarowka' ? 'pjz_endings_v1' : 'pjz_endings_' + CASE.id;
 
@@ -86,6 +86,7 @@ function stamp() {
   else S.stampSec = Math.min(59, S.stampSec + 2 + Math.floor(Math.random() * 5));
   return `${fmtClock(S.t)}:${String(S.stampSec).padStart(2, '0')}`;
 }
+const CHAT = { stick: true }; // czy czat ma się trzymać ostatniej wiadomości
 const WHO = { her: 'ZGŁ', op: 'OP-03', sys: 'SYS', radio: 'RAD', pa: 'GŁOŚNIK' };
 function addBubble(kind, text, extra) {
   const chat = $('#chat');
@@ -98,7 +99,8 @@ function addBubble(kind, text, extra) {
   if (kind === 'sys') d.innerHTML = `${head}<span class="sys-t">${esc(text)}</span>`;
   else d.innerHTML = `${head}<span class="b">${esc(text)}</span>`;
   chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
+  if (CHAT.stick || base === 'op') chat.scrollTop = chat.scrollHeight;
+  else if (base !== 'sys') $('#chat-new').hidden = false;
   if (base === 'her' || base === 'radio' || base === 'pa') {
     const c = $('.col-center'); c.classList.remove('ping'); void c.offsetWidth; c.classList.add('ping');
     if (window.innerWidth < 980 && S.ui.mcol !== 'center') { S.unread++; renderTabs(); }
@@ -110,7 +112,7 @@ function showTyping(on) {
   if (on && !t) {
     t = document.createElement('div'); t.id = 'typing'; t.className = 'msg her typing';
     t.innerHTML = '<span class="mh"><span class="tm">··:··:··</span><span class="who">ZGŁ</span></span><span class="b">pisze<i></i></span>';
-    $('#chat').appendChild(t); $('#chat').scrollTop = 1e9;
+    $('#chat').appendChild(t); if (CHAT.stick) $('#chat').scrollTop = 1e9;
   } else if (!on && t) t.remove();
   $('#chat-status').textContent = on ? 'pisze…' : statusLine();
   $('#chat-status').classList.toggle('typing', on);
@@ -159,7 +161,7 @@ async function radio(text, who) {
 }
 
 function toast(html, cat) {
-  const box = $('#toasts');
+  const box = window.innerWidth < 980 ? $('#toasts-m') : $('#toasts');
   const d = document.createElement('div');
   d.className = 'toast ' + (cat || '');
   d.innerHTML = html;
@@ -274,6 +276,7 @@ function decide(cfg) {
       ${timer ? '<div class="d-timer"><i></i></div>' : ''}`;
     box.hidden = false;
     $('#composer').classList.add('deciding');
+    $('#composer').scrollTop = 0;
     if (timer) { sfx('alarm'); document.body.classList.add('deciding'); }
     // na telefonie decyzja musi być widoczna, nawet jeśli gracz jest w narzędziach
     if (S.ui.mcol !== 'center') { S.ui.mcol = 'center'; renderTabs(); }
@@ -405,7 +408,7 @@ function addResult(title, text) {
   S.ui.results.unshift({ t: S.t, title, text });
   renderTools();
   // nowy wynik jest pod listą narzędzi: pokaż go od razu
-  const r = $('#results .res'); if (r && S.ui.tab === 'bazy') { r.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); r.classList.add('fresh'); }
+  const r = $('#results .res'); if (r && S.ui.tab === 'bazy') { r.scrollIntoView({ block: window.innerWidth < 980 ? 'start' : 'nearest', behavior: 'smooth' }); r.classList.add('fresh'); }
 }
 
 function toolSearch(id, q) {
@@ -490,6 +493,7 @@ function connectClues() {
     sfx('link');
     clue(l.out);
     good('Wniosek: ' + CLUES[l.out].title);
+    if (window.innerWidth < 980) requestAnimationFrame(() => { const c = $(`.clue[data-clue="${l.out}"]`); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
   } else if (l) {
     toast(`∴ Ten wniosek już masz: <b>${esc(CLUES[l.out].title)}</b>`, 'wniosek');
   } else {
@@ -648,7 +652,7 @@ function finish() {
     <div class="end-actions"><button class="btn primary" id="btn-again">Nowy dyżur</button><button class="btn ghost" id="btn-title">Ekran tytułowy</button></div>`;
   $('#app').hidden = true; $('#ending').hidden = false; window.scrollTo(0, 0); $('#ending').scrollTop = 0;
   $('#btn-again').onclick = () => startGame();
-  $('#btn-title').onclick = () => { $('#ending').hidden = true; $('#intro').hidden = false; renderIntro(); };
+  $('#btn-title').onclick = () => { $('#ending').hidden = true; FRONT.reenter(); };
 }
 
 /* =====================================================================
@@ -834,8 +838,8 @@ function renderMapCard() {
     ${ms.length ? '<ul class="mc-m">' + ms.map(m => `<li class="${m.ok ? 'ok' : 'no'}">${m.ok ? '✓' : '✗'} ${esc(GEO[m.geo].label)} <span>(${esc(CLUES[m.clue].title)})</span></li>`).join('') + '</ul>' : ''}
     <div class="mc-b"><button class="btn small primary" id="mc-go" ${dis ? 'disabled' : ''}>${CASE.labels.go}</button>
     ${st && st.recon ? `<button class="btn small" id="mc-rec" ${dis ? 'disabled' : ''}>${CASE.labels.reconBtn}: ${esc(st.name)}</button>` : ''}</div>`;
-  const go = $('#mc-go'); if (go) go.onclick = () => { S.ui.dispatch.target = 'b:' + b.id; setTab('sluzby'); };
-  const rc = $('#mc-rec'); if (rc) rc.onclick = () => { S.ui.dispatch.target = 's:' + b.street; setTab('sluzby'); };
+  const go = $('#mc-go'); if (go) go.onclick = () => { S.ui.dispatch.target = 'b:' + b.id; setTab('sluzby'); renderDispatch(); };
+  const rc = $('#mc-rec'); if (rc) rc.onclick = () => { S.ui.dispatch.target = 's:' + b.street; setTab('sluzby'); renderDispatch(); };
 }
 
 function renderTools() {
@@ -876,7 +880,7 @@ function renderTools() {
   // zachowaj fokus pola tekstowego
   const act0 = document.activeElement, actK = act0 && (act0.id || act0.dataset.k), pos = act0 && act0.selectionStart;
   box.innerHTML = html;
-  if (actK) { const e = box.querySelector(`[data-k="${actK}"]`); if (e && e.tagName === 'INPUT') { e.focus(); try { e.setSelectionRange(pos, pos); } catch (x) { } } }
+  if (actK && act0.matches(':focus')) { const e = box.querySelector(`[data-k="${actK}"]`); if (e && e.tagName === 'INPUT') { e.focus(); try { e.setSelectionRange(pos, pos); } catch (x) { } } }
   box.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => useTool(b.dataset.tool));
   box.querySelectorAll('[data-cand]').forEach(b => b.onclick = () => setCandidate(b.dataset.cand));
   box.querySelectorAll('.mf select').forEach(s => s.onchange = () => { S.ui.mf[s.dataset.k] = s.value; renderTools(); });
@@ -885,7 +889,7 @@ function renderTools() {
   box.querySelectorAll('form[data-form]').forEach(f => {
     const inp = f.querySelector('input');
     inp.oninput = e => S.ui.q[f.dataset.form] = e.target.value;
-    f.onsubmit = e => { e.preventDefault(); toolSearch(f.dataset.form, inp.value); };
+    f.onsubmit = e => { e.preventDefault(); if (window.innerWidth < 980) inp.blur(); toolSearch(f.dataset.form, inp.value); };
   });
   const rbox = $('#results');
   rbox.innerHTML = S.ui.results.length ? S.ui.results.map(r => `<div class="res"><div class="res-h"><b>${esc(r.title)}</b><span>${fmtClock(r.t)}</span></div><pre>${esc(r.text)}</pre></div>`).join('') : '<p class="muted">Tu pojawią się wyniki zapytań.</p>';
@@ -958,9 +962,10 @@ function renderTabs() {
    ===================================================================== */
 function startGame() {
   S = newState();
-  AUDIO.init(); AUDIO.setOn(SET.sound);
+  AUDIO.init(); AUDIO.setOn(SET.sound); AUDIO.menuMusic(false);
   $('#intro').hidden = true; $('#ending').hidden = true; $('#app').hidden = false;
   $('#chat').innerHTML = '';
+  CHAT.stick = true; $('#chat-new').hidden = true;
   $('#hint').hidden = true;
   $('#notes').value = '';
   $('#tab-mapa').classList.remove('expanded');
@@ -976,28 +981,6 @@ function startGame() {
   setTimeout(() => { if (S.phase === 'ring') { addBubble('sys', 'Połączenie przychodzące na numer 112…'); sfx('ring'); } }, 1600);
   clearInterval(window._ringIv);
   window._ringIv = setInterval(() => { if (S && S.phase === 'ring') sfx('ring'); else clearInterval(window._ringIv); }, 3200);
-}
-
-/* ekran tytułowy: wybór sprawy, opis sprawy, zakończenia, bramka 18+ */
-function renderIntro() {
-  const I = CASE.intro, meta = CASES.find(c => c.id === CASE.id);
-  document.title = `${meta.title} – gra operatora numeru 112`;
-  document.body.dataset.case = CASE.id;
-  $('#case-tabs').innerHTML = CASES.map(c => `<a class="case-tab ${c.id === CASE.id ? 'on' : ''}" href="?sprawa=${c.id}">
-    <span class="ct-no">SPRAWA ${c.no}${c.adult ? ' <i>18+</i>' : ''}</span><b>${esc(c.title)}</b><small>${esc(c.short)}</small></a>`).join('');
-  $('#intro-visual').innerHTML = I.visual;
-  $('#intro-kicker').textContent = I.kicker;
-  $('#intro-title').textContent = meta.title;
-  $('#intro-lead').innerHTML = I.lead.map(p => `<p class="intro-lead">${p}</p>`).join('');
-  $('#intro-shift').textContent = I.shift;
-  $('#intro-warn').textContent = I.warn;
-  $('#intro').style.setProperty('--intro-img', I.image ? `url("${new URL(I.image, location.href).href}")` : 'none');
-  let got = [];
-  try { got = JSON.parse(localStorage.getItem(endingsKey()) || '[]'); } catch (e) { }
-  $('#intro-endings').innerHTML = `Odkryte zakończenia: <b>${got.length}/${Object.keys(ENDINGS).length}</b>` + (got.length ? ' · ' + got.map(k => esc(ENDINGS[k].title)).join(' · ') : '');
-  $('#age-gate').hidden = !meta.adult;
-  const gate = () => { $('#btn-start').disabled = !!meta.adult && !$('#set-adult').checked; };
-  $('#set-adult').onchange = gate; gate();
 }
 
 /* sekundy zegara: przy presji czasu minuta gry mija w 30 s, więc sekundy gry biegną dwa razy szybciej */
@@ -1043,7 +1026,6 @@ function initApp() {
   $('#set-sound').onchange = e => { SET.sound = e.target.checked; AUDIO.setOn(SET.sound); saveSet(); };
   $('#set-pressure').onchange = e => { SET.pressure = e.target.checked; saveSet(); };
   $('#set-fast').onchange = e => { SET.fast = e.target.checked; saveSet(); };
-  $('#btn-start').onclick = startGame;
   $('#btn-sound').onclick = () => { SET.sound = !SET.sound; AUDIO.setOn(SET.sound); $('#btn-sound').textContent = SET.sound ? 'SND' : 'MUTE'; saveSet(); };
   $('#btn-help').onclick = () => $('#help').hidden = false;
   $('#notes').oninput = e => { if (S) S.ui.notes = e.target.value; };
@@ -1051,7 +1033,25 @@ function initApp() {
   $('#help').onclick = e => { if (e.target.id === 'help') $('#help').hidden = true; };
   $$('#tool-tabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
   $$('#mnav button').forEach(b => b.onclick = () => { S.ui.mcol = b.dataset.col; renderTabs(); if (b.dataset.col === 'center') $('#chat').scrollTop = 1e9; });
-  $('#btn-map-expand').onclick = () => { $('#tab-mapa').classList.toggle('expanded'); $('#btn-map-expand').textContent = $('#tab-mapa').classList.contains('expanded') ? '✕ Zamknij' : '⤢ Powiększ'; };
+  $('#btn-map-expand').onclick = () => {
+    const on = $('#tab-mapa').classList.toggle('expanded');
+    $('#btn-map-expand').textContent = on ? '✕ Zamknij' : '⤢ Powiększ';
+    // na telefonie mapa jest większa od ekranu: pokaż wybrany budynek (albo środek)
+    const wrap = $('#tab-mapa .map-wrap');
+    if (on && wrap.scrollWidth > wrap.clientWidth) requestAnimationFrame(() => {
+      const g = S.ui.selBuilding && $(`#map [data-id="${S.ui.selBuilding}"]`), wr = wrap.getBoundingClientRect();
+      const r = g ? g.getBoundingClientRect() : { left: wr.left + wrap.scrollWidth / 2 - wrap.scrollLeft, top: wr.top + wrap.scrollHeight / 2 - wrap.scrollTop, width: 0, height: 0 };
+      wrap.scrollLeft += r.left + r.width / 2 - (wr.left + wr.width / 2);
+      wrap.scrollTop += r.top + r.height / 2 - (wr.top + wr.height / 2);
+    });
+  };
   $('#btn-sound').textContent = SET.sound ? 'SND' : 'MUTE';
-  renderIntro();
+  const chat = $('#chat');
+  chat.addEventListener('scroll', () => { CHAT.stick = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40; if (CHAT.stick) $('#chat-new').hidden = true; });
+  // panel pytań zmienia wysokość po każdej odpowiedzi: czat trzyma się dołu
+  if (window.ResizeObserver) new ResizeObserver(() => { if (CHAT.stick) chat.scrollTop = chat.scrollHeight; }).observe(chat);
+  $('#chat-new').onclick = () => { chat.scrollTop = chat.scrollHeight; };
+  // klawiatura ekranowa: chowamy dolny pasek, żeby nie zabierał miejsca
+  if (window.visualViewport) visualViewport.addEventListener('resize', () => document.body.classList.toggle('kbd', visualViewport.height < innerHeight * 0.75));
+  FRONT.init();
 }

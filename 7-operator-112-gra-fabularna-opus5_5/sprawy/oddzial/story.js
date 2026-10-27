@@ -22,7 +22,6 @@ const CASE = {
     rejected: 'brak związku', victim: 'Zgłaszająca', mapHint: 'Kliknij budynek, żeby zobaczyć dane z archiwum i sprawdzić, czy pasuje do poszlak.',
   },
   intro: {
-    visual: `<div class="intro-sign"><i class="ch l"></i><i class="ch r"></i><div class="plate"><small>SZPITAL W BORKU</small>ODDZIAŁ ZAMKNIĘTY<small>WSTĘP TYLKO DLA PERSONELU</small></div><div class="beam"></div></div>`,
     kicker: 'Centrum Powiadamiania Ratunkowego · Kalnów · noc Wszystkich Świętych',
     lead: ['Jest 00:47, pierwszy listopada. Cmentarz w Borku świeci tysiącami zniczy. Za jego murem stoi szpital psychiatryczny zamknięty w 1998 roku. Przed północą weszło tam troje urbexerów z kamerą i transmisją na żywo.',
       'Teraz jedna z nich pisze do ciebie, bo nie może mówić. Schowała się w sali, której nie umie nazwać. Z głośników, które od trzydziestu lat nie mają prądu, ktoś spokojnym głosem zapowiada przyjęcia na oddział.'],
