@@ -56,10 +56,10 @@ button { font: inherit; color: inherit; }
 .screen { position: fixed; inset: 0; overflow: auto; z-index: 20; }
 #intro { background: radial-gradient(ellipse at 50% 0%, #2a1e0d 0%, #0d0b09 45%, #050608 100%); overflow-x: hidden; }
 #intro::before { content: ''; position: fixed; left: 0; right: 0; bottom: 0; height: min(62vh, 52vw); pointer-events: none;
-  background: linear-gradient(#050608, rgba(5, 6, 8, .55) 38%, rgba(5, 6, 8, .35)), url('../img/intro.jpg') center bottom / cover no-repeat; opacity: .75; }
+  background: linear-gradient(#050608, rgba(5, 6, 8, .55) 38%, rgba(5, 6, 8, .35)), var(--intro-img) center bottom / cover no-repeat; opacity: .75; }
 .intro-wrap { z-index: 1; }
 .intro-wrap { max-width: 920px; margin: 0 auto; padding: 40px 22px 50px; text-align: center; position: relative; }
-.intro-bulb { position: relative; height: 150px; margin: -40px auto 6px; width: 120px; }
+.intro-bulb { position: relative; height: 150px; margin: -26px auto 6px; width: 120px; }
 .intro-bulb .cord { position: absolute; left: 50%; top: 0; width: 2px; height: 86px; background: #4a4038; transform: translateX(-50%); }
 .intro-bulb .glass { position: absolute; left: 50%; top: 84px; width: 34px; height: 44px; transform: translateX(-50%); border-radius: 50% 50% 45% 45%; background: radial-gradient(circle at 50% 40%, #fff6d8, #ffcf70 45%, #c7802a); box-shadow: 0 0 40px 12px rgba(255, 190, 90, .55); animation: introFlick 7s infinite; }
 .intro-bulb .glass::before { content: ''; position: absolute; left: 50%; top: -8px; width: 16px; height: 10px; transform: translateX(-50%); background: #6f6a62; border-radius: 2px; }
@@ -453,6 +453,7 @@ input:focus, select:focus { outline: none; border-color: var(--steel); }
 .res { background: #0f161e; border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; }
 .res-h { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 4px; }
 .res-h span { font: 10.5px var(--mono); color: var(--dim); }
+.res.fresh { animation: fresh 1.6s; border-color: var(--amber); }
 .res pre { margin: 0; white-space: pre-wrap; font: 12px/1.5 var(--mono); color: #b9d6d3; }
 
 /* służby */
@@ -564,6 +565,80 @@ body.lost .avatar { border-color: var(--red); }
 }
 
 /* =====================================================================
+   SPRAWY: wybór na ekranie tytułowym i elementy sprawy 2
+   ===================================================================== */
+.case-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 0 auto 26px; max-width: 760px; text-align: left; }
+.case-tab { display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border: 1px solid #2b2620; border-radius: var(--r); background: rgba(12, 15, 19, .8); color: var(--muted); text-decoration: none; transition: .15s; }
+.case-tab:hover { border-color: #6d5a3a; color: var(--text); }
+.case-tab.on { border-color: var(--amber); background: rgba(40, 28, 10, .85); color: var(--text); box-shadow: inset 3px 0 0 var(--amber); }
+.case-tab .ct-no { font: 600 10.5px var(--mono); letter-spacing: .1em; color: var(--amber); }
+.case-tab .ct-no i { font-style: normal; background: var(--alarm); color: #fff; padding: 0 5px; margin-left: 4px; border-radius: var(--r); }
+.case-tab b { font-size: 15px; }
+.case-tab small { font-size: 12px; color: var(--muted); }
+.sw.adult { margin-top: 10px; color: #ffb3bb; }
+.sw.adult span { border-color: var(--red); }
+#btn-start:disabled { opacity: .35; }
+
+/* tabliczka „Oddział zamknięty” w snopie latarki */
+.intro-sign { position: relative; height: 128px; width: 320px; margin: 0 auto 10px; }
+.intro-sign .ch { position: absolute; top: 0; width: 2px; height: 46px; background: #3a3530; }
+.intro-sign .ch.l { left: 108px; height: 44px; } .intro-sign .ch.r { right: 108px; height: 36px; }
+.intro-sign .plate { position: absolute; left: 50%; top: 34px; transform: translateX(-50%) rotate(-4deg); padding: 10px 18px; background: #d8d2c0; color: #7a1a12; border: 3px solid #f0ead8; outline: 2px solid #2a2520; border-radius: 4px;
+  font: 700 19px/1.15 var(--mono); letter-spacing: .08em; text-align: center; box-shadow: 0 10px 30px #000; filter: sepia(.3) brightness(.85); animation: signLight 6s infinite; }
+.intro-sign .plate small { display: block; font: 600 9px var(--mono); letter-spacing: .14em; color: #3a3530; }
+.intro-sign .beam { position: absolute; left: 50%; top: 20px; width: 260px; height: 160px; transform: translateX(-50%); background: radial-gradient(ellipse at 40% 45%, rgba(255, 240, 200, .16), transparent 60%); pointer-events: none; animation: beam 6s infinite; }
+@keyframes beam { 0%, 100% { transform: translateX(-60%) } 50% { transform: translateX(-40%) } 70% { opacity: .2 } 72% { opacity: 1 } }
+@keyframes signLight { 0%, 100% { filter: sepia(.3) brightness(.8) } 50% { filter: sepia(.3) brightness(1) } 70% { filter: sepia(.3) brightness(.35) } 72% { filter: sepia(.3) brightness(.95) } }
+body[data-case="oddzial"] #intro { background: radial-gradient(ellipse at 50% 0%, #1c1210 0%, #0a0808 45%, #040506 100%); }
+body[data-case="oddzial"] .intro-title { color: #e8ddd0; text-shadow: 0 0 30px rgba(255, 70, 40, .3); }
+body[data-case="oddzial"] .intro-kicker { color: #ff8a6a; }
+
+/* komunikat z głośnika */
+.msg.pa { align-self: center; max-width: 90%; }
+.msg.pa .mh .who { color: #ff8a6a; }
+.msg.pa .b { font: italic 13.5px/1.45 var(--mono); color: #f2c9b8; background: repeating-linear-gradient(90deg, #1c0f0d 0 6px, #22110e 6px 7px); border: 1px dashed #7a3a2a; border-left: 3px solid #ff6b4a; letter-spacing: .02em; }
+
+/* mapa szpitala */
+.m-cem-bg { fill: #0f0b0b; }
+.m-grave { fill: #1c1a1a; stroke: #2a2626; stroke-width: .6; }
+.m-candle { fill: #ff7a3a; animation: candle 2s infinite; }
+@keyframes candle { 50% { fill: #ffb547; opacity: .7 } }
+.m-wall { fill: none; stroke: #3a3632; stroke-width: 4; }
+.m-gate { stroke: #0d141c; stroke-width: 6; }
+.m-hole { fill: none; stroke: #ff6b4a; stroke-width: 2; }
+.m-tree { fill: #10201a; stroke: #17302a; stroke-width: 1; }
+.m-path { stroke: #1c2733; stroke-width: 9; }
+.m-tunnels { opacity: 0; transition: opacity .6s; }
+.m-tunnels.on { opacity: 1; }
+.m-tunnel { fill: none; stroke: #8a6a3a; stroke-width: 2; stroke-dasharray: 3 4; }
+.m-tun-t { fill: #8a6a3a; font-size: 12px; }
+.m-tower { fill: #2a1e18; stroke: #8a5a3a; stroke-width: 1.5; }
+.m-tower-light { fill: #ff3a2a; animation: pulse 1.6s infinite; }
+.m-bname { font-size: 11.5px; fill: #8fa3b8; }
+
+/* szkic sali */
+.sk-graf { fill: #ff6b4a; font-weight: 700; }
+.sk-mask { fill: #9aa5b1; }
+.sk-win2 { fill: #160c0a; stroke: #6a3a2a; stroke-width: 1; }
+.sk-candle { fill: #ffb547; animation: candle 2s infinite; }
+.sk-tower { fill: #2a1e18; stroke: #6a4a3a; stroke-width: .6; }
+.sk-tower-l { fill: #ff3a2a; animation: pulse 1.6s infinite; }
+.sk-bars { stroke: #3a4652; stroke-width: 1.6; }
+.sk-crack { stroke: #8fb3d1; stroke-width: .5; fill: none; opacity: .6; }
+.sk-win-beam2 { fill: rgba(255, 90, 42, .06); }
+.sk-bed { stroke: #7da3c5; stroke-width: 1.6; fill: none; }
+.sk-strap { stroke: #a07a4a; stroke-width: 2; }
+.sk-gown { fill: #c9d6e2; }
+.sk-band { fill: #ffffff; }
+.sk-band-t { fill: #ff8a6a; font-size: 7px; }
+.sk-door2 { fill: #2a2018; stroke: #6b5a44; stroke-width: 1; }
+.sk-peep { fill: #0a0d10; stroke: #9a8a6a; stroke-width: .8; }
+.sk-bar2 { fill: none; stroke: #7da3c5; stroke-width: 1.4; }
+.sk-blanketp { fill: #5a6a4a; }
+.sk-leg { stroke: #a9c2d8; stroke-width: 3; stroke-linecap: round; }
+.sk-blood { fill: #9b1b2a; opacity: .85; }
+
+/* =====================================================================
    RESPONSYWNOŚĆ
    ===================================================================== */
 @media (max-width: 1280px) {
@@ -586,7 +661,7 @@ body.lost .avatar { border-color: var(--red); }
   .statusbar { display: none; }
   .toasts { right: 8px; left: 8px; top: 58px; align-items: stretch; }
   .cat-tabs { flex-wrap: nowrap; overflow-x: auto; padding-top: 8px; margin-top: -6px; scrollbar-width: none; }
-  .ct { flex: none; }
+  .ct { flex: none; padding: 5px 6px; font-size: 10px; letter-spacing: .02em; }
   .ch-t small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .chat-head { gap: 10px; padding: 8px 10px; }
   .ch-bat { font-size: 11px; }

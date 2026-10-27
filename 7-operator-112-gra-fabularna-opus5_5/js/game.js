@@ -1,6 +1,8 @@
 'use strict';
 /* =====================================================================
-   Pod jedną żarówką – silnik gry
+   Operator 112 – silnik gry wspólny dla wszystkich spraw.
+   Sprawa (sprawy/<id>/) dostarcza dane (CLUES, QUESTIONS, EVENTS,
+   BUILDINGS…), narzędzia (TOOLS), mapę, szkic i obiekt CASE z hookami.
    ===================================================================== */
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -12,20 +14,14 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const norm = s => String(s).toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
 const SET = { sound: true, pressure: true, fast: false };
-const START_MIN = 23 * 60 + 41;          // 26.10.2026, 23:41
-const PHONE = '+48 607 413 220';
-const INCIDENT = 'KAL/2026/10/26/1187';
-const HQ = [241, 652];
-const ENDINGS_KEY = 'pjz_endings_v1';
 const SET_KEY = 'pjz_settings_v1';
+const endingsKey = () => CASE.id === 'zarowka' ? 'pjz_endings_v1' : 'pjz_endings_' + CASE.id;
 
 let S = null;
 
 function newState() {
   return {
-    t: 0, battery: 42, health: 64, stress: 80, bulb: 'on',
-    perp: 'home', perpSuspicious: false, perpReturnAt: 48, perpMoveAt: null, perpFate: null,
-    alarm: false, alarmAt: 0, moved: false, movedAt: 0, rain: false, asthma: false,
+    t: 0, battery: CASE.battery, health: CASE.health, stress: CASE.stress, bulb: CASE.bulb,
     clues: new Set(), clueOrder: [], flags: new Set(), asked: {}, fired: new Set(), pending: [],
     candidate: null, candidateRejected: {}, identity: false,
     contact: 'active', lostAt: null, lostReason: null,
@@ -34,11 +30,12 @@ function newState() {
     warned: {}, idleReal: 0, idlePings: 0, busy: false, lockEvents: false, decision: null,
     phase: 'ring', over: false, defer: null,
     seenQ: new Set(), shownQ: new Set(), seenClues: new Set(), toolsUsed: {},
-    msgSeq: 0, stampMin: -1, stampSec: 0, clueAnchor: {}, protoAt: {}, tips: {}, olaDet: -1, unread: 0,
+    msgSeq: 0, stampMin: -1, stampSec: 0, clueAnchor: {}, protoAt: {}, tips: {}, unread: 0,
     linkSel: [], linkTried: new Set(),
     ui: { qcat: 'stan', tab: 'poszlaki', selBuilding: null, layers: {}, mcol: 'center', notes: '',
           dispatch: { target: '', zrm: true, psp: false, sirens: false },
-          results: [], radio: [], mf: { age: '', hair: '', period: '', city: '', kw: '' }, ewidQ: '' },
+          results: [], radio: [], mf: { age: '', hair: '', period: '', city: '', kw: '' }, q: {} },
+    ...CASE.state(),
   };
 }
 
@@ -64,25 +61,20 @@ function clue(id) {
 function flushDefer() { const d = S.defer || []; S.defer = null; d.forEach(clue); }
 
 function fmtClock(t) {
-  const m = START_MIN + Math.floor(t + 1e-6);
+  const m = CASE.start + Math.floor(t + 1e-6);
   return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 function fmtDur(t) { const s = Math.round(t * 60); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }
 function streetName(id) { const s = STREETS.find(x => x.id === id); return s ? s.name : '?'; }
-function onSlodowa(o) { return o && (o.street === 'slodowa' || (o.target && o.target.startsWith('slodowa'))); }
 function policeOnStreet(id) {
   const o = S.order;
   if (!o || (o.status !== 'na_miejscu' && o.status !== 'wolny') || !o.onStreet) return false;
   return id ? o.onStreet === id : true;
 }
-/* Co wiadomo o adresie: 'confirmed' (patrol widział), 'probable' (poszlaki wskazują Słodową 14), null */
-function addrLevel() {
-  if (has('potwierdzony') || has('swiatlo') || S.rescued || S.escaped) return 'confirmed';
-  if (['ewid_marek', 'ewid_henryk', 'sasiedzi', 'sasiadka', 'w_hw'].some(has)) return 'probable';
-  const d = deducedBuilding();
-  return d && d.id === 'slodowa14' ? 'probable' : null;
-}
+/* co wiadomo o miejscu: 'confirmed', 'probable' albo null (ocenia sprawa) */
+function addrLevel() { return CASE.addrLevel(); }
 function hasEvidence() { return !!addrLevel(); }
+function lightOk() { return S.bulb === 'on' || !!(CASE.altLight && CASE.altLight()); }
 
 /* =====================================================================
    CZAT
@@ -94,7 +86,7 @@ function stamp() {
   else S.stampSec = Math.min(59, S.stampSec + 2 + Math.floor(Math.random() * 5));
   return `${fmtClock(S.t)}:${String(S.stampSec).padStart(2, '0')}`;
 }
-const WHO = { her: 'ZGŁ', op: 'OP-03', sys: 'SYS', radio: 'RAD' };
+const WHO = { her: 'ZGŁ', op: 'OP-03', sys: 'SYS', radio: 'RAD', pa: 'GŁOŚNIK' };
 function addBubble(kind, text, extra) {
   const chat = $('#chat');
   const d = document.createElement('div');
@@ -107,7 +99,7 @@ function addBubble(kind, text, extra) {
   else d.innerHTML = `${head}<span class="b">${esc(text)}</span>`;
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
-  if (base === 'her' || base === 'radio') {
+  if (base === 'her' || base === 'radio' || base === 'pa') {
     const c = $('.col-center'); c.classList.remove('ping'); void c.offsetWidth; c.classList.add('ping');
     if (window.innerWidth < 980 && S.ui.mcol !== 'center') { S.unread++; renderTabs(); }
   }
@@ -155,6 +147,8 @@ async function perpSays(list) {
     await wait(500);
   }
 }
+/* komunikat z głośnika słyszany w tle rozmowy */
+async function announce(text) { addBubble('pa', text); sfx('pa'); await wait(SET.fast ? 1000 : 2400); }
 async function opSay(text) { addBubble('op', text); sfx('out'); await wait(350); }
 async function sys(text) { addBubble('sys', text); sfx('sys'); await wait(SET.fast ? 250 : 550); }
 async function radio(text, who) {
@@ -192,10 +186,10 @@ async function advance(mins) {
 
 function tick(dt) {
   if (S.contact !== 'lost' && S.battery > 0) {
-    S.battery = Math.max(0, S.battery - 0.32 * (has('dim') ? 0.55 : 1) * dt);
+    S.battery = Math.max(0, S.battery - (0.32 * (has('dim') ? 0.55 : 1) + (CASE.batteryDrain ? CASE.batteryDrain() : 0)) * dt);
     if (S.battery <= 0) S.pending.push(() => loseContact('bateria'));
     for (const th of [15, 10, 5]) {
-      if (S.battery <= th && !S.warned[th]) {
+      if (S.battery <= th && !S.warned[th] && !S.rescued && !S.escaped) {
         S.warned[th] = true;
         S.pending.push(async () => {
           await sys(`Telemetria: bateria urządzenia rozmówcy ${th}%.`);
@@ -205,18 +199,12 @@ function tick(dt) {
     }
   }
   if (!S.rescued && !S.escaped && S.contact !== 'lost') {
-    let hd = 0.35;
-    if (S.asthma) hd += 0.9 * (has('oddech_instr') ? 0.5 : 1) * (S.stress > 80 ? 1.4 : 1);
-    if (!has('cieplo') && S.t > 25) hd += 0.2;
-    if (S.rain && !has('cieplo')) hd += 0.15;
-    if (!has('czuwa') && S.health < 35) hd += 0.3;
+    const hd = CASE.healthDrain(dt);
     S.health = Math.max(0, S.health - hd * dt);
     if (S.health <= 0) S.pending.push(() => loseContact('omdlenie'));
     S.stress = clamp(S.stress + (S.stress > 60 ? -0.25 : 0.1) * dt, 0, 100);
   }
 }
-
-const ANY_CONTACT = new Set(['wyjazd', 'wywozi', 'syreny', 'polnoc', 'powrot', 'alarm_dom', 'alarm_powrot']);
 
 async function processEvents() {
   if (S.lockEvents || S.over) return;
@@ -232,7 +220,7 @@ async function processEvents() {
         let ok = false;
         try { ok = ev.when(); } catch (e) { ok = false; }
         if (!ok) continue;
-        if (!ANY_CONTACT.has(ev.id)) {
+        if (!CASE.anyContact.includes(ev.id)) {
           if (S.contact === 'paused') continue;
           if (S.contact === 'lost' || S.rescued || S.escaped) { S.fired.add(ev.id); continue; }
         }
@@ -358,10 +346,10 @@ function ask(q) {
     } else if (q.memory && S.stress >= 85) {
       msgs = [pick(BLANK)]; consumed = false;
       tip = ['blank', 'Przy tak silnym strachu wspomnienia się blokują. Uspokój ją i zapytaj jeszcze raz.'];
-    } else if (q.light && S.bulb !== 'on' && !has('zapalniczka')) {
+    } else if (q.light && !lightOk()) {
       msgs = [pick(DARK)]; consumed = false;
     } else {
-      if (q.light && S.bulb !== 'on') msgs.push('zapalam zapalniczkę. trochę widać');
+      if (q.light && S.bulb !== 'on') msgs.push(CASE.altLightMsg);
       msgs = msgs.concat(q.run() || []);
     }
     if (consumed) S.asked[q.id] = S.t;
@@ -379,33 +367,8 @@ function answerCall() {
     S.phase = 'call';
     AUDIO.ambience();
     renderAll();
-    await sys(`Połączenie 112 przyjęte · ${PHONE} · ${fmtClock(0)}`);
-    await opSay('112, Centrum Powiadamiania Ratunkowego. Słucham?');
-    await wait(900);
-    await sys('Kanał głosowy: brak mowy. Słychać przyspieszony oddech i szum.');
-    await opSay('Halo? Proszę się odezwać.');
-    await wait(900);
-    await sys('Rozmówca przerwał połączenie głosowe. Przyszła wiadomość w kanale tekstowym 112.');
-    await her(['pomocy', 'jestem zamknięta w piwnicy', 'nie mogę mówić głośno. ktoś jest na górze', 'i nie wiem kim jestem. nic nie pamiętam']);
-    await sys('Kanał tekstowy aktywny. AML: brak pozycji GPS. Telemetria baterii: 42%.');
-    await decide({
-      title: 'Pierwsza odpowiedź', text: 'Od pierwszego zdania zależy, czy ona ci zaufa.', timer: null,
-      options: [
-        { label: 'Jestem z tobą i pomogę ci. Czy jesteś teraz bezpieczna? Czy ktoś jest blisko?', async run() {
-            await opSay('Jestem z tobą i pomogę ci. Czy jesteś teraz bezpieczna? Czy ktoś jest blisko?');
-            flag('zagrozenie'); dS(-8); good('Spokojne otwarcie rozmowy, pytanie o zagrożenie');
-            await her(['on jest na górze. chyba. słyszę telewizor', 'drzwi są zamknięte od zewnątrz', 'dobrze że ktoś odpisał']); } },
-        { label: 'Gdzie dokładnie jesteś? Podaj adres albo cokolwiek, co widzisz.', async run() {
-            await opSay('Gdzie dokładnie jesteś? Podaj adres albo cokolwiek, co widzisz.');
-            dS(+4); S.defer = [];
-            clue('piwnica');
-            await her(['nie wiem!! piszę że nie wiem', 'piwnica. jedna żarówka. ceglane ściany']); flushDefer(); } },
-        { label: 'Spokojnie. Jak się nazywasz? Ile masz lat?', async run() {
-            await opSay('Spokojnie. Jak się nazywasz? Ile masz lat?');
-            dS(+7);
-            await her(['nie wiem. nie pamiętam. to jest najgorsze', 'chyba jestem młoda?']); } },
-      ],
-    });
+    await sys(`Połączenie 112 przyjęte · ${CASE.phone} · ${fmtClock(0)}`);
+    await CASE.opening();
     await advance(1);
     $('#hint').hidden = false;
   });
@@ -414,64 +377,7 @@ function answerCall() {
 /* =====================================================================
    NARZĘDZIA (BAZY)
    ===================================================================== */
-const TOOLS = [
-  { id: 'aml', name: 'Lokalizacja AML / BTS', desc: 'Pozycja z telefonu (AML) i stacja bazowa, do której jest zalogowany.', cost: 2, once: true,
-    async run() { clue('bts'); return 'AML: brak współrzędnych GPS (telefon nie ma pozycji, prawdopodobnie jest pod ziemią).\nBTS: stacja KAL-04, sektor 15°–75° (północny wschód), szacowany zasięg do 1,2 km.\nNa mapie dodano nakładkę sektora.'; } },
-  { id: 'hlr', name: 'Abonent numeru', desc: 'Zapytanie do operatora sieci komórkowej: na kogo jest zarejestrowany numer.', cost: 3, once: true,
-    async run() { clue('sim'); return `Numer ${PHONE}.\nAbonent: FUNDACJA PSIA PRZYSTAŃ, ul. Polna 40, Kalnów (umowa firmowa, 3 karty SIM).\nUżytkownik karty: nie wskazano.`; } },
-  { id: 'krs', name: 'Rejestr fundacji (KRS)', desc: 'Kto zarządza organizacją.', cost: 1, once: true,
-    avail: () => has('sim') || has('bluza'), lock: 'Odblokuje się, gdy pojawi się nazwa jakiejś organizacji.',
-    async run() { clue('krs'); return 'Fundacja „Psia Przystań”, KRS 0000412377, siedziba: ul. Polna 40, Kalnów (schronisko dla zwierząt).\nZarząd: Marek WRÓBEL – prezes zarządu.\nFundator: Henryk WRÓBEL (zm. 2024).'; } },
-  { id: 'ewid', name: 'Ewidencja ludności', desc: 'Wyszukiwanie osoby po imieniu i nazwisku: adres zameldowania, nieruchomości, pojazdy.', cost: 1, input: true },
-  { id: 'zag', name: 'Baza osób zaginionych', desc: 'Aktywne zgłoszenia zaginięć z województwa. Filtrowanie nic nie kosztuje.', cost: 0, form: true },
-  { id: 'ppe', name: 'Dyspozytor sieci energetycznej', desc: 'Pod jakim adresem jest zamontowany licznik o danym numerze PPE.', cost: 4, once: true,
-    avail: () => has('licznik'), lock: 'Potrzebny numer licznika (PPE).',
-    async run() { clue('adres_ppe'); return 'ENERPOL Dystrybucja, dyżurny dyspozytor:\nNumer niepełny (590 543 017 004 41…). W Kalnowie pasują 3 liczniki w budynkach z piwnicą:\n• ul. Słodowa 14 – dom jednorodzinny. Odbiorca: Henryk Wróbel (zm. 2024, umowa niezaktualizowana).\n• ul. Browarna 7 – dom jednorodzinny. Odbiorca: Józef Mielczarek.\n• ul. Kolejowa 12, komórka lok. 3 – kamienica. Odbiorca: Wspólnota Mieszkaniowa.\nNa mapie dodano ograniczenie „licznik PPE”.'; } },
-  { id: 'schron', name: 'Telefon: schronisko „Psia Przystań”', desc: 'Całodobowy numer dyżurny schroniska.', cost: 3, once: true,
-    avail: () => has('sim') || has('bluza') || has('krs'), lock: 'Odblokuje się, gdy będzie wiadomo, co łączy ją albo telefon ze schroniskiem.',
-    async run() {
-      let out = 'Odbiera stróż nocny, pan Zdzisław: „Numer służbowy? To telefon kierownika, pana Marka Wróbla. Coś się stało? Mogę do niego zaraz zadzwonić, on wszystko wyjaśni”.';
-      await decide({
-        title: 'Stróż chce zadzwonić do kierownika', text: 'Co mu odpowiadasz?', timer: null,
-        options: [
-          { label: 'Proszę do nikogo nie dzwonić. To sprawa policyjna.', async run() {
-              clue('straznik'); good('Nie zaalarmowano sprawcy');
-              out += '\n\nTy: „Proszę do nikogo nie dzwonić”.\nStróż: „Rozumiem, nikomu nie powiem. Pan Marek ma owczarka, Bastka, wszędzie go wozi. Mieszka na Ogrodowej, ale ostatnio remontuje dom po ojcu, gdzieś przy browarze”.';
-              if (S.perp === 'away') out += '\nPo chwili dodaje ciszej: „Zresztą był tu przed chwilą. Białym busem, ładował do niego klatki ze szczeniakami. W środku nocy. Mówił, że to transport do adopcji”.'; } },
-          { label: 'Dobrze, niech pan do niego zadzwoni i poprosi o kontakt z CPR.', async run() {
-              S.alarm = true; S.alarmAt = S.t; mistake('Sprawca zaalarmowany przez telefon do schroniska');
-              out += '\n\nTy: „Niech pan zadzwoni”.\nPo minucie stróż oddzwania: „Pan Marek mówi, że zgubił telefon i sam się odezwie”. Nie odzywa się.'; } },
-        ],
-      });
-      return out;
-    } },
-  { id: 'rodzina', name: 'Telefon: osoba zgłaszająca zaginięcie', desc: 'Rozmowa z rodziną kandydatki wybranej w bazie zaginionych.', cost: 3,
-    avail: () => !!S.candidate && (!S.toolsUsed['rodzina_' + S.candidate.id]
-      || (S.candidate.id === 'maja' && !S.identity && identDetails().length > S.olaDet)),
-    lock: 'Najpierw wybierz kandydatkę w bazie osób zaginionych.',
-    async run() {
-      const c = S.candidate;
-      const again = !!S.toolsUsed['rodzina_' + c.id];
-      S.toolsUsed['rodzina_' + c.id] = true;
-      if (c.id !== 'maja') { S.candidateRejected[c.id] = true; return `${c.reporter}: ${c.call}`; }
-      clue('siostra'); clue('astma'); flag('siostra_rozmowa');
-      const det = identDetails();
-      S.olaDet = det.length;
-      let out = again
-        ? 'Oddzwaniasz do Aleksandry Sikorskiej. Odbiera, zanim zdąży zabrzmieć sygnał: „Ma pan coś? Niech pan mówi!”.'
-        : 'Aleksandra Sikorska odbiera po pierwszym sygnale. Mówi szybko, łamiącym się głosem: „Majka od roku jest wolontariuszką w Psiej Przystani. Ostatnio mówiła, że kierownik, pan Marek, coś ukrywa z psami. Dziś po szóstej pojechała tam zrobić zdjęcia. Jej telefon wyłączył się o 20:03. Ona ma astmę! Nosi inhalator w takiej małej kieszonce przy rękawie bluzy”.';
-      if (det.length >= 2 && !S.identity) {
-        S.identity = true; clue('tozsamosc'); good('Tożsamość potwierdzona przez rodzinę');
-        out += `\n\nOpisujesz to, co wiesz (${det.map(d => CLUES[d].title.toLowerCase()).join(', ')}). Po drugiej stronie słychać płacz: „To ona. Bransoletkę M & O zrobiłam jej sama, na osiemnastkę. To Majka!”.`;
-      } else if (!S.identity) {
-        out += '\n\n„Proszę mi powiedzieć cokolwiek! Jakie ma włosy? Czy ma tatuaż?” Wiesz za mało, żeby to potwierdzić. Dowiedz się od niej więcej o wyglądzie i zadzwoń jeszcze raz.';
-      }
-      if (!again) out += '\n\nOla na koniec: „Proszę jej powiedzieć, że Fasola na nią czeka”.';
-      return out;
-    } },
-];
-function identDetails() { return ['tatuaz', 'bransoletka', 'bluza', 'wlosy', 'twarz', 'bilet'].filter(has); }
-
+/* TOOLS definiuje sprawa (sprawy/<id>/story.js) */
 function useTool(id) {
   const tool = TOOLS.find(t => t.id === id);
   if (!tool) return;
@@ -498,36 +404,41 @@ async function toolProgress(tool) {
 function addResult(title, text) {
   S.ui.results.unshift({ t: S.t, title, text });
   renderTools();
+  // nowy wynik jest pod listą narzędzi: pokaż go od razu
+  const r = $('#results .res'); if (r && S.ui.tab === 'bazy') { r.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); r.classList.add('fresh'); }
 }
 
-function ewidSearch(q) {
-  const n = norm(q);
-  if (!n) return;
+function toolSearch(id, q) {
+  const tool = TOOLS.find(t => t.id === id), n = norm(q);
+  if (!tool || !n) return;
   act(async () => {
-    await sys(`▸ ZAPYTANIE · Ewidencja ludności: „${q}”.`);
-    await toolProgress({ name: 'Ewidencja ludności', cost: 1 });
+    await sys(`▸ ZAPYTANIE · ${tool.name}: „${q}”.`);
+    await toolProgress(tool);
     // dopasowanie odporne na odmianę i literówki na końcu: „Wróbla”, „M. Wróbel”, „wrobel marek”
     const toks = n.split(' ');
     const pm = (a, b) => a.length >= 4 && a.slice(0, 4) === b.slice(0, 4) && Math.abs(a.length - b.length) <= 3;
     let hit = null, best = 0;
-    for (const r of REGISTRY) for (const k of r.keys) {
+    for (const r of tool.registry()) for (const k of r.keys) {
       const kt = k.split(' ');
       if (kt.every(x => toks.some(t => pm(t, x))) && kt.length > best) { hit = r; best = kt.length; }
     }
     let text;
     if (hit) {
-      text = hit.text;
+      text = typeof hit.text === 'function' ? hit.text() : hit.text;
       S.defer = [];
       if (hit.clue) [].concat(hit.clue).forEach(clue);
+      if (hit.flag) flag(hit.flag);
       flushDefer();
-    } else text = n.split(' ').length < 2 ? `Brak jednoznacznego wyniku dla „${q}”. Podaj imię i nazwisko (albo samo nazwisko, jeśli jest rzadkie).` : `Brak osoby „${q}” zameldowanej w powiecie kalnowskim.`;
-    addResult(`Ewidencja: ${q}`, text);
-    await advance(1);
+    } else text = tool.miss(q, n);
+    addResult(`${tool.short || tool.name}: ${q}`, text);
+    await advance(tool.cost);
   });
 }
+function ewidSearch(q) { toolSearch('ewid', q); }
 
 function missingResults() {
-  const f = S.ui.mf, now = new Date('2026-10-26T23:41:00');
+  const f = S.ui.mf, [dd, mm, yy] = CASE.date.split('.'), now = new Date(`${yy}-${mm}-${dd}T00:00:00`);
+  now.setMinutes(CASE.start);
   return MISSING.filter(m => {
     if (f.age === 'u18' && !(m.age < 18)) return false;
     if (f.age === '18' && !(m.age >= 18 && m.age <= 25)) return false;
@@ -555,7 +466,7 @@ function setCandidate(id) {
   act(async () => {
     const m = MISSING.find(x => x.id === id);
     S.candidate = m;
-    await sys(`Kandydatka do weryfikacji: ${m.name}, ${m.age} l. Zapytaj ją o to (zakładka „Ona”) albo zadzwoń do zgłaszającego.`);
+    await CASE.onCandidate(m);
   });
 }
 
@@ -604,17 +515,18 @@ function doDispatch() {
   if (!tg || S.rescued || S.escaped) return;
   act(async () => {
     const prev = S.order;
-    const from = prev ? (policePos() || HQ) : HQ;
+    const HQ = CASE.hq, from = prev ? (policePos() || HQ) : HQ;
     const tp = targetPoint(tg);
     let eta;
     if (prev && prev.status !== 'jedzie' && prev.onStreet && prev.onStreet === tg.street) eta = 1;
-    else if (prev) eta = 1.5 + Math.hypot(tp[0] - from[0], tp[1] - from[1]) / 130;
-    else eta = 2.5 + Math.hypot(tp[0] - HQ[0], tp[1] - HQ[1]) / 130;
+    else if (prev) eta = 1.5 + Math.hypot(tp[0] - from[0], tp[1] - from[1]) / (CASE.etaScale || 130);
+    else eta = CASE.etaFirst + Math.hypot(tp[0] - HQ[0], tp[1] - HQ[1]) / (CASE.etaScale || 130);
     if (d.sirens) eta *= 0.8;
     eta = Math.max(1, Math.round(eta * 2) / 2);
     S.order = { ...tg, zrm: d.zrm, psp: d.psp, sirens: d.sirens, start: S.t, eta: S.t + eta, from, status: 'jedzie', onStreet: null,
-      blind: tg.target === 'slodowa14' && !hasEvidence() };
+      blind: tg.target === CASE.target && !hasEvidence() };
     if (d.zrm) S.zrmSent = true;
+    if (CASE.onDispatch) CASE.onDispatch(S.order);
     const units = ['Policja (patrol 0-7)'].concat(d.zrm ? ['ZRM K-03'] : [], d.psp ? ['PSP JRG-1'] : []).join(', ');
     await sys(`▸ DYSPOZYCJA · ${units} → ${tg.label}${d.sirens ? ', na sygnałach' : ', bez sygnałów'}.`);
     await radio(`Patrol 0-7, przyjąłem. ${tg.mode === 'rekon' ? 'Jedziemy na ' + streetName(tg.street) + ', obserwujemy.' : 'Jedziemy na ' + tg.label + '.'} Dojazd ok. ${String(eta).replace('.', ',')} min.`);
@@ -632,164 +544,17 @@ async function arrive() {
     const rep = RECON[o.street] ? RECON[o.street]() : 'Nic podejrzanego. Czekamy na dyspozycje.';
     await radio(rep);
     flushDefer();
-    if (o.street === 'slodowa' && S.contact === 'active') await sys('Patrol stoi na Słodowej. W zakładce „Polecenia” możesz poprosić ją o sygnał światłem.');
+    if (CASE.onRecon) await CASE.onRecon(o.street);
     return;
   }
   o.onStreet = o.street;
   const b = BUILDINGS.find(x => x.id === o.target);
-  if (b.id !== 'slodowa14') {
-    await radio(b.report);
-    if (b.clue) clue(b.clue);
-    mistake(`Patrol pod błędnym adresem: ${b.addr}`);
-    o.status = 'wolny';
-    await radio('Patrol 0-7 wolny, czekam na dyspozycje.');
-    return;
-  }
-  await arriveCorrect();
-}
-
-async function arriveCorrect() {
-  const o = S.order;
-  // adres trafiony bez żadnej podstawy w poszlakach (np. z pamięci poprzedniej gry): patrol nie ma powodu, żeby wejść
-  if (o.blind && !hasEvidence()) mistake('Patrol wysłany pod adres, którego nic w zgłoszeniu nie wskazywało');
-  if (S.moved) {
-    if (S.t - S.movedAt <= 3) {
-      await radio('Spod czternastki rusza biały bus bez świateł! Blokujemy go radiowozem…');
-      await radio('Kierowca zatrzymany: Marek Wróbel. W przestrzeni ładunkowej młoda kobieta, związana, przytomna!');
-      S.perp = 'arrested'; S.perpFate = 'arrested';
-      await rescue();
-      return;
-    }
-    await radio('Słodowa 14: furtka otwarta, dom pusty. W piwnicy żarówka na kablu, stara kurtka, ślady krwi na schodach. Nikogo. Na podjeździe brak busa.');
-    o.status = 'wolny'; S.emptyHouse = true;
-    await sys('Sprawca zdążył ją wywieźć. Zgłoszenie przekazano do wydziału kryminalnego.');
-    S.pending.push(() => finish());
-    return;
-  }
-  if (S.perp === 'home' || S.perp === 'basement') {
-    await radio('Słodowa 14: drzwi otworzył mężczyzna, ok. 45 lat, spokojny. Twierdzi, że mieszka sam i nikogo tu nie ma. W tle szczeka owczarek.');
-    await decide({
-      title: 'Patrol pod Słodową 14', text: hasEvidence() ? 'Mężczyzna wszystkiemu zaprzecza. Co robisz?' : 'Mężczyzna wszystkiemu zaprzecza, a w zgłoszeniu nic nie wskazuje na ten dom. Bez podstaw patrol nie wejdzie.', timer: null,
-      options: [
-        { label: 'Poproś ją, żeby krzyczała i stukała w rurę.', show: () => S.contact === 'active', async run() {
-            await opSay('Policja jest pod drzwiami! Krzycz i stukaj w rurę, ile masz siły!');
-            await her(['POMOCY!!! JESTEM TUTAJ!!!', 'stukam stukam stukam']);
-            await radio('Słyszymy krzyk z piwnicy! Wchodzimy!');
-            await radio('Mężczyzna próbował zatrzasnąć drzwi, obezwładniony. Schodzimy do piwnicy.');
-            good('Potwierdzenie obecności sygnałem dźwiękowym');
-            S.perp = 'arrested'; S.perpFate = 'arrested';
-            await rescue(); } },
-        { label: 'Wejście siłowe. Biorę to na siebie.', show: () => hasEvidence(), async run() {
-            await radio('Przyjąłem, wchodzimy.');
-            await radio('Mężczyzna obezwładniony. Drzwi do piwnicy zamknięte na zasuwę… otwieramy.');
-            if (hasEvidence()) good('Uzasadnione wejście siłowe');
-            S.perp = 'arrested'; S.perpFate = 'arrested';
-            await rescue(); } },
-        { label: 'Bez podstaw do wejścia. Zostańcie na ulicy i obserwujcie dom.', show: () => !hasEvidence(), async run() {
-            await radio('Przyjąłem. Odchodzimy od drzwi, stoimy na ulicy z widokiem na dom.');
-            o.status = 'wolny'; o.onStreet = 'slodowa';
-            if (S.perp === 'home') { S.alarm = true; S.alarmAt = S.t; S.fired.delete('alarm_dom'); } } },
-        { label: 'Wycofajcie się, sprawdzimy to inaczej.', async run() {
-            await radio('Przyjąłem, odjeżdżamy.');
-            mistake('Wycofanie patrolu spod właściwego adresu');
-            o.status = 'wolny';
-            S.perp = 'home'; S.alarm = true; S.alarmAt = S.t; S.fired.delete('alarm_dom'); } },
-      ],
-    });
-    return;
-  }
-  let rep = 'Słodowa 14: dom ciemny, nikt nie otwiera. Za bramą duży czarny owczarek.';
-  if (S.bulb === 'on') rep += ' W piwnicznym okienku słabe światło.';
-  await radio(rep);
-  await decide({
-    title: 'Patrol pod Słodową 14', text: hasEvidence() ? 'Nikt nie otwiera. Decyzja należy do ciebie.' : 'Nikt nie otwiera, a poza przeczuciem nic nie wskazuje na ten dom. Bez podstaw patrol nie wyważy drzwi.', timer: null,
-    options: [
-      { label: 'Niech da znak: krzyk i stukanie.', show: () => S.contact === 'active', async run() {
-          await opSay('Policja jest przed domem! Krzycz i stukaj w rurę!');
-          await her(['JESTEM TUTAJ!!! POMOCY!!!']);
-          await radio('Słyszymy ją! Wchodzimy!');
-          good('Potwierdzenie obecności sygnałem dźwiękowym');
-          await enterHouse(); } },
-      { label: 'Wejście siłowe, natychmiast.', show: () => hasEvidence(), async run() {
-          await radio('Przyjąłem, wchodzimy.');
-          good('Uzasadnione wejście siłowe');
-          await enterHouse(); } },
-        { label: 'Bez podstaw do wejścia. Zostańcie na ulicy i obserwujcie dom.', show: () => !hasEvidence(), async run() {
-            await radio('Przyjąłem. Wycofujemy się od furtki, stoimy na ulicy z widokiem na dom.');
-            o.status = 'wolny'; o.onStreet = 'slodowa';
-            if (S.perp === 'home') { S.alarm = true; S.alarmAt = S.t; S.fired.delete('alarm_dom'); } } },
-    ],
-  });
-}
-
-async function enterHouse() {
-  if (S.order.psp) await radio('Strażacy otwierają drzwi narzędziem hydraulicznym. Mamy wejście.', 'JRG-1');
-  else { await radio('Drzwi antywłamaniowe, wyważamy. To potrwa.'); await advance(2); }
-  await rescue();
-  if (S.perp === 'away') {
-    await decide({
-      title: 'Sprawca może wrócić', text: 'Właściciel domu, prawdopodobnie sprawca, jest poza domem. Zostawić nieoznakowany radiowóz w pobliżu?', timer: null,
-      options: [
-        { label: 'Tak, zasadzka przy domu.', async run() {
-            await radio('Przyjąłem. Gasimy światła, stoimy za rogiem.');
-            await advance(clamp(S.perpReturnAt - S.t, 1, 25));
-            await radio('Podjeżdża biały Ducato… Kierowca zatrzymany: Marek Wróbel. Na siedzeniu pasażera owczarek i torba z taśmą.');
-            S.perp = 'arrested'; S.perpFate = 'arrested'; good('Zasadzka na sprawcę'); } },
-        { label: 'Nie, wszyscy zostają przy poszkodowanej.', async run() {
-            await radio('Przyjąłem.'); S.perpFate = 'fled'; } },
-      ],
-    });
-  } else if (S.perp === 'fled') S.perpFate = 'fled';
-}
-
-async function rescue() {
-  S.rescued = true; S.rescueT = S.t;
-  if (S.order) S.order.status = 'zakonczone';
-  if (S.contact === 'active') {
-    await her(['ktoś jest za drzwiami', 'światło latarki!!', S.identity ? 'wołają moje imię. MAJA. to ja!!' : 'krzyczą „policja”', 'otwierają']);
-    await her(['…', 'dziękuję. dziękuję. dziękuję']);
-  }
-  const who = S.identity ? 'Maja Sikorska, 19 lat' : 'Młoda kobieta NN, ok. 20 lat';
-  const state = S.lostReason === 'omdlenie' ? 'nieprzytomna, oddycha' : 'przytomna, uraz głowy, wychłodzona' + (S.asthma ? ', duszność' : '');
-  await radio(`Mamy ją! ${who}, ${state}.`);
-  if (S.zrmSent) await radio('ZRM K-03 na miejscu, przejmujemy poszkodowaną.', 'ZRM K-03');
-  else {
-    mistake('Brak ZRM na miejscu: poszkodowana z urazem głowy czekała na karetkę');
-    await radio('Potrzebny ZRM! Nie ma tu zespołu.');
-    await sys('Zadysponowano ZRM K-03. Dojazd 8 min.');
-  }
-  if (S.contact === 'active') await opSay(S.identity ? 'Jesteś bezpieczna, Maju. Już po wszystkim.' : 'Jesteś bezpieczna. Już po wszystkim.');
-  sfx('win');
-  S.phase = 'done';
-}
-
-async function rescueByEscape() {
-  S.rescued = true; S.rescueT = S.t;
-  if (S.order && S.order.status !== 'wolny' && onSlodowa(S.order)) await radio('Widzimy ją! Dziewczyna na ulicy przed czternastką, przejmujemy.');
-  else {
-    S.order = { target: 'slodowa14', street: 'slodowa', mode: 'adres', zrm: true, psp: false, sirens: true, start: S.t, eta: S.t + 5, from: HQ, status: 'zakonczone', onStreet: 'slodowa' };
-    S.zrmSent = true;
-    await sys('▸ DYSPOZYCJA · Policja i ZRM → ul. Słodowa 14, na sygnałach (adres podała rozmówczyni).');
-  }
-  await her(['sąsiadka otworzyła. pani w szlafroku', 'okryła mnie kocem. dzwoni po was', 'syreny. słyszę syreny']);
-  await advance(3);
-  await radio('Słodowa 14: mężczyzna z rozciętym czołem na schodach do piwnicy, zatrzymany. Poszkodowana u sąsiadów, ZRM ją przejmuje.');
-  S.perp = 'arrested'; S.perpFate = 'arrested';
-  await opSay('Jesteś bezpieczna. Zostań z sąsiadką, ratownicy już są.');
-  sfx('win');
-  S.phase = 'done';
-}
-
-async function blinkResult() {
-  await wait(700);
-  if (policeOnStreet('slodowa') && S.bulb !== 'dead') {
-    await radio('Widzimy! Okienko piwnicy pod Słodową 14 mrugnęło trzy razy. Potwierdzam adres!');
-    clue('potwierdzony'); good('Potwierdzenie adresu sygnałem świetlnym');
-    S.ui.dispatch.target = 'b:slodowa14';
-    await sys('Adres potwierdzony. Zadysponuj patrol bezpośrednio na ul. Słodową 14 (zakładka „Służby”), będą w minutę.');
-  } else if (S.order && S.order.onStreet) {
-    await radio(`Nic nie widzimy. Na ${streetName(S.order.onStreet).replace('ul. ', 'ulicy ')} wszystkie piwnice ciemne.`);
-  }
+  if (await CASE.arrive(b)) return;
+  await radio(typeof b.report === 'function' ? b.report() : b.report);
+  if (b.clue) clue(b.clue);
+  if (!b.noMistake) mistake(`Patrol pod błędnym adresem: ${b.addr}`);
+  o.status = 'wolny';
+  await radio('Patrol 0-7 wolny, czekam na dyspozycje.');
 }
 
 /* =====================================================================
@@ -800,26 +565,13 @@ function checkAutoEnd() {
   if (S.contact === 'lost' && !S.rescued && !S.escaped && S.t >= S.lostAt + 30 && !(S.order && S.order.status === 'jedzie')) finish();
 }
 
-function endingCode() {
-  if (S.escaped) return 'E4';
-  if (S.rescued) {
-    if (S.lostAt != null && S.lostAt < S.rescueT) return 'E5';
-    if (!S.identity) return 'E3';
-    return S.perpFate === 'arrested' ? 'E1' : 'E2';
-  }
-  return (S.lostReason === 'sprawca' || S.moved) ? 'E7' : 'E6';
-}
-
 function scoreOf(code) {
   let p = 0;
   const saved = S.rescued || S.escaped;
   if (S.rescued && !S.escaped) p += 35;
   if (S.escaped) p += 25;
-  if (saved) p += clamp(22 - Math.max(0, S.rescueT - 22) * 0.6, 0, 22);
-  if (S.identity) p += 14;
-  if (S.perpFate === 'arrested') p += 9;
-  const med = ['ucisk', 'czuwa', 'oddech_instr', 'inhalator', 'cieplo', 'butelka'].filter(f => has(f) && !(f === 'butelka' && S.mistakes.some(m => m.includes('rozpuszczalnik')))).length;
-  p += med * 1.5;
+  if (saved) p += clamp(22 - Math.max(0, S.rescueT - CASE.parTime) * 0.6, 0, 22);
+  p += CASE.scoreExtra();
   if (S.zrmSent) p += 3;
   if (has('dim')) p += 2;
   const loc = Object.keys(CLUES).length;
@@ -837,84 +589,40 @@ function gradeOf(p) {
   return ['F', 'Ta noc zostanie z tobą na długo'];
 }
 
-function epilogue(code) {
-  const clk = fmtClock(S.rescueT != null ? S.rescueT : S.t);
-  const heal = 'W szpitalu lekarze stwierdzają wstrząśnienie mózgu. Pamięć wraca falami: najpierw Fasola, potem naleśniki Oli, na końcu schody. Gdy tylko otwiera oczy, Maja pyta o Fasolę. Potem pyta, kto był po drugiej stronie czatu.';
-  const dogs = 'Dwa dni później w garażu za schroniskiem Psia Przystań policja i inspektorzy weterynarii znajdują 41 psów w klatkach ustawionych jedna na drugiej, tak jak na zdjęciach, które Maja zrobiła tamtego wieczoru, zanim kierownik ją przyłapał. Jej telefon ze zdjęciami leży roztrzaskany w schowku białego busa.';
-  const perpLine = S.perpFate === 'arrested'
-    ? 'Marek Wróbel słyszy zarzuty pozbawienia wolności, spowodowania uszczerbku na zdrowiu i znęcania się nad zwierzętami.'
-    : 'Marek Wróbel odjechał białym busem, zanim ktokolwiek zdążył go zatrzymać. Szukano go przez trzy dni i znaleziono w domku letniskowym nad zalewem, z laptopem pełnym ogłoszeń „szczeniaki rasowe, tanio”.';
-  const P = a => a.map(x => `<p>${x}</p>`).join('');
-  switch (code) {
-    case 'E1': return P([`${clk}. Patrol 0-7 wyprowadza z piwnicy przy ul. Słodowej 14 dziewiętnastoletnią Maję Sikorską. Marek Wróbel siedzi skuty w radiowozie, a za bramą wciąż szczeka jego owczarek Bastek.`, dogs + ' ' + perpLine, heal]);
-    case 'E2': return P([`${clk}. Patrol 0-7 wyprowadza z piwnicy przy ul. Słodowej 14 Maję Sikorską, owiniętą w koc. Dom jest pusty, a na podjeździe zostały świeże ślady opon.`, perpLine + ' ' + dogs, heal]);
-    case 'E3': return P([`${clk}. Patrol wynosi z piwnicy przy ul. Słodowej 14 dziewczynę owiniętą w koc. W karcie przyjęcia na SOR ktoś wpisuje: „NN, kobieta, ok. 20 lat, uraz głowy, niepamięć”.`,
-      'Przez resztę nocy dziewczyna z opaską NN na ręku patrzy w sufit i próbuje sobie przypomnieć własne imię. Dopiero rano policjant przegląda bazę zaginionych i znajduje wieczorne zgłoszenie siostry. Aleksandra Sikorska przyjeżdża do szpitala w kapciach. Przez te kilka godzin Maja była nikim.',
-      perpLine]);
-    case 'E4': return P(['Rura trafiła go w skroń. Maja wybiegła w deszcz i zastukała do sąsiadki. Patrol znalazł Marka Wróbla na schodach do piwnicy: oszołomionego, z rozciętym czołem i z kluczykami do busa w dłoni.',
-      'Zadziałało, ale mogło się skończyć zupełnie inaczej. Na szkoleniach w CPR ta rozmowa będzie omawiana jeszcze długo: dobrze, że miała rurę, i źle, że musiała jej użyć.',
-      S.identity ? heal : 'Do szpitala trafia jako „NN”. Kim jest, ustalono dopiero rano.']);
-    case 'E5': {
-      const how = {
-        bateria: 'Kiedy patrol wyważa drzwi do piwnicy, telefon leży na betonie z czarnym ekranem. Dziewczyna siedzi skulona pod półką ze słoikami i powtarza, że przecież pisała i że ktoś obiecał.',
-        omdlenie: 'Patrol znajduje ją nieprzytomną pod półką ze słoikami. Oddycha płytko i ze świstem. Lekarz z SOR powie potem, że kwadrans później byłoby za późno.',
-        sprawca: 'Telefonu nie ma, bo zabrał go sprawca. Ona siedzi w ciemności, z taśmą na nadgarstkach. Patrol wszedł, zanim zdążył ją wywieźć.',
-      }[S.lostReason] || '';
-      return P([how, `Zgłoszenie zamknięto o ${clk}. W rubryce „kontakt z rozmówcą” wpisano „utracony”, a w rubryce „rezultat” – „odnaleziona żywa”.`,
-        S.identity ? heal : 'Kim jest, ustalono dopiero rano, po wieczornym zgłoszeniu zaginięcia.', perpLine]);
-    }
-    case 'E6': {
-      const notes = S.clueOrder.filter(c => CLUES[c.id].cat === 'miejsce').map(c => CLUES[c.id].title.toLowerCase());
-      return P([`Ostatnia wiadomość w kanale: „${esc(S.lastHer || '…')}”. Potem już tylko cisza.`,
-        `Karta zgłoszenia nr ${INCIDENT} trafia do wydziału kryminalnego razem z twoimi notatkami${notes.length ? ': ' + esc(notes.join('; ')) : '. Notatek o miejscu jest bardzo mało'}.`,
-        'Patrole do rana pukają do kolejnych domów i schodzą do kolejnych piwnic. Gdzieś pod jedną żarówką ktoś wciąż czeka.',
-        '<b>To zgłoszenie pozostaje otwarte.</b>']);
-    }
-    case 'E7': return P(['Ostatnie dwie wiadomości w kanale nie są od niej: „kto to”, „z kim piszesz”.',
-      S.emptyHouse ? 'W piwnicy przy Słodowej 14 została żarówka na kablu, kurtka robocza i ślady krwi na schodach. Busa nie ma.' : 'Nikt nie wie, gdzie jest ta piwnica. Telefon fundacji Psia Przystań już się nie loguje do sieci.',
-      'Sprawa trafia do wydziału kryminalnego. Rano listy gończe, ogłoszenia, psy tropiące. Biały bus mógł pojechać w każdą stronę.',
-      '<b>To zgłoszenie pozostaje otwarte.</b>']);
-  }
-  return '';
-}
-
 function finish() {
   if (S.over) return;
   S.over = true; S.busy = false;
-  if (S.lostReason === 'bateria' && !has('dim')) mistake('Nie oszczędzano baterii (polecenie przyciemnienia ekranu)');
-  if (S.lostReason === 'omdlenie') {
-    if (!has('oddech_instr') && !has('inhalator')) mistake('Brak pomocy przy duszności');
-    if (!has('czuwa')) mistake('Nie polecono jej czuwać mimo urazu głowy');
-  }
-  const code = endingCode(), E = ENDINGS[code];
+  if (!S.order && !S.escaped) mistake('Nie zadysponowano policji');
+  if (CASE.finalMistakes) CASE.finalMistakes();
+  const code = CASE.endingCode(), E = ENDINGS[code];
   let got = [];
-  try { got = JSON.parse(localStorage.getItem(ENDINGS_KEY) || '[]'); } catch (e) { }
+  try { got = JSON.parse(localStorage.getItem(endingsKey()) || '[]'); } catch (e) { }
   if (!got.includes(code)) got.push(code);
-  try { localStorage.setItem(ENDINGS_KEY, JSON.stringify(got)); } catch (e) { }
+  try { localStorage.setItem(endingsKey(), JSON.stringify(got)); } catch (e) { }
   const pts = scoreOf(code), [g, gl] = gradeOf(pts);
   const total = Object.keys(CLUES).length;
-  // „Co umknęło”: najpierw to, czego zabrakło do celu (tożsamość, adres), pomijając cele już osiągnięte
-  const locDone = S.rescued || S.escaped || addrLevel();
-  const prio = c => c === 'tozsamosc' ? (S.identity ? 9 : 0) : c === 'miejsce' ? (locDone ? 9 : 1) : 2;
+  // „Co umknęło”: najpierw to, czego zabrakło do celu, pomijając cele już osiągnięte (kolejność ustala sprawa)
+  const prio = c => CASE.missedPrio(c);
   const missed = Object.keys(CLUES).filter(id => CLUES[id].hint && !S.clues.has(id) && prio(CLUES[id].cat) < 9)
     .sort((a, b) => prio(CLUES[a].cat) - prio(CLUES[b].cat)).slice(0, 4);
   const saveT = (S.rescued || S.escaped) ? fmtDur(S.rescueT) : '—';
   const chrono = [{ t: 0, l: 'Przyjęcie zgłoszenia, kanał tekstowy' }]
-    .concat(S.clueOrder.filter(c => ['miejsce', 'tozsamosc', 'sprawca', 'wniosek'].includes(CLUES[c.id].cat)).map(c => ({ t: c.t, l: CLUES[c.id].title })))
+    .concat(S.clueOrder.filter(c => CASE.chronoCats.includes(CLUES[c.id].cat)).map(c => ({ t: c.t, l: CLUES[c.id].title })))
     .concat(S.lostAt != null ? [{ t: S.lostAt, l: 'Utrata kontaktu z rozmówczynią', bad: true }] : [])
     .concat(S.rescueT != null ? [{ t: S.rescueT, l: S.escaped ? 'Rozmówczyni wydostała się sama' : 'Poszkodowana odnaleziona', ok: true }] : [])
+    .concat(CASE.chronoExtra ? CASE.chronoExtra() : [])
     .sort((a, b) => a.t - b.t);
   const closed = E.tone !== 'bad';
   sfx(E.tone === 'bad' ? 'bad' : 'win');
   $('#ending-inner').innerHTML = `
     <div class="end-top ${E.tone}">
-      <div class="end-kicker">Karta zdarzenia nr ${INCIDENT} · CPR Kalnów · stanowisko 03</div>
+      <div class="end-kicker">Karta zdarzenia nr ${CASE.incident} · CPR Kalnów · stanowisko 03</div>
       <h1>${esc(E.title)}</h1>
       <div class="end-sub">${esc(E.sub)}</div>
       <div class="stamp ${closed ? 'ok' : 'open'}">${closed ? 'ZAMKNIĘTE<small>' + fmtClock(S.t) + '</small>' : 'OTWARTE<small>przekazano KPP</small>'}</div>
     </div>
     <div class="end-body">
-      <div class="end-story">${epilogue(code)}</div>
+      <div class="end-story">${CASE.epilogue(code)}</div>
       <aside class="end-side">
         <div class="grade g-${g}"><small>Ocena pracy operatora</small><b>${g}</b><span>${pts} / 100</span><em>${esc(gl)}</em></div>
         <dl class="stats">
@@ -924,24 +632,23 @@ function finish() {
           <dt>Jej wiadomości</dt><dd>${S.bubbles}</dd>
           <dt>Poszlaki</dt><dd>${S.clues.size} / ${total}</dd>
           <dt>Bateria na końcu</dt><dd>${Math.round(S.battery)}%</dd>
-          <dt>Tożsamość</dt><dd>${S.identity ? 'ustalona' : 'nieustalona'}</dd>
-          <dt>Sprawca</dt><dd>${S.perpFate === 'arrested' ? 'zatrzymany' : (S.rescued || S.escaped) ? 'zbiegł' : 'nieznany'}</dd>
+          ${CASE.stats().map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}
         </dl>
       </aside>
     </div>
     <div class="end-cols">
       <section><h3>Dobre decyzje</h3>${S.goods.length ? '<ul>' + S.goods.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : '<p class="muted">Brak.</p>'}</section>
       <section><h3>Błędy</h3>${S.mistakes.length ? '<ul class="bad">' + S.mistakes.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : (S.rescued || S.escaped ? '<p class="muted">Ani jednego. Szacunek.</p>' : '<p class="muted">Nie popełniłeś wyraźnego błędu, ale zabrakło czasu. Zobacz „Co umknęło”.</p>')}</section>
-      <section><h3>${(S.rescued || S.escaped) && S.identity ? 'Inne tropy' : 'Co umknęło'}</h3>${missed.length ? '<ul class="hint">' + missed.map(id => `<li>${esc(CLUES[id].hint)}</li>`).join('') + '</ul>' : '<p class="muted">Wszystkie kluczowe poszlaki znalezione.</p>'}</section>
+      <section><h3>${E.tone === 'good' ? 'Inne tropy' : 'Co umknęło'}</h3>${missed.length ? '<ul class="hint">' + missed.map(id => `<li>${esc(CLUES[id].hint)}</li>`).join('') + '</ul>' : '<p class="muted">Wszystkie kluczowe poszlaki znalezione.</p>'}</section>
     </div>
     <div class="end-chrono"><h3>Chronologia zgłoszenia</h3><ol>${chrono.map(c => `<li class="${c.ok ? 'ok' : c.bad ? 'bad' : ''}"><time>${fmtClock(c.t)}</time><span>${esc(c.l)}</span></li>`).join('')}</ol></div>
-    <div class="end-collection"><h3>Zakończenia (${got.length}/7)</h3><div class="endings-row">
+    <div class="end-collection"><h3>Zakończenia (${got.length}/${Object.keys(ENDINGS).length})</h3><div class="endings-row">
       ${Object.keys(ENDINGS).map(k => `<div class="end-slot ${got.includes(k) ? 'got ' + ENDINGS[k].tone : ''} ${k === code ? 'now' : ''}"><b>${got.includes(k) ? esc(ENDINGS[k].title) : '???'}</b><span>${got.includes(k) ? esc(ENDINGS[k].sub) : 'nieodkryte'}</span></div>`).join('')}
     </div></div>
     <div class="end-actions"><button class="btn primary" id="btn-again">Nowy dyżur</button><button class="btn ghost" id="btn-title">Ekran tytułowy</button></div>`;
   $('#app').hidden = true; $('#ending').hidden = false; window.scrollTo(0, 0); $('#ending').scrollTop = 0;
   $('#btn-again').onclick = () => startGame();
-  $('#btn-title').onclick = () => { $('#ending').hidden = true; $('#intro').hidden = false; renderIntroEndings(); };
+  $('#btn-title').onclick = () => { $('#ending').hidden = true; $('#intro').hidden = false; renderIntro(); };
 }
 
 /* =====================================================================
@@ -968,26 +675,25 @@ function renderStatusBar() {
   const pat = !o ? 'W BAZIE' : o.status === 'jedzie' ? `JEDZIE · ETA ${Math.max(0, Math.ceil(o.eta - S.t))} MIN` : o.status === 'na_miejscu' ? 'NA MIEJSCU' : o.status === 'wolny' ? 'WOLNY' : 'ZAKOŃCZ.';
   const items = [
     `KANAŁ: SMS-112 ${ch}`,
-    `AML: <b class="${S.phase === 'ring' ? '' : 'alr'}">BRAK FIX</b>`,
-    `BTS: <b>${has('bts') ? 'KAL-04 · S-NE' : '—'}</b>`,
+    ...CASE.statusItems(),
     `P 0-7: <b class="${o && o.status === 'jedzie' ? 'amb' : ''}">${pat}</b>`,
     `ZRM K-03: <b>${S.zrmSent ? 'ZADYSP.' : 'W BAZIE'}</b>`,
     `<span class="rec">● REC</span>`,
     `STAN. 03 · SWD-PRM 4.2.1`,
   ];
   sb.innerHTML = items.map(x => `<span>${x}</span>`).join('');
-  $('#tb-kwal').textContent = has('schody') || has('zagrozenie') ? '189 KK · OSOBA RANNA' : 'DO USTALENIA';
+  $('#tb-kwal').textContent = CASE.kwal();
 }
 function bar(id, v, cls) { const b = $(id); b.style.width = clamp(v, 0, 100) + '%'; b.className = cls || ''; }
 function renderStatus() {
   $('#clock').textContent = fmtClock(S.t);
   if (S.busy) $('#clock-s').textContent = ':00';
   renderStatusBar();
-  $('#clock-date').textContent = (START_MIN + S.t) >= 24 * 60 ? '27.10.2026' : '26.10.2026';
-  $('#call-time').textContent = fmtDur(S.t);
+  $('#clock-date').textContent = (CASE.start + S.t) >= 24 * 60 ? CASE.nextDate : CASE.date;
+  $('#call-time').textContent = 'T+' + fmtDur(S.t);
   const bt = S.battery;
   $('#bat-val').textContent = Math.max(0, Math.round(bt)) + '%';
-  bar('#bat-bar', bt * (100 / 42), bt <= 10 ? 'crit' : bt <= 18 ? 'warn' : '');
+  bar('#bat-bar', bt * (100 / CASE.battery), bt <= 10 ? 'crit' : bt <= 18 ? 'warn' : '');
   $('#chat-bat').innerHTML = `<span>T+${fmtDur(S.t)}</span> · BAT ${String(Math.max(0, Math.round(bt))).padStart(2, '0')}%`;
   $('#chat-bat').classList.toggle('crit', bt <= 10);
   $('#chat-bat').classList.toggle('warn', bt <= 18 && bt > 10);
@@ -995,26 +701,20 @@ function renderStatus() {
   lb.hidden = !(bt <= 15 && S.contact === 'active');
   lb.classList.toggle('crit', bt <= 8);
   lb.innerHTML = `▲ NISKI POZIOM BATERII<span class="xtra"> URZĄDZENIA ZGŁASZAJĄCEGO</span> · ${Math.max(0, Math.round(bt))}%${has('dim') ? '' : ' · ekran nieprzyciemniony'}`;
-  const knownH = has('glowa');
+  const knownH = CASE.healthKnown();
   $('#hp-val').textContent = knownH ? (S.health >= 60 ? 'stabilny' : S.health >= 35 ? 'pogarsza się' : S.health > 0 ? 'ciężki' : 'brak kontaktu') : 'nieznany';
   bar('#hp-bar', knownH ? S.health : 0, S.health < 35 ? 'crit' : S.health < 60 ? 'warn' : '');
   $('#st-val').textContent = S.stress >= 90 ? 'panika' : S.stress >= 70 ? 'silny lęk' : S.stress >= 45 ? 'lęk' : 'względny spokój';
   bar('#st-bar', S.stress, S.stress >= 90 ? 'crit' : S.stress >= 70 ? 'warn' : 'calm');
   $('#sig').className = 'sig s' + (S.contact === 'lost' ? 0 : S.t > 40 ? 2 : 3);
-  const name = S.identity ? 'Maja Sikorska' : (has('majka') ? '„Majka”?' : 'NN · kobieta');
+  const name = CASE.callerName();
   $('#caller-name').textContent = name;
   $('#chat-title').textContent = name;
-  $('#caller-num').textContent = PHONE + (has('sim') ? ' · Fundacja Psia Przystań' : '');
-  let loc = 'nieustalona';
-  const al = addrLevel(), cand = candidates();
-  if (al === 'confirmed') loc = 'ul. Słodowa 14 (potwierdzona)';
-  else if (al === 'probable') loc = 'prawdopodobnie ul. Słodowa 14';
-  else if (activeGeo().length >= 2 && cand.length >= 2 && cand.length <= 4) loc = `${cand.length} pasujące budynki`;
-  else if (has('adres_ppe')) loc = 'jeden z 3 adresów licznika';
-  else if (has('bts')) loc = 'sektor NE, KAL-04 (~1,2 km)';
-  $('#caller-loc').textContent = loc;
+  $('#caller-num').textContent = CASE.callerNum();
+  const al = addrLevel();
+  $('#caller-loc').textContent = CASE.locText(al, candidates());
   $('#caller-loc').className = al ? 'loc-' + al : '';
-  for (const [k, ok] of protoList()) if (ok && S.protoAt[k] == null) S.protoAt[k] = S.t;
+  for (const [k, ok] of CASE.protocol()) if (ok && S.protoAt[k] == null) S.protoAt[k] = S.t;
   if (!$('#typing')) $('#chat-status').textContent = statusLine();
   $('#chat-bulb').className = 'bulb-ico ' + (S.bulb === 'on' ? 'on' : S.bulb === 'dead' ? 'dead' : 'off');
   document.body.classList.toggle('lost', S.contact === 'lost');
@@ -1028,7 +728,7 @@ function renderQuestions() {
   $('#composer').classList.toggle('ringing', ringing);
   if (ringing) {
     tabs.innerHTML = '';
-    list.innerHTML = `<div class="incoming"><span class="in-l">▶ POŁĄCZENIE PRZYCHODZĄCE</span><span>LINIA 112/03</span><span>ANI ${PHONE}</span><span>AML: oczekiwanie…</span></div>
+    list.innerHTML = `<div class="incoming"><span class="in-l">▶ POŁĄCZENIE PRZYCHODZĄCE</span><span>LINIA 112/03</span><span>ANI ${CASE.phone}</span><span>AML: oczekiwanie…</span></div>
       <button class="answer" id="btn-answer">ODBIERZ <kbd>SPACJA</kbd></button>`;
     $('#btn-answer').onclick = () => { $('#btn-answer').disabled = true; answerCall(); };
     return;
@@ -1068,9 +768,9 @@ function renderQuestions() {
   list.innerHTML = wait + panic + (qs.length ? qs.map((q, i) => {
     const text = typeof q.text === 'function' ? q.text() : q.text;
     const tags = [];
-    const blind = q.light && S.bulb !== 'on' && !has('zapalniczka');
+    const blind = q.light && !lightOk();
     if (!S.seenQ.has(q.id)) tags.push('<em class="new">nowe</em>');
-    if (q.light && S.bulb !== 'on') tags.push(`<em class="dark">${blind ? 'najpierw światło' : 'zapalniczka'}</em>`);
+    if (q.light && S.bulb !== 'on') tags.push(`<em class="dark">${blind ? 'najpierw światło' : esc(CASE.altLightName)}</em>`);
     if (q.calm) tags.push('<em class="calm">uspokaja</em>');
     if (q.memory) tags.push('<em class="mem">wspomnienie</em>');
     return `<button class="q ${blind ? 'blind' : ''}" data-id="${q.id}" ${disabled || blind ? 'disabled' : ''}><kbd>${i < 9 ? i + 1 : ''}</kbd><span>${esc(text)}</span>${tags.join('')}</button>`;
@@ -1123,18 +823,17 @@ function onMapBuilding(id) { S.ui.selBuilding = id; updateMap(); renderMapCard()
 function renderMapCard() {
   const box = $('#map-card');
   const b = BUILDINGS.find(x => x.id === S.ui.selBuilding);
-  if (!b) { box.innerHTML = '<p class="muted">Kliknij budynek z numerem, żeby zobaczyć dane z ewidencji i sprawdzić, czy pasuje do poszlak.</p>'; return; }
+  if (!b) { box.innerHTML = `<p class="muted">${CASE.labels.mapHint}</p>`; return; }
   const ms = buildingMatches(b);
   const ok = ms.filter(m => m.ok).length;
-  const typeName = { dom: 'dom jednorodzinny', kamienica: 'kamienica', blok: 'blok mieszkalny', obiekt: 'obiekt użytkowy' }[b.type];
   const st = STREETS.find(s => s.id === b.street);
   const dis = S.rescued || S.escaped || S.over;
   box.innerHTML = `<div class="mc-h"><b>${esc(b.addr)}</b>${ms.length ? `<span class="fit ${ok === ms.length ? 'all' : ''}">pasuje ${ok}/${ms.length}</span>` : ''}</div>
-    <div class="mc-d">${typeName}, ${b.year} r. · ogrzewanie: ${esc(b.heating)} · piwnica: ${b.basement ? 'tak' : 'nie'} · prąd: ${b.power ? 'tak' : 'nie'}</div>
+    <div class="mc-d">${CASE.buildingInfo(b)}</div>
     <div class="mc-n">${esc(b.note)}</div>
     ${ms.length ? '<ul class="mc-m">' + ms.map(m => `<li class="${m.ok ? 'ok' : 'no'}">${m.ok ? '✓' : '✗'} ${esc(GEO[m.geo].label)} <span>(${esc(CLUES[m.clue].title)})</span></li>`).join('') + '</ul>' : ''}
-    <div class="mc-b"><button class="btn small primary" id="mc-go" ${dis ? 'disabled' : ''}>Wyślij patrol pod ten adres</button>
-    ${st && st.recon ? `<button class="btn small" id="mc-rec" ${dis ? 'disabled' : ''}>Rekonesans: ${esc(st.name)}</button>` : ''}</div>`;
+    <div class="mc-b"><button class="btn small primary" id="mc-go" ${dis ? 'disabled' : ''}>${CASE.labels.go}</button>
+    ${st && st.recon ? `<button class="btn small" id="mc-rec" ${dis ? 'disabled' : ''}>${CASE.labels.reconBtn}: ${esc(st.name)}</button>` : ''}</div>`;
   const go = $('#mc-go'); if (go) go.onclick = () => { S.ui.dispatch.target = 'b:' + b.id; setTab('sluzby'); };
   const rc = $('#mc-rec'); if (rc) rc.onclick = () => { S.ui.dispatch.target = 's:' + b.street; setTab('sluzby'); };
 }
@@ -1148,8 +847,8 @@ function renderTools() {
     const av = !t.avail || t.avail();
     const used = t.once && S.toolsUsed[t.id];
     if (t.input) {
-      html += `<div class="tool"><div class="tl-h"><b>${t.name}</b><span class="cost">⏱ ${t.cost} min / zapytanie</span></div><p>${t.desc}</p>
-        <form class="tl-f" id="ewid-form"><input id="ewid-q" placeholder="np. imię i nazwisko" value="${esc(S.ui.ewidQ)}" autocomplete="off"><button class="btn small" ${dis ? 'disabled' : ''}>Szukaj</button></form></div>`;
+      html += `<div class="tool ${!av ? 'locked' : ''}"><div class="tl-h"><b>${t.name}</b><span class="cost">⏱ ${t.cost} min / zapytanie</span></div><p>${t.desc}</p>
+        ${!av ? `<div class="lock">[ZABLOK.] ${t.lock || ''}</div>` : `<form class="tl-f" data-form="${t.id}"><input data-k="q-${t.id}" placeholder="${esc(t.placeholder || '')}" value="${esc(S.ui.q[t.id] || '')}" autocomplete="off"><button class="btn small" ${dis ? 'disabled' : ''}>Szukaj</button></form>`}</div>`;
       continue;
     }
     if (t.form) {
@@ -1166,25 +865,28 @@ function renderTools() {
           <div class="mr-d">włosy: ${esc(m.hair)}, oczy: ${esc(m.eyes)}, ${m.height} cm · ${esc(m.features)}</div>
           <div class="mr-d">${esc(m.clothes)}. ${esc(m.notes)}</div>
           <div class="mr-d muted">Zgłaszający: ${esc(m.reporter)}</div>
-          ${S.candidateRejected[m.id] ? '<div class="mr-x">wykluczona</div>' : (S.candidate && S.candidate.id === m.id) ? '<div class="mr-c">● wybrana kandydatka</div>' : `<button class="btn small" data-cand="${m.id}" ${dis ? 'disabled' : ''}>Wybierz jako kandydatkę</button>`}
+          ${S.candidateRejected[m.id] ? `<div class="mr-x">${CASE.labels.rejected}</div>` : (S.candidate && S.candidate.id === m.id) ? `<div class="mr-c">${CASE.labels.chosen}</div>` : `<button class="btn small" data-cand="${m.id}" ${dis ? 'disabled' : ''}>${CASE.labels.candidate}</button>`}
         </div>`).join('')}</div></div>`;
       continue;
     }
     html += `<div class="tool ${!av ? 'locked' : ''} ${used ? 'used' : ''}"><div class="tl-h"><b>${t.name}</b><span class="cost">⏱ ${t.cost} min</span></div>
-      <p>${t.desc}${t.id === 'rodzina' && S.candidate ? ` <b>Kandydatka: ${esc(S.candidate.name)}</b> (${esc(S.candidate.reporter)}).` : ''}</p>
+      <p>${t.desc}${t.extra ? t.extra() : ''}</p>
       ${!av ? `<div class="lock">[ZABLOK.] ${t.lock || ''}</div>` : used ? '<div class="done">✔ wykonano</div>' : `<button class="btn small" data-tool="${t.id}" ${dis || S.contact === 'paused' && false ? 'disabled' : ''}>Wykonaj</button>`}</div>`;
   }
   // zachowaj fokus pola tekstowego
   const act0 = document.activeElement, actK = act0 && (act0.id || act0.dataset.k), pos = act0 && act0.selectionStart;
   box.innerHTML = html;
-  if (actK) { const e = actK === 'ewid-q' ? $('#ewid-q') : box.querySelector(`[data-k="${actK}"]`); if (e && e.tagName === 'INPUT') { e.focus(); try { e.setSelectionRange(pos, pos); } catch (x) { } } }
+  if (actK) { const e = box.querySelector(`[data-k="${actK}"]`); if (e && e.tagName === 'INPUT') { e.focus(); try { e.setSelectionRange(pos, pos); } catch (x) { } } }
   box.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => useTool(b.dataset.tool));
   box.querySelectorAll('[data-cand]').forEach(b => b.onclick = () => setCandidate(b.dataset.cand));
   box.querySelectorAll('.mf select').forEach(s => s.onchange = () => { S.ui.mf[s.dataset.k] = s.value; renderTools(); });
   const kw = box.querySelector('.mf input');
   if (kw) kw.oninput = () => { S.ui.mf.kw = kw.value; clearTimeout(kw._t); kw._t = setTimeout(renderTools, 250); };
-  const ef = $('#ewid-form');
-  if (ef) { $('#ewid-q').oninput = e => S.ui.ewidQ = e.target.value; ef.onsubmit = e => { e.preventDefault(); ewidSearch($('#ewid-q').value); }; }
+  box.querySelectorAll('form[data-form]').forEach(f => {
+    const inp = f.querySelector('input');
+    inp.oninput = e => S.ui.q[f.dataset.form] = e.target.value;
+    f.onsubmit = e => { e.preventDefault(); toolSearch(f.dataset.form, inp.value); };
+  });
   const rbox = $('#results');
   rbox.innerHTML = S.ui.results.length ? S.ui.results.map(r => `<div class="res"><div class="res-h"><b>${esc(r.title)}</b><span>${fmtClock(r.t)}</span></div><pre>${esc(r.text)}</pre></div>`).join('') : '<p class="muted">Tu pojawią się wyniki zapytań.</p>';
 }
@@ -1195,7 +897,7 @@ function renderDispatch() {
   const d = S.ui.dispatch, o = S.order;
   const dis = S.busy || !!S.decision || S.over || S.rescued || S.escaped || S.phase === 'ring';
   const optB = BUILDINGS.map(b => `<option value="b:${b.id}" ${d.target === 'b:' + b.id ? 'selected' : ''}>${esc(b.addr)}</option>`).join('');
-  const optS = STREETS.filter(s => s.recon).map(s => `<option value="s:${s.id}" ${d.target === 's:' + s.id ? 'selected' : ''}>${esc(s.name)} (rekonesans)</option>`).join('');
+  const optS = STREETS.filter(s => s.recon).map(s => `<option value="s:${s.id}" ${d.target === 's:' + s.id ? 'selected' : ''}>${esc(s.name)} (${CASE.labels.reconShort || 'rekonesans'})</option>`).join('');
   let status = '<span class="muted">w bazie, KPP Kalnów</span>';
   if (o) {
     const lbl = o.mode === 'rekon' ? 'rekonesans: ' + streetName(o.street) : BUILDINGS.find(b => b.id === o.target).addr;
@@ -1205,7 +907,7 @@ function renderDispatch() {
   }
   const act0 = document.activeElement && document.activeElement.closest && document.activeElement.closest('#dispatch');
   if (act0 && document.activeElement.tagName === 'SELECT') return; // nie psuj otwartej listy
-  box.innerHTML = `<label class="fl">Cel<select id="d-target" ${dis ? 'disabled' : ''}><option value="">— wybierz adres albo ulicę —</option><optgroup label="Interwencja pod adresem">${optB}</optgroup><optgroup label="Rekonesans ulicy (obserwacja z radiowozu)">${optS}</optgroup></select></label>
+  box.innerHTML = `<label class="fl">Cel<select id="d-target" ${dis ? 'disabled' : ''}><option value="">${CASE.labels.pick}</option><optgroup label="${CASE.labels.target}">${optB}</optgroup><optgroup label="${CASE.labels.recon}">${optS}</optgroup></select></label>
     <div class="units"><label><input type="checkbox" checked disabled> Policja – patrol 0-7</label>
       <label><input type="checkbox" id="d-zrm" ${d.zrm ? 'checked' : ''} ${dis ? 'disabled' : ''}> ZRM – karetka</label>
       <label><input type="checkbox" id="d-psp" ${d.psp ? 'checked' : ''} ${dis ? 'disabled' : ''}> PSP – otwarcie drzwi</label></div>
@@ -1223,37 +925,12 @@ function renderDispatch() {
   $('#radio-log').innerHTML = S.ui.radio.length ? S.ui.radio.map(r => `<div class="rl"><span>${fmtClock(r.t)} · ${esc(r.who)}</span>${esc(r.text)}</div>`).join('') : '<p class="muted">Cisza w eterze.</p>';
 }
 
-function protoList() {
-  return [
-    ['Lokalizacja przybliżona', has('bts') || has('pociag') || has('slod') || has('dzwon') || has('adres_ppe')],
-    ['Lokalizacja dokładna', !!addrLevel()],
-    ['Co się stało', has('schody') || has('zagrozenie')],
-    ['Stan poszkodowanej', has('glowa')],
-    ['Zagrożenie na miejscu', has('zagrozenie')],
-    ['Tożsamość', S.identity],
-    ['Sprawca ustalony', ['krs', 'ewid_marek', 'straznik', 'siostra', 'w_marek'].some(has) || S.perpFate === 'arrested'],
-    ['Policja zadysponowana', !!S.order],
-    ['ZRM zadysponowany', S.zrmSent],
-  ];
-}
 function renderCard() {
   const box = $('#card');
   if (!box) return;
-  $('#protocol').innerHTML = protoList().map(([l, ok]) => `<li class="${ok ? 'ok' : ''}"><span class="pb">${ok ? '[X]' : '[ ]'}</span>${l}<time>${ok && S.protoAt[l] != null ? fmtClock(S.protoAt[l]) : ''}</time></li>`).join('');
-  const perp = ['ewid_marek', 'straznik', 'siostra', 'w_marek'].some(has) ? 'prawdopodobnie Marek Wróbel (prezes fundacji)' : has('krs') ? 'możliwy związek: Marek Wróbel?' : has('sms') ? '„Marek”, właściciel telefonu' : has('glos') ? 'mężczyzna, spokojny głos' : 'nieznany';
-  const health = [has('glowa') && 'uraz głowy, niepamięć', has('oddech') && 'duszność (astma?)', has('zimno') && 'wychłodzenie', has('rozpuszczalnik') && S.mistakes.some(m => m.includes('rozpuszczalnik')) && 'oparzenie chemiczne jamy ustnej'].filter(Boolean).join('; ') || '—';
-  const ident = S.identity ? 'Maja Sikorska, ur. 2007, ul. Kasztanowa 3/7' : [has('wlosy') && 'rude włosy', has('twarz') && 'ok. 18–22 l.', has('tatuaz') && 'tatuaż łapki', has('bransoletka') && 'bransoletka M&O', has('bluza') && 'bluza Psia Przystań', has('majka') && 'imię: Majka?'].filter(Boolean).join(', ') || 'NN';
-  box.innerHTML = `<dl class="kz">
-    <dt>Nr zgłoszenia</dt><dd>${INCIDENT}</dd>
-    <dt>Przyjęto</dt><dd>26.10.2026, 23:41 · kanał tekstowy</dd>
-    <dt>Telefon</dt><dd>${PHONE}${has('sim') ? '<br>abonent: Fundacja Psia Przystań' : ''}</dd>
-    <dt>Rodzaj</dt><dd>${has('schody') || has('zagrozenie') ? 'pozbawienie wolności (art. 189 kk), osoba ranna' : 'do ustalenia'}</dd>
-    <dt>Poszkodowana</dt><dd>${esc(ident)}</dd>
-    <dt>Stan</dt><dd>${esc(health)}</dd>
-    <dt>Miejsce</dt><dd>${esc($('#caller-loc').textContent)}</dd>
-    <dt>Sprawca</dt><dd>${esc(perp)}</dd>
-    <dt>Kandydatka</dt><dd>${S.candidate ? esc(S.candidate.name) + (S.identity ? ' ✓' : ' (do weryfikacji)') : '—'}</dd>
-  </dl>`;
+  $('#protocol').innerHTML = CASE.protocol().map(([l, ok]) => `<li class="${ok ? 'ok' : ''}"><span class="pb">${ok ? '[X]' : '[ ]'}</span>${l}<time>${ok && S.protoAt[l] != null ? fmtClock(S.protoAt[l]) : ''}</time></li>`).join('');
+  const rows = [['Nr zgłoszenia', CASE.incident], ['Przyjęto', `${CASE.date}, ${fmtClock(0)} · kanał tekstowy`]].concat(CASE.card());
+  box.innerHTML = `<dl class="kz">${rows.map(([k, v, raw]) => `<dt>${esc(k)}</dt><dd>${raw ? v : esc(v)}</dd>`).join('')}</dl>`;
   const nb = $('#notes');
   if (nb && document.activeElement !== nb && nb.value !== S.ui.notes) nb.value = S.ui.notes;
 }
@@ -1289,10 +966,11 @@ function startGame() {
   $('#tab-mapa').classList.remove('expanded');
   $('#decision').hidden = true;
   $('#composer').classList.remove('deciding');
-  document.body.className = '';
+  document.body.className = 'case-' + CASE.id;
   buildMap($('#map'));
   buildSketch($('#sketch'));
-  $('#incident-no').textContent = INCIDENT;
+  $('#incident-no').textContent = CASE.incident;
+  $('.map-bar span').textContent = CASE.mapTitle;
   addBubble('sys', 'Nocna zmiana, stanowisko 3. Kolejka zgłoszeń pusta.');
   renderAll();
   setTimeout(() => { if (S.phase === 'ring') { addBubble('sys', 'Połączenie przychodzące na numer 112…'); sfx('ring'); } }, 1600);
@@ -1300,10 +978,26 @@ function startGame() {
   window._ringIv = setInterval(() => { if (S && S.phase === 'ring') sfx('ring'); else clearInterval(window._ringIv); }, 3200);
 }
 
-function renderIntroEndings() {
+/* ekran tytułowy: wybór sprawy, opis sprawy, zakończenia, bramka 18+ */
+function renderIntro() {
+  const I = CASE.intro, meta = CASES.find(c => c.id === CASE.id);
+  document.title = `${meta.title} – gra operatora numeru 112`;
+  document.body.dataset.case = CASE.id;
+  $('#case-tabs').innerHTML = CASES.map(c => `<a class="case-tab ${c.id === CASE.id ? 'on' : ''}" href="?sprawa=${c.id}">
+    <span class="ct-no">SPRAWA ${c.no}${c.adult ? ' <i>18+</i>' : ''}</span><b>${esc(c.title)}</b><small>${esc(c.short)}</small></a>`).join('');
+  $('#intro-visual').innerHTML = I.visual;
+  $('#intro-kicker').textContent = I.kicker;
+  $('#intro-title').textContent = meta.title;
+  $('#intro-lead').innerHTML = I.lead.map(p => `<p class="intro-lead">${p}</p>`).join('');
+  $('#intro-shift').textContent = I.shift;
+  $('#intro-warn').textContent = I.warn;
+  $('#intro').style.setProperty('--intro-img', I.image ? `url("${new URL(I.image, location.href).href}")` : 'none');
   let got = [];
-  try { got = JSON.parse(localStorage.getItem(ENDINGS_KEY) || '[]'); } catch (e) { }
-  $('#intro-endings').innerHTML = `Odkryte zakończenia: <b>${got.length}/7</b>` + (got.length ? ' · ' + got.map(k => esc(ENDINGS[k].title)).join(' · ') : '');
+  try { got = JSON.parse(localStorage.getItem(endingsKey()) || '[]'); } catch (e) { }
+  $('#intro-endings').innerHTML = `Odkryte zakończenia: <b>${got.length}/${Object.keys(ENDINGS).length}</b>` + (got.length ? ' · ' + got.map(k => esc(ENDINGS[k].title)).join(' · ') : '');
+  $('#age-gate').hidden = !meta.adult;
+  const gate = () => { $('#btn-start').disabled = !!meta.adult && !$('#set-adult').checked; };
+  $('#set-adult').onchange = gate; gate();
 }
 
 /* sekundy zegara: przy presji czasu minuta gry mija w 30 s, więc sekundy gry biegną dwa razy szybciej */
@@ -1341,7 +1035,8 @@ document.addEventListener('keydown', e => {
   }
 });
 
-window.addEventListener('DOMContentLoaded', () => {
+/* wołane przez js/cases.js po wczytaniu plików sprawy */
+function initApp() {
   try { Object.assign(SET, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch (e) { }
   $('#set-sound').checked = SET.sound; $('#set-pressure').checked = SET.pressure; $('#set-fast').checked = SET.fast;
   const saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(SET)); } catch (e) { } };
@@ -1358,5 +1053,5 @@ window.addEventListener('DOMContentLoaded', () => {
   $$('#mnav button').forEach(b => b.onclick = () => { S.ui.mcol = b.dataset.col; renderTabs(); if (b.dataset.col === 'center') $('#chat').scrollTop = 1e9; });
   $('#btn-map-expand').onclick = () => { $('#tab-mapa').classList.toggle('expanded'); $('#btn-map-expand').textContent = $('#tab-mapa').classList.contains('expanded') ? '✕ Zamknij' : '⤢ Powiększ'; };
   $('#btn-sound').textContent = SET.sound ? 'SND' : 'MUTE';
-  renderIntroEndings();
-});
+  renderIntro();
+}

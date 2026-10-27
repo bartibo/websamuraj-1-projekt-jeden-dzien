@@ -2,6 +2,15 @@
 
 Gra fabularna w przeglądarce. Jesteś operatorem numeru alarmowego 112 na nocnej zmianie w Centrum Powiadamiania Ratunkowego w Kalnowie (fikcyjne miasto). O 23:41 przychodzi połączenie, w którym nikt nic nie mówi. Potem w kanale tekstowym pojawia się wiadomość od dziewczyny zamkniętej w piwnicy z jedną żarówką. Nie pamięta, kim jest, a na górze ktoś chodzi. Masz czat, bazy danych, mapę miasta i jeden radiowóz. Ona ma telefon z kończącą się baterią.
 
+Gra ma teraz dwie sprawy, wybierane na ekranie tytułowym:
+
+| # | Sprawa | O czym |
+|---|--------|--------|
+| 01 | **Pod jedną żarówką** | Dziewczyna bez pamięci zamknięta w piwnicy. Kalnów, 26.10, 23:41. |
+| 02 | **Oddział zamknięty** (18+) | Noc Wszystkich Świętych w opuszczonym szpitalu psychiatrycznym w Borku. 01.11, 00:47. |
+
+Silnik (czat, czas, bateria, bazy, tablica poszlak, mapa, dysponowanie, raport) jest wspólny, a każda sprawa leży w osobnym folderze `sprawy/`. Kolejne sprawy dodaje się bez ruszania silnika.
+
 ## Jak powstał
 
 Dzień 7 eksperymentu [1 prompt, 1 zdanie](../README.md): jeden prompt, zero poprawek.
@@ -17,7 +26,7 @@ Dzień 7 eksperymentu [1 prompt, 1 zdanie](../README.md): jeden prompt, zero pop
 
 ## Jak uruchomić
 
-Kliknij dwa razy plik **`index.html`**. Gra otworzy się w przeglądarce (Chrome, Edge, Firefox).
+Kliknij dwa razy plik **`index.html`**. Gra otworzy się w przeglądarce (Chrome, Edge, Firefox). Sprawę wybierasz na ekranie tytułowym. Można też wejść od razu w konkretną sprawę: `index.html?sprawa=zarowka` albo `index.html?sprawa=oddzial`. Druga sprawa wymaga potwierdzenia, że masz 18 lat.
 Nie trzeba niczego instalować ani budować. Działa też bez internetu (wtedy z czcionką systemową zamiast IBM Plex).
 Na telefonie kolumny przełącza dolny pasek: Stan, Rozmowa, Narzędzia.
 
@@ -51,6 +60,21 @@ Na końcu jest karta zdarzenia: ocena od S do F, statystyki, dobre decyzje, bł�
 
 Gra porusza temat uprowadzenia, przemocy (bez drastycznych opisów), urazu i strachu. Miasto Kalnów, osoby, firmy i instytucje są zmyślone.
 
+## Sprawa 2: Oddział zamknięty (18+)
+
+Noc z 31 października na 1 listopada. Cmentarz w Borku pod Kalnowem świeci tysiącami zniczy, a za jego murem stoi szpital psychiatryczny zamknięty w 1998 roku. Troje urbexerów, Kinga, Dawid i Szymek, weszło tam o północy z transmisją na żywo. O 00:47 Kinga pisze do 112. Schowała się w jakiejś sali i nie wie, w którym budynku jest, bo biegła po ciemku tunelami. Z głośników, które od lat nie mają prądu, spokojny głos „przyjmuje pacjentów na oddział”. Zna jej imię.
+
+- **Cel:** ustalić pawilon, piętro i salę Kingi, odnaleźć Dawida, zanim o 01:30 zacznie się „zabieg”, i wysłać patrol, zanim sprawca przyjdzie po nią.
+- **Latarka zamiast żarówki.** Bez latarki ona nic nie zobaczy, a latarka zjada baterię i świeci pod drzwiami.
+- **Teren zamiast miasta.** Mapa to plan szpitala: pawilony A–E, kotłownia z agregatem, wieża ciśnień, prosektorium, kaplica, tunele i cmentarz pełen zniczy. Patrol przeszukuje budynki, a wiedza o piętrze skraca przeszukanie z 4 minut do 1.
+- **Drogi do celu:** AML i widok z okna (znicze na wschodzie, wieża ciśnień po lewej, piętro z tunelem) zawężają mapę do jednego pawilonu. Opaska szpitalna „Oddz. III, sala 12” razem z archiwalnymi planami też wskazuje pawilon C. Graffiti z korytarza można znaleźć na forum urbexowym, a patrol pod murem cmentarza zobaczy sygnał latarką. Portiernia stróża skrywa listę przyjęć.
+- **Dawid:** zapis transmisji z serwisu streamingowego, relacja Szymka, komunikat z głośnika, światło w piwnicznych okienkach i kabel od agregatu prowadzą do izolatek w pawilonie D.
+- **Sprawca:** właściciel terenu, telefon do ochrony („pan Edmund, był tu sanitariuszem”), ewidencja, wcześniejsze zgłoszenia z Borku i baza zaginionych sprzed lat. Telefon do ochrony z prośbą o zawiadomienie stróża przyspiesza wszystko.
+- **Decyzje na czas:** ktoś sprawdza klamki, a potem staje pod jej drzwiami. Barykada, plan ukrycia, noga od krzesła albo blef, że policja już jest. Syreny płoszą sprawcę, dyskretny dojazd pozwala go zatrzymać.
+- **Sześć zakończeń:** Wypisani · Jedno łóżko puste · Ku światłom zniczy · Izolatka numer 2 · Cisza nocna · Nowa pacjentka.
+
+Sprawa zawiera martwe ciała, przemoc, porwanie i sceny grozy, bez drastycznych opisów. Szpital, Borek, osoby i firmy są zmyślone.
+
 ## Technika
 
 - Czysty HTML, CSS i JavaScript, bez bibliotek i bez budowania.
@@ -61,15 +85,24 @@ Gra porusza temat uprowadzenia, przemocy (bez drastycznych opisów), urazu i str
 ## Struktura
 
 ```
-index.html      – ekran tytułowy, konsola operatora, pomoc, raport końcowy
-img/            – tło ekranu tytułowego i obraz do udostępniania (wygenerowane w Nano Banana)
-css/style.css   – wygląd konsoli, czatu, mapy, szkicu i raportu
-js/data.js      – fabuła: poszlaki, wnioski i ich połączenia, pytania i odpowiedzi, zdarzenia, budynki, ulice, baza zaginionych, ewidencja, zakończenia
-js/game.js      – silnik: czas, bateria, stan, zdarzenia, decyzje, narzędzia, dysponowanie, zakończenia, interfejs
-js/map.js       – mapa Kalnowa w SVG, nakładki poszlak, dopasowanie budynków, radiowóz
-js/sketch.js    – szkic piwnicy uzupełniany na podstawie relacji
-js/audio.js     – syntezowany dźwięk
+index.html          – ekran tytułowy z wyborem sprawy, konsola operatora, pomoc, raport końcowy
+img/og.jpg          – obraz do udostępniania
+css/style.css       – wygląd konsoli, czatu, mapy, szkicu i raportu (też elementy spraw)
+js/game.js          – silnik wspólny: czas, bateria, stan, zdarzenia, decyzje, narzędzia, tablica poszlak, dysponowanie, raport
+js/map.js           – część wspólna mapy: dopasowanie budynków do poszlak, radiowóz, legenda
+js/audio.js         – syntezowany dźwięk
+js/cases.js         – rejestr spraw i wczytywanie plików wybranej sprawy
+sprawy/zarowka/     – sprawa 1: data.js, story.js, map.js (Kalnów), sketch.js (piwnica), intro.jpg
+sprawy/oddzial/     – sprawa 2: data.js, story.js, map.js (szpital w Borku), sketch.js (sala 12), intro.jpg
 ```
+
+### Jak dodać nową sprawę
+
+1. Skopiuj folder jednej ze spraw do `sprawy/<id>/`.
+2. `data.js`: poszlaki (`CLUES`), wnioski (`LINKS`), kategorie pytań i pytania (`Q_CATS`, `QUESTIONS`), zdarzenia w czasie (`EVENTS`), budynki i trasy (`BUILDINGS`, `STREETS`, `RECON`), bazy (`MISSING`, `REGISTRY`) i zakończenia (`ENDINGS`).
+3. `story.js`: obiekt `CASE` (godzina, telefon, bateria, opis na ekran tytułowy, hooki: początek rozmowy, przybycie patrolu, karta, procedura, kod zakończenia, epilogi) i lista narzędzi `TOOLS`.
+4. `map.js`: ograniczenia z poszlak (`GEO`), rysunek terenu (`buildMap`) i nakładki. `sketch.js`: szkic miejsca.
+5. Dopisz sprawę do `CASES` w `js/cases.js`.
 
 ## Rozwój po eksperymencie
 
@@ -109,3 +142,9 @@ js/audio.js     – syntezowany dźwięk
 - **Telefon:**
   - decyzja na czas sama przełącza na rozmowę, licznik nieprzeczytanych wiadomości na przycisku „Rozmowa”,
   - kategorie pytań w jednym przewijanym rzędzie, bez stałej podpowiedzi, bez poziomego przewijania ekranu tytułowego.
+- **Druga sprawa i wspólny silnik (27.10.2026, druga część dnia):**
+  - silnik rozdzielony od fabuły: sprawy w `sprawy/<id>/`, rejestr w `js/cases.js`, wybór sprawy na ekranie tytułowym, osobna kolekcja zakończeń dla każdej sprawy,
+  - nowa sprawa 18+ „Oddział zamknięty”: 38 poszlak, 5 wniosków, 39 pytań i poleceń, 16 zdarzeń, 9 budynków na planie szpitala, 8 narzędzi (m.in. zapis transmisji na żywo, archiwalne plany, forum urbexowe, ochrona terenu), 6 zakończeń,
+  - komunikaty z głośnika jako osobny typ wiadomości, latarka zużywająca baterię, nowe dźwięki (głośnik, agregat, klamka, pukanie, krzyk przez rury),
+  - bramka 18+ na ekranie tytułowym, tło z korytarzem szpitala (Nano Banana).
+  - poprawki po teście drugiej sprawy przez agenta UX: patrol wysłany bez żadnej poszlaki przeszukuje pawilon 9 min i obniża ocenę, sprawca słyszy nadjeżdżający radiowóz i rusza po nią (kulminacja nie omija szybkiego gracza), poprawiona orientacja widoku z okna (wieża po lewej, kaplica po prawej), wyjaśnienie porażki przy ukryciu bez barykady, spójniejsze teksty (agregat, numery sal, prosektorium, opatrunek), jej „zabieg” nie przed jego, przewijanie do nowego wyniku w bazach, krótsze zakładki na telefonie.

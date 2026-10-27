@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0f14">
-  <title>Pod jedną żarówką – gra operatora numeru 112</title>
-  <meta name="description" content="Interaktywny dramat w oknie czatu operatora numeru alarmowego 112. Dziewczyna z amnezją jest zamknięta w piwnicy z jedną żarówką. Zadawaj pytania, zbieraj poszlaki, ustal, kim jest i gdzie jest, i wyślij pomoc, zanim padnie jej telefon.">
+  <title>Operator 112 – gra fabularna</title>
+  <meta name="description" content="Interaktywne dramaty w oknie czatu operatora numeru alarmowego 112. Zadawaj pytania, zbieraj poszlaki, ustal, gdzie jest osoba w niebezpieczeństwie, i wyślij pomoc, zanim padnie jej telefon. Sprawa 1: Pod jedną żarówką. Sprawa 2 (18+): Oddział zamknięty.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cpath d='M32 6v12' stroke='%23556' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='22' fill='%23ffb547' opacity='.25'/%3E%3Cpath d='M24 30a8 8 0 1 1 16 0c0 4-3 6-3 10H27c0-4-3-6-3-10z' fill='%23ffcf70'/%3E%3Crect x='27' y='42' width='10' height='6' rx='2' fill='%23889'/%3E%3C/svg%3E">
   <meta property="og:title" content="Pod jedną żarówką – gra operatora numeru 112">
   <meta property="og:description" content="Nocna zmiana w CPR. Dziewczyna bez pamięci w piwnicy, telefon z kończącą się baterią i ty po drugiej stronie czatu.">
@@ -21,11 +21,11 @@
 <!-- ================= EKRAN TYTUŁOWY ================= -->
 <section id="intro" class="screen">
   <div class="intro-wrap">
-    <div class="intro-bulb" aria-hidden="true"><div class="cord"></div><div class="glass"></div><div class="halo"></div></div>
-    <div class="intro-kicker">Centrum Powiadamiania Ratunkowego · Kalnów · nocna zmiana</div>
-    <h1 class="intro-title">Pod jedną żarówką</h1>
-    <p class="intro-lead">Jest 23:41. Za chwilę odbierzesz zgłoszenie, w którym nikt nic nie mówi. Ktoś tylko pisze, szeptem palców po ekranie: dziewczyna zamknięta w piwnicy, z jedną żarówką nad głową, która nie pamięta nawet własnego imienia.</p>
-    <p class="intro-lead">Masz tylko czat, bazy danych, mapę miasta i jeden radiowóz. Ona ma telefon z kończącą się baterią.</p>
+    <nav class="case-tabs" id="case-tabs" aria-label="Wybór sprawy"></nav>
+    <div id="intro-visual" aria-hidden="true"></div>
+    <div class="intro-kicker" id="intro-kicker"></div>
+    <h1 class="intro-title" id="intro-title"></h1>
+    <div id="intro-lead"></div>
 
     <div class="intro-grid">
       <div class="intro-card">
@@ -43,11 +43,12 @@
       <div class="intro-card login">
         <h3><span>02</span> SWD-PRM · logowanie · stanowisko 03</h3>
         <div class="login-row"><span>operator</span><b>OP-03 · nocna zmiana</b></div>
-        <div class="login-row"><span>dyżur</span><b>26.10.2026 · 19:00 – 07:00</b></div>
+        <div class="login-row"><span>dyżur</span><b id="intro-shift">—</b></div>
         <label class="sw"><input type="checkbox" id="set-sound" checked><span></span> Dźwięk</label>
         <label class="sw"><input type="checkbox" id="set-pressure" checked><span></span> Presja czasu (czas płynie, gdy zwlekasz)</label>
         <label class="sw"><input type="checkbox" id="set-fast"><span></span> Szybsze pisanie rozmówczyni</label>
-        <p class="intro-warn">Gra porusza temat uprowadzenia, przemocy (bez drastycznych opisów), urazu i strachu.</p>
+        <p class="intro-warn" id="intro-warn"></p>
+        <label class="sw adult" id="age-gate" hidden><input type="checkbox" id="set-adult"><span></span> Mam ukończone 18 lat i chcę zagrać w tę sprawę</label>
         <p class="intro-endings" id="intro-endings"></p>
       </div>
     </div>
@@ -170,7 +171,7 @@
       <li><b>Rozmowa.</b> Wybieraj pytania z kategorii pod czatem. Nowe pojawiają się, gdy ona coś opisze albo gdy znajdziesz coś w bazach. Część poleceń (np. przyciemnienie ekranu) może uratować baterię.</li>
       <li><b>Bateria.</b> Każda jej wiadomość i każda minuta zużywa baterię. Gdy spadnie do zera, kontakt się urywa.</li>
       <li><b>Stan i strach.</b> Uraz głowy, chłód i duszność pogarszają jej stan. Gdy panikuje, odpowiada chaotycznie. Uspokajaj ją i udzielaj instrukcji.</li>
-      <li><b>Światło.</b> Bez żarówki ona nic nie zobaczy. Ale czasem lepiej, żeby nikt nie zobaczył jej.</li>
+      <li><b>Światło.</b> Bez światła ona nic nie zobaczy. Ale czasem lepiej, żeby nikt nie zobaczył jej.</li>
       <li><b>Mapa.</b> Poszlaki o otoczeniu pokazują nakładki (tory, zapach, dzwon, sektor sieci). Kliknij budynek, żeby zobaczyć dane z ewidencji i dopasowanie.</li>
       <li><b>Bazy.</b> Lokalizacja z sieci, abonent numeru, KRS, ewidencja, baza zaginionych, dystrybutor energii i telefony. Każde zapytanie kosztuje minuty.</li>
       <li><b>Służby.</b> Patrol możesz wysłać pod adres albo na rekonesans ulicy. Błędny adres to stracony czas. Pomyśl też o karetce i o syrenach.</li>
@@ -187,9 +188,8 @@
 <section id="ending" class="screen ending" hidden><div id="ending-inner" class="ending-inner"></div></section>
 
 <script src="js/audio.js"></script>
-<script src="js/data.js"></script>
 <script src="js/map.js"></script>
-<script src="js/sketch.js"></script>
 <script src="js/game.js"></script>
+<script src="js/cases.js"></script>
 </body>
 </html>

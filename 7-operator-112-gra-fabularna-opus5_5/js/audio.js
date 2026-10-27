@@ -102,6 +102,19 @@ const AUDIO = {
       case 'siren':
         for (let i = 0; i < 4; i++) { this.tone(700, 0.5, { at: i * 1.0, vol: 0.03, slide: 500, type: 'triangle' }); this.tone(1200, 0.5, { at: i * 1.0 + 0.5, vol: 0.03, slide: -500, type: 'triangle' }); }
         break;
+      case 'pa': // stary głośnik: trzask, gong, szum pod głosem
+        this.noise(0.25, { vol: 0.08, freq: 2500, q: 0.6 });
+        this.tone(660, 0.9, { at: 0.25, vol: 0.05, type: 'triangle' }); this.tone(523, 1.2, { at: 0.75, vol: 0.05, type: 'triangle' });
+        this.noise(2.6, { at: 1.6, vol: 0.025, freq: 1400, q: 0.8, attack: 0.1, release: 0.6 });
+        this.tone(100, 2.6, { at: 1.6, vol: 0.02, type: 'sawtooth' });
+        break;
+      case 'generator':
+        this.noise(5, { vol: 0.07, freq: 80, q: 1.2, type: 'lowpass', attack: 1.2, release: 2 });
+        for (let i = 0; i < 40; i++) this.noise(0.05, { at: 0.8 + i * 0.1, vol: 0.025, freq: 120, q: 4 });
+        break;
+      case 'handle': for (let i = 0; i < 3; i++) { this.noise(0.08, { at: i * 0.35, vol: 0.09, freq: 2600, q: 5 }); this.tone(1900, 0.06, { at: i * 0.35 + 0.02, vol: 0.03, type: 'square' }); } break;
+      case 'scream': this.tone(900, 1.6, { vol: 0.03, type: 'sawtooth', slide: -500, attack: 0.3 }); this.noise(1.6, { vol: 0.02, freq: 900, q: 6, attack: 0.3 }); break;
+      case 'knock': for (const at of [0, 0.3, 0.6, 1.5, 1.8, 2.1]) this.noise(0.07, { at, vol: 0.14, freq: 160, q: 2, type: 'lowpass' }); break;
       case 'buzz': for (let k = 0; k < 2; k++) this.tone(170, 0.38, { at: k * 0.55, vol: 0.09, type: 'sawtooth', attack: 0.02 }); break;
       case 'link': [440, 660, 880].forEach((f, i) => this.tone(f, 0.22, { at: i * 0.07, vol: 0.05, type: 'triangle' })); break;
       case 'win': [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.6, { at: i * 0.14, vol: 0.06 })); break;
