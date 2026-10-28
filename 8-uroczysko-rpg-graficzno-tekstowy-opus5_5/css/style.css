@@ -63,6 +63,8 @@ button { font: inherit; color: inherit; }
 #title-bg, #ending-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
 #title::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(5, 6, 8, .92) 0%, rgba(5, 6, 8, .62) 40%, rgba(5, 6, 8, 0) 75%); z-index: 1; pointer-events: none; }
 .title-wrap { position: relative; z-index: 2; max-width: 620px; margin-left: clamp(16px, 7vw, 120px); padding: 24px 16px; max-height: 100%; overflow-y: auto; overflow-x: hidden; }
+.title-back { display: inline-block; margin-bottom: 1.4em; font-family: var(--title); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); text-decoration: none; }
+.title-back:hover, .title-back:focus-visible { color: var(--ochre2); }
 .title-kicker { font-family: var(--title); letter-spacing: .3em; font-size: .72rem; color: var(--ochre); text-transform: uppercase; margin-bottom: 1em; }
 .title-main {
   font-family: var(--title); font-weight: 900; font-size: clamp(2.6rem, 7vw, 5.2rem); line-height: .98; margin: 0 0 .35em; letter-spacing: .02em;
