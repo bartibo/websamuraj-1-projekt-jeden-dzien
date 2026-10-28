@@ -165,7 +165,7 @@ button { font: inherit; color: inherit; }
 .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
 .stage { min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); }
 .scene-wrap { position: relative; flex: none; background: #000; display: flex; justify-content: center; border-bottom: 1px solid var(--line); transition: box-shadow .4s; }
-#scene-amb { position: absolute; inset: 0; width: 100%; height: 100%; filter: blur(38px) brightness(.55) saturate(1.2); transform: scale(1.15); pointer-events: none; }
+#scene-amb { position: absolute; inset: 0; width: 100%; height: 100%; transform: scale(1.15); pointer-events: none; }
 .scene-wrap { overflow: hidden; }
 #scene { position: relative; display: block; width: 100%; height: auto; max-height: min(44vh, calc(100dvh - 50px - 420px)); aspect-ratio: 16 / 9; object-fit: contain; }
 #game.combat .scene-wrap { box-shadow: inset 0 0 0 2px rgba(179, 36, 26, .6); }

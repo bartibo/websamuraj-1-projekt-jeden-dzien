@@ -52,6 +52,8 @@ const Snd = (() => {
     // ogień (szum)
     { const n = noiseSrc(), hp = ac.createBiquadFilter(); hp.type = 'lowpass'; hp.frequency.value = 900;
       const g = gain(0); n.connect(hp); hp.connect(g); g.connect(master); n.start(); L.fire = g; }
+    // wspólne echo dla kropli i wycia
+    { L.echo = ac.createDelay(); L.echo.delayTime.value = 0.27; L.echoFb = gain(0.33); L.echo.connect(L.echoFb); L.echoFb.connect(L.echo); L.echoFb.connect(master); }
   }
 
   function env(g, t0, a, peak, dcy) {
@@ -69,8 +71,7 @@ const Snd = (() => {
     const t = ac.currentTime, o = ac.createOscillator(), g = gain(0);
     o.type = 'sine'; const f = 900 + Math.random() * 900;
     o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.45, t + 0.12);
-    const dl = ac.createDelay(); dl.delayTime.value = 0.23; const fb = gain(0.35);
-    o.connect(g); g.connect(master); g.connect(dl); dl.connect(fb); fb.connect(dl); fb.connect(master);
+    o.connect(g); g.connect(master); g.connect(L.echo);
     env(g, t, 0.003, 0.08 * mood.drip, 0.18); o.start(t); o.stop(t + 0.3);
   }
   function crow() {
@@ -128,7 +129,7 @@ const Snd = (() => {
   }
 
   function tickEvents() {
-    if (!ac || !on) return;
+    if (!ac || !on || ac.state !== 'running') return;
     const now = ac.currentTime;
     if (mood.fire > 0 && Math.random() < 0.45 * mood.fire) crackle();
     if (mood.drip > 0 && Math.random() < 0.08 * mood.drip) drip();
@@ -165,8 +166,8 @@ const Snd = (() => {
     howl(v = 1) { if (!ac || !on) return; const t = ac.currentTime, o = ac.createOscillator(), o2 = ac.createOscillator(), lp = ac.createBiquadFilter(), g = gain(0), vib = ac.createOscillator(), vg = gain(9);
       o.type = 'sawtooth'; o2.type = 'triangle'; vib.frequency.value = 5.2; vib.connect(vg); vg.connect(o.frequency); vg.connect(o2.frequency);
       [o, o2].forEach((x, i) => { const k = i ? 2 : 1; x.frequency.setValueAtTime(380 * k, t); x.frequency.exponentialRampToValueAtTime(610 * k, t + 0.9); x.frequency.setValueAtTime(610 * k, t + 1.9); x.frequency.exponentialRampToValueAtTime(430 * k, t + 3.4); });
-      lp.type = 'lowpass'; lp.frequency.value = 1300; const dl = ac.createDelay(); dl.delayTime.value = 0.31; const fb = gain(0.32);
-      const g2 = gain(0.18); o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(master); g.connect(dl); dl.connect(fb); fb.connect(dl); fb.connect(master);
+      lp.type = 'lowpass'; lp.frequency.value = 1300;
+      const g2 = gain(0.18); o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(master); g.connect(L.echo);
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07 * v, t + 0.7); g.gain.setValueAtTime(0.07 * v, t + 2.6); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.6);
       [o, o2, vib].forEach(x => { x.start(t); x.stop(t + 3.8); }); },
     page() { if (!ac || !on) return; const t = ac.currentTime, s = noiseSrc(), bp = ac.createBiquadFilter(), g = gain(0); bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.8; s.connect(bp); bp.connect(g); g.connect(master); env(g, t, 0.03, 0.05, 0.2); s.start(t); s.stop(t + 0.3); },

@@ -937,7 +937,7 @@ function applySettings() {
 function init() {
   mainView = Scene.view($('#scene'), { amb: $('#scene-amb') });
   titleView = Scene.view($('#title-bg'), { always: true });
-  endView = Scene.view($('#ending-bg'), { always: true });
+  endView = Scene.view($('#ending-bg'), { always: true, half: true });
   titleView.set(TITLE_SPEC);
   loadSettings();
   buildCreate();

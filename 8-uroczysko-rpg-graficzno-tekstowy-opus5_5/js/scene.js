@@ -953,7 +953,8 @@ const Scene = (() => {
      WIDOK: płótno + stan + pętla
      ===================================================================== */
   function makeFog(col, seed, scale, density) {
-    const c = mk(W * 2, H), x = c.getContext('2d'), R = rng(seed);
+    const c = mk(W, H / 2), x = c.getContext('2d'), R = rng(seed);
+    x.scale(0.5, 0.5);
     for (let i = 0; i < 46; i++) {
       const px = R() * W * 2, py = H * (0.4 + R() * 0.6), r = Math.min(py - 4, (90 + R() * 200) * scale);
       for (const off of [-W * 2, 0, W * 2]) {
@@ -980,11 +981,13 @@ const Scene = (() => {
     x.putImageData(d, 0, 0); return c;
   })();
 
-  const views = [], fogCache = {};
+  const views = [], fogCache = {}, ambTiny = mk(20, 12);
+  // jakość dobierana do sprzętu: przy średniej klatce powyżej 20 ms gaśnie obwiednia postaci
+  let low = false, lowAcc = 0, lowN = 0, lowLast = 0;
   let calm = false;
 
   function view(canvas, opts = {}) {
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     canvas.width = W; canvas.height = H;
     const buf = mk(), bx = buf.getContext('2d');
     const prev = mk(), px = prev.getContext('2d');
@@ -1039,8 +1042,12 @@ const Scene = (() => {
   // rAF na początku i try/catch na widok: jeden błąd nie gasi grafiki do przeładowania strony
   function frame(now) {
     requestAnimationFrame(frame);
+    if (lowLast && now - lowLast < 250) { lowAcc += now - lowLast; if (++lowN === 120) { low = lowAcc / lowN > 20; lowAcc = lowN = 0; } }
+    lowLast = now;
     for (const v of views) {
       if (!v.active || !v.spec || !v.onScreen) continue;
+      // tło zakończenia leży pod ciemną nakładką: wystarczy co druga klatka
+      if (v.opts.half && (v.odd = !v.odd)) continue;
       try { drawView(v, now); } catch (e) { v.bx.restore(); v.bx.globalAlpha = v.ctx.globalAlpha = 1; v.bx.globalCompositeOperation = v.ctx.globalCompositeOperation = 'source-over'; if (!v.err) { v.err = 1; console.error(e); } }
     }
   }
@@ -1106,7 +1113,7 @@ const Scene = (() => {
           c.fillStyle = hg; c.fillRect(hx - hr, hy - hr, hr * 2, hr * 2);
         }
         // obwiednia światła: rozmyty cień w kolorze mgły (albo ognia) dookoła sylwetki
-        const rimBlur = rim && fig !== 'pasterz' && !calm;
+        const rimBlur = rim && fig !== 'pasterz' && !calm && !low;
         if (rimBlur) { c.save(); c.shadowColor = rgba(hc, s.tod === 3 || d.interior ? 0.75 : 0.55); c.shadowBlur = big ? 16 : 11; }
         FIG[fig](c, fx, fy, sz, t, { col, look: s.look });
         if (rimBlur) c.restore();
@@ -1120,8 +1127,8 @@ const Scene = (() => {
           const f = v.fogs[i], off = (t * speeds[i] + i * 300) % (W * 2);
           c.globalAlpha = fogA * (i === 1 ? 0.55 : 0.42);
           const cx2 = cam ? cam.x * (10 + i * 8) : 0;
-          c.drawImage(f, -off + cx2, ys[i]); c.drawImage(f, W * 2 - off + cx2, ys[i]);
-          if (cx2 > 0) c.drawImage(f, -W * 2 - off + cx2, ys[i]);
+          c.drawImage(f, -off + cx2, ys[i], W * 2, H); c.drawImage(f, W * 2 - off + cx2, ys[i], W * 2, H);
+          if (cx2 > 0) c.drawImage(f, -W * 2 - off + cx2, ys[i], W * 2, H);
         }
         c.globalAlpha = 1;
       }
@@ -1188,7 +1195,13 @@ const Scene = (() => {
       ctx.drawImage(grainC, -Math.random() * 200, -Math.random() * 200, W + 200, H + 200);
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
       if (v.flash > 0) { ctx.fillStyle = `rgba(${v.flashCol},${v.flash * 0.45})`; ctx.fillRect(0, 0, W, H); v.flash = Math.max(0, v.flash - dt * 3); }
-      if (v.opts.amb && (v.ambT = (v.ambT || 0) + dt) > 0.16) { v.ambT = 0; v.opts.amb.getContext('2d').drawImage(v.canvas, 0, 0, 160, 90); }
+      if (v.opts.amb && (v.ambT = (v.ambT || 0) + dt) > 0.16) {
+        v.ambT = 0;
+        const a = v.opts.amb.getContext('2d');
+        ambTiny.getContext('2d').drawImage(v.canvas, 0, 0, 20, 12);
+        a.imageSmoothingQuality = 'high'; a.drawImage(ambTiny, 0, 0, 160, 90);
+        a.fillStyle = 'rgba(0,0,0,.45)'; a.fillRect(0, 0, 160, 90);
+      }
     }
   }
   requestAnimationFrame(frame);
