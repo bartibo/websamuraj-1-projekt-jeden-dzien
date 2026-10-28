@@ -19,6 +19,7 @@ Strona z projektami: **[projekty.vibemaster.pl](https://projekty.vibemaster.pl)*
 | 5 | [Absurdoro](5-pomodoro-absurdalny-timer-opus5_5/) | [jeden-prompt/5-pomodoro-absurdalny-timer-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/5-pomodoro-absurdalny-timer-opus5_5) |
 | 6 | [Na Krawędzi](6-wingsuit-symulator-lotu-opus5_5/) | [jeden-prompt/6-wingsuit-symulator-lotu-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/6-wingsuit-symulator-lotu-opus5_5) |
 | 7 | [Pod jedną żarówką](7-operator-112-gra-fabularna-opus5_5/) | [jeden-prompt/7-operator-112-gra-fabularna-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/7-operator-112-gra-fabularna-opus5_5) |
+| 8 | [Gdzie mgła ma zęby](8-uroczysko-rpg-graficzno-tekstowy-opus5_5/) | [jeden-prompt/8-uroczysko-rpg-graficzno-tekstowy-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/8-uroczysko-rpg-graficzno-tekstowy-opus5_5) |
 
 ## Jak to działa
 
