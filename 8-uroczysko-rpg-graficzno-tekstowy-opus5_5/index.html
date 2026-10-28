@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0b0c">
+  <title>Gdzie mgła ma zęby – graficzno-tekstowy RPG</title>
+  <meta name="description" content="Graficzno-tekstowy RPG grozy. IX wiek, słowiańska puszcza spowita mgłą. Jako najemnik badasz zbezczeszczone uroczysko i schodzisz w głąb zapomnianych kurhanów, gdzie granica między obłędem a prastarym, drapieżnym bóstwem zaciera się z każdym krokiem.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a0b0c'/%3E%3Cpath d='M8 50 Q32 18 56 50Z' fill='%232a2622'/%3E%3Cpath d='M32 10v14M32 18l-8-8M32 18l8-8M24 10l-4 2M40 10l4 2' stroke='%23c9a45a' stroke-width='2.5' stroke-linecap='round'/%3E%3Ccircle cx='27' cy='32' r='2.2' fill='%23d8402f'/%3E%3Ccircle cx='37' cy='32' r='2.2' fill='%23d8402f'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Cinzel:wght@500;700;900&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ================= EKRAN TYTUŁOWY ================= -->
+<section id="title" class="screen active">
+  <canvas id="title-bg" aria-hidden="true"></canvas>
+  <div class="title-wrap">
+    <div class="title-kicker">Puszcza · IX wiek · przed Dziadami</div>
+    <h1 class="title-main">Gdzie mgła<br>ma zęby</h1>
+    <p class="title-lead">Najemnik. Osada na skraju puszczy. Zbezczeszczone uroczysko, zwalony bóg, rozkopane kurhany i mgła, która nie chce się podnieść. Ludzie znikają. Ty masz miecz, trochę światła i ranę po ugryzieniu wilka, która nie chce się zagoić.</p>
+    <p class="title-lead dim">Im głębiej zejdziesz, tym mniej będziesz pewien, co jest obłędem, a co bogiem.</p>
+    <div class="title-buttons">
+      <button class="btn primary big" id="btn-new">Nowa wędrówka</button>
+      <button class="btn big" id="btn-continue" hidden>Kontynuuj</button>
+    </div>
+    <div class="title-opts">
+      <label class="sw"><input type="checkbox" id="opt-sound" checked><span></span> Dźwięk</label>
+      <label class="sw"><input type="checkbox" id="opt-fast"><span></span> Szybki tekst</label>
+      <label class="sw"><input type="checkbox" id="opt-calm"><span></span> Łagodniejsze efekty (mniej drgań obrazu)</label>
+    </div>
+    <div class="title-endings" id="title-endings"></div>
+    <p class="title-warn">Horror. Gra porusza tematy śmierci, obłędu, przemocy i zaginięcia dziecka (bez drastycznych opisów). Osada Mszaniec, jej mieszkańcy i bóstwo Pasterza są zmyślone.</p>
+  </div>
+</section>
+
+<!-- ================= TWORZENIE POSTACI ================= -->
+<section id="create" class="screen">
+  <div class="create-wrap">
+    <h2 class="h-cinzel">Kim jesteś, najemniku?</h2>
+    <p class="create-lead">Posłaniec z Mszańca szukał kogoś, kto pójdzie tam, gdzie nikt z miejscowych już nie pójdzie. Znalazł ciebie.</p>
+    <div class="bg-cards" id="bg-cards"></div>
+    <div class="create-name">
+      <label for="in-name">Imię, którym się przedstawisz</label>
+      <input id="in-name" maxlength="16" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="create-buttons">
+      <button class="btn" id="btn-back">Wróć</button>
+      <button class="btn primary big" id="btn-go">Wyrusz do Mszańca</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= GRA ================= -->
+<div id="game" class="screen">
+  <header class="topbar">
+    <div class="tb-title">Gdzie mgła ma zęby</div>
+    <div class="tb-place"><b id="tb-loc">—</b><span id="tb-time">—</span></div>
+    <div class="tb-btns">
+      <button class="icon-btn" id="btn-sound" title="Dźwięk (M)" aria-label="Dźwięk">♪</button>
+      <button class="icon-btn" id="btn-menu" title="Menu (Esc)" aria-label="Menu">☰</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage">
+      <div class="scene-wrap" id="scene-wrap">
+        <canvas id="scene-amb" width="160" height="90" aria-hidden="true"></canvas>
+        <canvas id="scene" width="960" height="540"></canvas>
+        <div class="scene-hud">
+          <div class="enemy-bar" id="enemy-bar" hidden><span id="enemy-name"></span><div class="eb"><i id="enemy-hp"></i></div></div>
+        </div>
+        <div class="mini-hud" aria-hidden="true"><span class="m-hp"><i id="mh-hp"></i></span><span class="m-rz"><i id="mh-rz"></i></span><span class="m-zn"><i id="mh-zn"></i></span></div>
+      </div>
+      <div class="story-col">
+        <article id="story" aria-live="polite"></article>
+        <div id="choices" class="choices"></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="sheet">
+        <div class="sheet-head">
+          <div class="sheet-name" id="pc-name">—</div>
+          <div class="sheet-bg" id="pc-bg">—</div>
+        </div>
+        <div class="bars">
+          <div class="bar hp"><label>Zdrowie <b id="v-hp"></b></label><div class="bt"><i id="b-hp"></i></div></div>
+          <div class="bar rz"><label>Rozum <b id="v-rz"></b></label><div class="bt"><i id="b-rz"></i></div></div>
+          <div class="bar zn"><label>Znamię <b id="v-zn"></b></label><div class="bt"><i id="b-zn"></i></div></div>
+        </div>
+        <div class="border-strip" title="Obłęd rośnie z lewej, Pasterz z prawej. Pośrodku jesteś ty.">
+          <div class="bs-track"><i class="bs-mad" id="bs-mad"></i><i class="bs-god" id="bs-god"></i><span class="bs-you" id="bs-you">ty</span></div>
+          <div class="bs-labels"><span>obłęd</span><span id="bs-note"></span><span>Pasterz</span></div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="sheet-row"><span>Broń</span><b id="pc-weapon">—</b></div>
+        <div class="sheet-row"><span>Światło</span><b id="pc-light">—</b></div>
+        <div class="sheet-row"><span>Srebro</span><b id="pc-silver">—</b></div>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="inv">Tobołek</button>
+        <button class="tab" data-tab="map">Mapa</button>
+        <button class="tab" data-tab="lore">Wiedza <i id="lore-new" hidden></i></button>
+      </nav>
+      <div class="panel active" id="panel-inv"><div class="inv" id="inv"></div><p class="hint">Kliknij przedmiot, by go użyć lub obejrzeć.</p></div>
+      <div class="panel" id="panel-map"><div id="map"></div><p class="hint" id="map-hint">Mapa na korze brzozy. Kliknij sąsiednie miejsce, by tam pójść.</p></div>
+      <div class="panel" id="panel-lore"><div id="lore"></div></div>
+    </aside>
+  </main>
+</div>
+
+<!-- ================= RZUT KOŚĆMI ================= -->
+<div id="dice" class="overlay" hidden>
+  <div class="dice-box">
+    <div class="dice-label" id="dice-label">Czujność</div>
+    <div class="dice-row"><div class="die" id="die1">1</div><span class="dice-plus">+</span><div class="die" id="die2">1</div><span class="dice-plus">+</span><div class="die mod" id="die-mod">0</div></div>
+    <div class="dice-sum"><span id="dice-sum">—</span> <small>potrzeba <b id="dice-dc">—</b></small></div>
+    <div class="dice-res" id="dice-res"></div>
+  </div>
+</div>
+
+<!-- ================= MENU ================= -->
+<div id="menu" class="overlay" hidden>
+  <div class="menu-box">
+    <h3 class="h-cinzel">Postój</h3>
+    <label class="sw"><input type="checkbox" id="m-sound"><span></span> Dźwięk</label>
+    <label class="sw"><input type="checkbox" id="m-fast"><span></span> Szybki tekst</label>
+    <label class="sw"><input type="checkbox" id="m-calm"><span></span> Łagodniejsze efekty</label>
+    <div class="menu-help">
+      <p><b>Sterowanie:</b> klawisze 1–9 wybierają opcje, spacja przyspiesza tekst, M wycisza dźwięk.</p>
+      <p><b>Próby:</b> rzucasz dwiema kośćmi i dodajesz cechę. Wynik musi dorównać trudności.</p>
+      <p><b>Rozum</b> spada od szeptów, ciemności i tego, co widzisz. <b>Znamię</b> rośnie, im bliżej jesteś Pasterza. Gdy rozum dojdzie do zera albo znamię do stu, gra się kończy. Pomiędzy nimi świat zaczyna się mylić.</p>
+      <p>Gra zapisuje się sama przy każdym kroku.</p>
+    </div>
+    <div class="menu-buttons">
+      <button class="btn" id="m-title">Ekran tytułowy</button>
+      <button class="btn primary" id="m-close">Wróć do gry</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ZAKOŃCZENIE ================= -->
+<section id="ending" class="screen">
+  <canvas id="ending-bg" aria-hidden="true"></canvas>
+  <div class="ending-wrap">
+    <div class="ending-kicker">Zakończenie</div>
+    <h2 class="ending-title" id="end-title">—</h2>
+    <div class="ending-sub" id="end-sub"></div>
+    <div class="ending-text" id="end-text"></div>
+    <div class="ending-stats" id="end-stats"></div>
+    <div class="ending-list" id="end-list"></div>
+    <div class="ending-buttons">
+      <button class="btn primary big" id="btn-again">Jeszcze raz w mgłę</button>
+      <button class="btn" id="btn-end-title">Ekran tytułowy</button>
+    </div>
+  </div>
+</section>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/story.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
