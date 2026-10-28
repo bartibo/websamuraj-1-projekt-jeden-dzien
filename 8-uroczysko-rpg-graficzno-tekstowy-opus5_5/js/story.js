@@ -268,6 +268,7 @@ dobrawa: {
     { t: 'Pokaż jej pęta, które zdobyłeś', if: () => petaCount() > 0 && !S.seen.dobrawa_peta, go: 'dobrawa_peta' },
     { t: 'Opowiedz jej, co się stało w dziupli', if: () => F('wiszka_zabita') && !S.seen.dobrawa_wina, go: 'dobrawa_wina' },
     { t: 'Połóż przed nią kieł Wilczej Matki', if: () => has('kiel') && !S.seen.dobrawa_prawda, go: 'dobrawa_prawda' },
+    { t: 'Powiedz jej, dokąd prowadzą ślady wilczycy z jaru', if: () => F('lowca_slad') && !has('kiel') && !S.seen.dobrawa_prawda, go: 'dobrawa_prawda' },
     { t: 'Co masz na sprzedaż?', go: 'dobrawa_handel' },
     { t: 'Wyjdź', go: 'msz' },
   ],
@@ -358,9 +359,10 @@ dobrawa_handel: {
 
 dobrawa_prawda: {
   loc: 'mszaniec', sc: 'chata', fig: 'starucha', title: 'Chata Dobrawy',
-  text: P(
-    `Kładziesz kieł na stole, między pękami ziół. Dobrawa długo na niego patrzy. Potem sięga pod kaftan i wyciąga rzemień. Pusty, z małym węzełkiem na końcu, w sam raz na kieł z dziurką.`,
-    `– Myślałam, że go nie oddasz – mówi. – Wilki rzadko oddają. Ludzie jeszcze rzadziej.`,
+  text: () => P(
+    has('kiel') ? `Kładziesz kieł na stole, między pękami ziół. Dobrawa długo na niego patrzy. Potem sięga pod kaftan i wyciąga rzemień. Pusty, z małym węzełkiem na końcu, w sam raz na kieł z dziurką.` :
+      `Mówisz jej o śladach w mule nad strumieniem. O łapach, które w połowie zbocza stają się bosymi stopami z krzywym palcem. Dobrawa nie przerywa. Patrzy na swoje bose stopy przy ogniu, a potem na ciebie.`,
+    has('kiel') ? `– Myślałam, że go nie oddasz – mówi. – Wilki rzadko oddają. Ludzie jeszcze rzadziej.` : `– Łowca – mówi. – Wiedziałam, że łowca się domyśli. Wilki zawsze zostawiają ślady. Stare wilki tym bardziej.`,
     `Odwraca się do ciebie i oba jej oczy, zdrowe i mleczne, patrzą na ciebie naraz.`,
     `– Tak. Ja. To ja cię ugryzłam. Posłaniec nie szukał najemnika, szukał kogoś, kogo ugryzie wilk. Pasterz chce czwartego, zawsze chce czwartego. A ja nie chciałam, żeby to było dziecko z Mszańca. Ani Mira. Ani chłopak z bramy.`,
     `– Wybrałam obcego. Kogoś, za kim nikt tu nie będzie płakał. – Milknie na chwilę. – Przepraszam. Tak się mówi, prawda? Dawno nikogo nie przepraszałam.`),
@@ -373,9 +375,9 @@ dobrawa_prawda: {
 
 dobrawa_prawda_gniew: {
   loc: 'mszaniec', sc: 'chata', fig: 'starucha',
-  text: P(
+  text: () => P(
     `– Jak owcę – zgadza się Dobrawa. – Ale owca nie wie, dokąd idzie. Ty wiesz. To już coś.`,
-    `Przesuwa kieł z powrotem w twoją stronę. – Noś go. Wilki cię nie ruszą. Ja też nie.`),
+    has('kiel') ? `Przesuwa kieł z powrotem w twoją stronę. – Noś go. Wilki cię nie ruszą. Ja też nie.` : `– Wilki cię nie ruszą – dodaje. – Ja też nie.`),
   ch: [{ t: 'Dalej', go: 'dobrawa' }],
 },
 
@@ -465,7 +467,8 @@ skraj: {
     `Gdy przechodzisz między palami, mgła rozstępuje się przed tobą bez szmeru. Jakby czekała.`),
   first: () => rozum(-3),
   ch: [
-    { t: 'Obejrzyj ślady na ścieżce', if: () => !F('slady_skraj'), do: () => setF('slady_skraj'),
+    { t: 'Odczytaj ślady na ścieżce (dla łowcy to jak pismo)', if: () => !F('slady_skraj') && S.bg === 'lowca', do: () => setF('slady_skraj'), go: 'skraj_slady_ok' },
+    { t: 'Obejrzyj ślady na ścieżce', if: () => !F('slady_skraj') && S.bg !== 'lowca', do: () => setF('slady_skraj'),
       test: { s: 'czu', dc: 8, ok: 'skraj_slady_ok', no: 'skraj_slady_no' } },
     { t: 'Obejrzyj małą czaszkę', if: () => !S.seen.skraj_czaszka, go: 'skraj_czaszka' },
     { t: 'Zostaw na palu kawałek chleba dla tego, kto tu pilnuje', if: () => has('chleb') && !F('ofiara_skraj'), go: 'skraj_ofiara',
@@ -528,7 +531,40 @@ gaj: {
     { t: 'Zdejmij wstążkę z gałęzi', if: () => !F('wstazka_wzieta'), go: 'gaj_wstazka', do: () => { setF('wstazka_wzieta'); give('wstazka'); } },
     { t: 'Wylej miód przed bogiem jako ofiarę', if: () => has('miod') && !F('ofiara_gaj'), go: 'gaj_ofiara', do: () => { take('miod'); setF('ofiara_gaj'); } },
     { t: 'Zliż czerwony sok z pnia', hunger: 25, if: () => !F('sok'), go: 'gaj_sok', do: () => setF('sok') },
+    { t: 'Stań przed Czworolicym z krzyżykiem na szyi', if: () => S.bg === 'moraw' && has('krzyzyk') && !S.seen.gaj_moraw, go: 'gaj_moraw' },
   ],
+},
+
+gaj_moraw: {
+  loc: 'gaj', sc: 'gaj', title: 'Zbezczeszczony gaj',
+  text: () => P(
+    `Stajesz przed starym bogiem. Krzyżyk na twojej piersi nagle waży więcej niż miecz.`,
+    `Pamiętasz, jak w dzieciństwie ojciec prowadził cię do takiego samego gaju na Morawach. Jak wylewał miód przed słupem z czterema twarzami i kazał ci się nie bać, bo bóg patrzy na cztery strony świata, więc zawsze widzi, kto przychodzi z dobrem. Pamiętasz też dzień, w którym książę kazał ten słup zrąbać. Stałeś wtedy w szeregu i nic nie powiedziałeś.`,
+    F('idol') ? `Czworolicy stoi krzywo, podparty kamieniami. Ta jedna nietknięta twarz patrzy na ciebie i czeka.` : `Czworolicy leży w błocie. Ta jedna nietknięta twarz patrzy na ciebie z ziemi i czeka.`,
+    `~Twój nowy bóg cię tu nie słyszy. Ten stary też już nie. Zostałem tylko ja.~`),
+  ch: [
+    { t: 'Zdejmij krzyżyk i zawieś go na Czworolicym. Niech dwaj bogowie pilnują tego miejsca razem.', go: 'gaj_moraw_dar', do: () => { take('krzyzyk'); setF('krzyzyk_bogu'); } },
+    { t: 'Ściśnij krzyżyk i pomódl się w obu językach naraz', go: 'gaj_moraw_modlitwa' },
+  ],
+},
+
+gaj_moraw_dar: {
+  loc: 'gaj', sc: 'gaj',
+  text: P(
+    `Wieszasz krzyżyk na rzemieniu na jedynej nietkniętej twarzy Czworolicego. Drewno do drewna.`,
+    `Przez gaj przechodzi wiatr. Mgła cofa się o kilka kroków i zatrzymuje, jakby ktoś postawił jej granicę. Szept w twojej głowie milknie w pół słowa.`,
+    `Bez krzyżyka czujesz się nagi. Ale po raz pierwszy od lat nie czujesz się zdrajcą.`),
+  first: () => { rozum(12); znamie(-10); },
+  ch: [{ t: 'Dalej', go: 'gaj' }],
+},
+
+gaj_moraw_modlitwa: {
+  loc: 'gaj', sc: 'gaj',
+  text: P(
+    `Mówisz „Ojcze nasz” po łacinie, tak jak uczył cię mnich na dworze księcia, a między słowami wtrącasz stare zaklęcia ojca, które pamiętasz tylko w połowie. Brzmi to jak bełkot. Brzmi to jak ty.`,
+    `Szept w twojej głowie się śmieje, ale ciszej, niż się spodziewałeś.`),
+  first: () => rozum(5),
+  ch: [{ t: 'Dalej', go: 'gaj' }],
 },
 
 gaj_idol_ok: {
@@ -726,11 +762,26 @@ jar: {
   ch: [
     { t: 'Dobądź broni', if: () => !F('jar_done'), fight: { e: ['wilk', 'wilk', 'wilczyca'], win: 'jar_wygrana', flee: 'skraj' } },
     { t: 'Rzuć im suszone mięso', if: () => !F('jar_done') && has('mieso'), go: 'jar_mieso', do: () => take('mieso') },
+    { t: 'Nie ruszaj się. Czytaj ślady na dnie jaru, zanim cokolwiek zrobisz.', if: () => !F('jar_done') && S.bg === 'lowca' && !S.seen.jar_lowca, go: 'jar_lowca' },
     { t: 'Stój spokojnie i pokaż jej ranę', if: () => !F('jar_done'),
       test: { s: 'wol', dc: () => S.znamie >= 20 ? 6 : 8, ok: 'jar_wilczyca', no: 'jar_atak' } },
     { t: 'Przeszukaj legowisko na końcu jaru', if: () => F('jar_done') && !F('legowisko'), go: 'jar_legowisko', do: () => setF('legowisko') },
   ],
   hubIf: () => F('jar_done'),
+},
+
+jar_lowca: {
+  loc: 'jar', sc: 'jar', fig: 'wilczyca',
+  text: P(
+    `Nie patrzysz wilczycy w oczy. Patrzysz w ziemię, tak jak uczył cię ojciec: zwierzę mówi łapami więcej niż pyskiem.`,
+    `Ślady stada są zwyczajne. Wilki chodzą tu od lat, krok w krok, tymi samymi ścieżkami. Ale ślady wilczycy są inne. Prowadzą na południe, w stronę Mszańca. A w połowie zbocza, w miękkim mule nad strumieniem, zmieniają się. Przednia łapa, tylna łapa, a potem stopa. Bosa, stara, z krzywym palcem.`,
+    `W Mszańcu jest tylko jedna stara kobieta, która chodzi boso nawet po szronie. Ta z chaty na samym skraju osady, tak blisko lasu, że korzenie sosny podnoszą jej próg.`,
+    `Wilczyca widzi, że już wiesz. Siada. Czeka, co zrobisz.`),
+  first: () => { setF('lowca_slad'); learn('dobrawa_wilk'); },
+  ch: [
+    { t: 'Pokłoń się jej tak, jak łowca kłania się zwierzynie, której nie zabije', go: 'jar_wilczyca' },
+    { t: 'Dobądź broni', fight: { e: ['wilk', 'wilk', 'wilczyca'], win: 'jar_wygrana', flee: 'skraj' } },
+  ],
 },
 
 jar_atak: {
@@ -1025,9 +1076,22 @@ kw1: {
     `Z głębi korytarza bije chłód grobu.`),
   ch: [
     { t: 'Przeszukaj Bjorna', if: () => !F('bjorn'), go: 'kw1', do: () => { setF('bjorn'); give('pochodnia'); srebro(6); rozum(-5); } },
+    { t: 'Uklęknij przy Bjornie i odmów nad nim słowa Północy', if: () => S.bg === 'wareg' && !F('bjorn_piesn'), go: 'kw_bjorn_wareg', do: () => setF('bjorn_piesn') },
     { t: 'Idź dalej, do komory', go: 'kw2' },
     { t: 'Wyjdź na zewnątrz', go: 'kurhany' },
   ],
+},
+
+kw_bjorn_wareg: {
+  loc: 'kurhany', sc: 'kurhan', variant: 'kw1', dark: true, stay: true, title: 'Kurhan wojownika',
+  text: P(
+    `Klękasz w błocie przy Bjornie. Nie znałeś go, ale znasz takich jak on: chłopak z fiordów, który poszedł za wodzem po srebro, bo w domu czekało tylko morze i głód.`,
+    `Mówisz słowa, których nauczył cię ojciec nad ciałem twojego brata. Stare, twarde, w mowie, której nikt tu nie rozumie. Że droga do sali, gdzie stoły się nie kończą, jest krótka. Że łódź czeka. Że nikt nie liczy kroków umarłych.`,
+    `Uśmiech na twarzy Bjorna powoli opada. Usta się zamykają, raz pierwszy od wielu dni. A potem, cicho, w twojej mowie, mówi ktoś, kto już prawie odszedł:`,
+    `– Hrodgar zszedł na dół. Nie słuchaj… kiedy przemówi twoim głosem. Powiedz mu… że Bjorn już śpi.`,
+    `Ciało jest teraz tylko ciałem. Wreszcie.`),
+  first: () => { setF('ostrzezenie'); rozum(8); znamie(-3); },
+  ch: [{ t: 'Wstań', go: 'kw1' }],
 },
 
 kw2: {
@@ -1301,7 +1365,7 @@ wk_wrota: {
     `Odwraca się. Jego twarz jest twarzą tylko w połowie. Drugą połowę porasta coś, co wygląda jak kora, jak korzenie, jak setki maleńkich, mrugających oczu.`),
   ch: [
     { t: 'Walcz', if: () => !F('hrodgar_done'), fight: { e: 'hrodgar', win: 'wk_hrodgar_wygrana', flee: 'kurhany' } },
-    { t: 'Przemów do niego w mowie Północy', if: () => !F('hrodgar_done') && S.bg === 'wareg', test: { s: 'wol', dc: 8, ok: 'wk_hrodgar_mowa', no: 'wk_hrodgar_atak' } },
+    { t: 'Przemów do niego w mowie Północy', if: () => !F('hrodgar_done') && S.bg === 'wareg', test: { s: 'wol', dc: () => F('bjorn_piesn') ? 5 : 8, ok: 'wk_hrodgar_mowa', no: 'wk_hrodgar_atak' } },
     { t: 'Pokaż mu jego kij runiczny', if: () => !F('hrodgar_done') && has('kij') && S.bg !== 'wareg', test: { s: 'wol', dc: 10, ok: 'wk_hrodgar_mowa', no: 'wk_hrodgar_atak' } },
     { t: 'Prześliźnij się obok niego w ciemność', if: () => !F('hrodgar_done'), test: { s: 'zre', dc: 11, ok: 'wk_kosci', no: 'wk_hrodgar_atak', okDo: () => { setF('hrodgar_done'); setF('hrodgar_ominiety'); } } },
     { t: 'Zejdź w dół', if: () => F('hrodgar_done'), go: 'wk_kosci' },
@@ -1318,7 +1382,7 @@ wk_hrodgar_atak: {
 wk_hrodgar_mowa: {
   loc: 'kurhany', sc: 'wrota', wk: true, fig: 'hrodgar',
   text: () => P(
-    S.bg === 'wareg' ? `– Hrodgarze, synu Eirika – mówisz w jego języku, w języku zimnych fiordów i dymu z długich domów. – Wróć. Twoja łódź czeka.` :
+    S.bg === 'wareg' ? `– Hrodgarze, synu Eirika – mówisz w jego języku, w języku zimnych fiordów i dymu z długich domów. – Wróć. Twoja łódź czeka.${F('bjorn_piesn') ? ' Bjorn już śpi. Odprowadziłem go słowami. Ciebie też odprowadzę.' : ''}` :
       `Podnosisz kij runiczny, tak żeby widział znaki. Jego znaki. „Hrodgar ryje dla tego, kto przyjdzie.”`,
     `Coś w jego oczach – w tym jednym, ludzkim oku – drga. Topór opada. Hrodgar osuwa się na kolana, ciężko, jak ścięte drzewo.`,
     S.bg === 'wareg' ? `– Brat – mówi. – Zabij mnie, bracie. Sam już nie mogę. On mi nie pozwala.` :
@@ -1948,6 +2012,9 @@ const DEEDS = [
   { if: () => F('obietnica') && !F('wiszka_w_domu'), t: 'Obiecałeś matce, że jej poszukasz. Ja też jej coś obiecałem.' },
   { if: () => F('radogost_martwy'), t: 'Starzec dziękował ci, umierając. Nikt ci nie podziękuje, kiedy przyjdzie twoja kolej.' },
   { if: () => F('hrodgar_done') && !F('hrodgar_ominiety'), t: 'Hrodgar prosił cię o to samo, o co ty poprosisz mnie. Dałeś mu to. Ja nie dam.' },
+  { if: () => F('krzyzyk_bogu'), t: 'Oddałeś swojego boga drewnianemu. Żaden z nich cię tu nie słyszy.' },
+  { if: () => F('bjorn_piesn'), t: 'Zaśpiewałeś Bjornowi drogę do domu. Jego dom jest teraz tutaj. Twój też.' },
+  { if: () => F('lowca_slad'), t: 'Czytasz ślady, łowco. Przeczytaj moje. Prowadzą prosto do ciebie.' },
   { if: () => F('idol'), t: 'Podniosłeś drewnianego boga. Patrzy teraz na północ. Na mnie. Boi się.' },
   { if: () => F('lulek_pity'), t: 'Wypiłeś wywar starej. Teraz widzisz mnie wyraźniej. Ona o tym wiedziała.' },
   { if: () => F('kiel') && !F('wilczyca_martwa'), t: 'Nosisz jej ząb. Stado cię przyjęło. Stado jest moje.' },
@@ -1995,6 +2062,9 @@ const SONG_DEEDS = [
   ['dobrawa_idzie', 'co starej wilczycy przebaczył ugryzienie,'],
   ['wilczyca_martwa', 'co Wilczą Matkę zabił, a ona go wybrała,'],
   ['srebro_umarlych', 'co srebro umarłych wziął i nosi je w sakwie,'],
+  ['bjorn_piesn', 'co Bjornowi z kurhanu zaśpiewał drogę do domu,'],
+  ['krzyzyk_bogu', 'co krzyżyk z własnej szyi powiesił staremu bogu,'],
+  ['lowca_slad', 'co z wilczych śladów wyczytał imię starej,'],
   ['idol', 'co boga z błota podniósł na własnym ramieniu,'],
   ['kiel', 'co wilczy kieł nosi, bo stado go przyjęło,'],
 ];
