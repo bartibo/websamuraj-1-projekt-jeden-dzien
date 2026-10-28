@@ -184,8 +184,8 @@
         <div class="caller-row"><span>tel.</span><b id="caller-num" class="mono">—</b></div>
         <div class="caller-row"><span>miejsce</span><b id="caller-loc">nieustalona</b></div>
         <div class="meter"><div class="m-l"><span>Bateria telefonu</span><b id="bat-val">42%</b></div><div class="m-b"><i id="bat-bar"></i></div></div>
-        <div class="meter"><div class="m-l"><span>Stan (ocena operatora)</span><b id="hp-val">nieznany</b></div><div class="m-b"><i id="hp-bar"></i></div></div>
-        <div class="meter"><div class="m-l"><span>Strach</span><b id="st-val">—</b></div><div class="m-b"><i id="st-bar"></i></div></div>
+        <div class="meter"><div class="m-l"><span id="hp-lab">Stan (ocena operatora)</span><b id="hp-val">nieznany</b></div><div class="m-b"><i id="hp-bar"></i></div></div>
+        <div class="meter"><div class="m-l"><span id="st-lab">Strach</span><b id="st-val">—</b></div><div class="m-b"><i id="st-bar"></i></div></div>
         <div class="caller-row"><span>sygnał</span><b><i id="sig" class="sig s3"><u></u><u></u><u></u></i></b></div>
       </section>
       <section class="panel sketch-p">
@@ -282,6 +282,15 @@
       <li class="help-kbd"><b>Klawiatura.</b> 1–9 wybiera pytanie z bieżącej kategorii, strzałki ← → zmieniają kategorię, spacja odbiera połączenie.</li>
     </ol>
     <p class="muted">Siedem zakończeń. Żadne nie jest jedynym właściwym, ale tylko jedno jest naprawdę dobre.</p>
+  </div>
+</div>
+
+<!-- ================= ZDJĘCIE OD ROZMÓWCY ================= -->
+<div id="photo" class="photo-ov" hidden>
+  <div class="ph-box">
+    <div class="ph-head"><b id="ph-title"></b><span id="ph-found"></span><button class="btn small" id="ph-zoom">⊕ Przybliż</button><button class="btn small ghost" id="ph-close">✕ Zamknij</button></div>
+    <div class="ph-stage"><div class="ph-wrap" id="ph-wrap"><img id="ph-img" alt=""><div id="ph-spots"></div></div></div>
+    <p class="ph-msg" id="ph-msg"></p>
   </div>
 </div>
 

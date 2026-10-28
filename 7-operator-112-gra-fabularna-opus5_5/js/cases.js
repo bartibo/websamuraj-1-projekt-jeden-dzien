@@ -10,6 +10,8 @@ const CASES = [
     tagline: 'Nie pamięta, kim jest. Na górze ktoś chodzi.', place: 'Kalnów · piwnica', when: '26.10 · 23:41', length: '20–30 min', endings: 7 },
   { id: 'oddzial', no: '02', title: 'Oddział zamknięty', short: 'Noc Wszystkich Świętych w opuszczonym psychiatryku. Borek, 01.11, 00:47.', adult: true,
     tagline: 'Głośniki bez prądu znają jej imię.', place: 'Borek · dawny szpital', when: '01.11 · 00:47', length: '25–35 min', endings: 6 },
+  { id: 'swit', no: '03', title: 'Przed świtem', short: 'Mężczyzna w aucie, gdzieś za miastem, nie chce dożyć świtu. Kalnów, 03.11, 06:04.', adult: true,
+    tagline: 'Nie powie, gdzie jest. Chce tylko, żeby ktoś wiedział.', place: 'Lasy Gajowe · auto', when: '03.11 · 06:04', length: '25–35 min', endings: 6 },
 ];
 const CASE_FILES = ['data.js', 'map.js', 'sketch.js', 'story.js'];
 const caseEndingsKey = id => id === 'zarowka' ? 'pjz_endings_v1' : 'pjz_endings_' + id;

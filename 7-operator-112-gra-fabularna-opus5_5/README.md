@@ -2,12 +2,13 @@
 
 Gra fabularna w przeglądarce. Jesteś operatorem numeru alarmowego 112 na nocnej zmianie w Centrum Powiadamiania Ratunkowego w Kalnowie (fikcyjne miasto). O 23:41 przychodzi połączenie, w którym nikt nic nie mówi. Potem w kanale tekstowym pojawia się wiadomość od dziewczyny zamkniętej w piwnicy z jedną żarówką. Nie pamięta, kim jest, a na górze ktoś chodzi. Masz czat, bazy danych, mapę miasta i jeden radiowóz. Ona ma telefon z kończącą się baterią.
 
-Gra ma teraz dwie sprawy, wybierane na ekranie tytułowym:
+Gra ma teraz trzy sprawy, wybierane na ekranie tytułowym:
 
 | # | Sprawa | O czym |
 |---|--------|--------|
 | 01 | **Pod jedną żarówką** | Dziewczyna bez pamięci zamknięta w piwnicy. Kalnów, 26.10, 23:41. |
 | 02 | **Oddział zamknięty** (18+) | Noc Wszystkich Świętych w opuszczonym szpitalu psychiatrycznym w Borku. 01.11, 00:47. |
+| 03 | **Przed świtem** (18+) | Mężczyzna w aucie za miastem nie chce dożyć świtu. Operator ma go powstrzymać. 03.11, 06:04. |
 
 Silnik (czat, czas, bateria, bazy, tablica poszlak, mapa, dysponowanie, raport) jest wspólny, a każda sprawa leży w osobnym folderze `sprawy/`. Kolejne sprawy dodaje się bez ruszania silnika.
 
@@ -75,6 +76,21 @@ Noc z 31 października na 1 listopada. Cmentarz w Borku pod Kalnowem świeci tys
 
 Sprawa zawiera martwe ciała, przemoc, porwanie i sceny grozy, bez drastycznych opisów. Szpital, Borek, osoby i firmy są zmyślone.
 
+## Sprawa 3: Przed świtem (18+)
+
+3 listopada, 06:04, pierwszy przymrozek. Na 112 ktoś dzwoni i milczy, a potem pisze: „nie dzwońcie, nie odbiorę”. Paweł, 41 lat, siedzi w aucie gdzieś za miastem, z tyłu śpi jego stary pies Bruno. Nie powie, gdzie jest. Chce tylko, żeby ktoś wiedział, i obiecał sobie, że kiedy zrobi się jasno, „będzie po wszystkim”.
+
+- **Cel:** nie przesłuchanie, tylko rozmowa. Zbudować zaufanie, zapytać wprost o zamiar, odsunąć środki (torba do bagażnika, butelka za okno), znaleźć to, co go trzyma, ustalić miejsce i wysłać ludzi tak, żeby nie poczuł się osaczony.
+- **Zaufanie i napięcie zamiast stanu i strachu.** Od zaufania zależy, czy wyśle zdjęcie, przetrze szybę, powie, gdzie jest, i czy zgodzi się na pomoc. Zaufanie rośnie coraz wolniej, im jest wyższe.
+- **Pułapki w rozmowie:** „wszystko będzie dobrze”, „pomyśl o córce”, „inni mają gorzej”. W kryzysie brzmią dobrze, a szkodzą, i raport mówi dlaczego.
+- **Zdjęcia od rozmówcy (nowa mechanika).** Paweł może przysłać zdjęcie widoku przez szybę, rysunek córki i zdjęcie psa. W podglądzie gracz klika szczegóły (maszt, kompas, tabliczka PZW, numer na rysunku, adresówka psa), a drobne rzeczy trzeba przybliżyć.
+- **Śledztwo:** BTS, ostatni AML, ewidencja (też po adresie), CEPiK, kamery ANPR na DK46, rejestr egzekucji, telefon do żony, psycholożka z Centrum Interwencji Kryzysowej. Mapa okolic Kalnowa: stawy, starorzecze, glinianki, zalew, maszt RTV, kolej.
+- **Patrol:** syreny przy osobie w kryzysie to błąd. Gdy jedzie patrol, trzeba zdecydować, czy powiedzieć mu prawdę. Kłamstwo wychodzi na jaw.
+- **Świt o 06:37** to moment, który sobie wyznaczył. Przygotowanie (odsunięte środki, rozmowa o ojcu i o córce) decyduje, czy go przetrwa.
+- **Sześć zakończeń:** Świt · Przy szlabanie · Rozmowa przez szybę · Wbrew sobie · Oddech · Mgła.
+
+Sprawa dotyczy samobójstwa i jest napisana według zasad odpowiedzialnego pisania o nim: bez opisu metody, bez sceny śmierci, z nadzieją w zakończeniach i z numerami pomocy na raporcie (116 123, 800 70 2222, 116 111, 112). Osoby i miejsca są zmyślone. Zdjęcia i grafika sprawy: GPT Image (jakość medium).
+
 ## Technika
 
 - Czysty HTML, CSS i JavaScript, bez bibliotek i bez budowania.
@@ -96,6 +112,7 @@ js/cases.js         – rejestr spraw (z danymi do kart wyboru) i wczytywanie pl
 js/front.js         – ekran startowy: przełączanie ekranów, sterowanie klawiaturą, archiwum zakończeń, kurz i ruch tła, logowanie
 sprawy/zarowka/     – sprawa 1: data.js, story.js, map.js (Kalnów), sketch.js (piwnica), intro.jpg
 sprawy/oddzial/     – sprawa 2: data.js, story.js, map.js (szpital w Borku), sketch.js (sala 12), intro.jpg
+sprawy/swit/        – sprawa 3: data.js, story.js, map.js (Lasy Gajowe), sketch.js (wnętrze auta), intro.jpg, foto-*.jpg (zdjęcia od rozmówcy)
 ```
 
 ### Jak dodać nową sprawę
@@ -166,3 +183,7 @@ sprawy/oddzial/     – sprawa 2: data.js, story.js, map.js (szpital w Borku), s
   - po wyszukiwaniu w bazach klawiatura się zamyka i widać wynik; pola tekstowe mają 16 px, więc iOS nie przybliża ekranu,
   - większe cele dotyku (kategorie, pytania, zakładki, przyciski, ranking budynków), marginesy na notch i pasek gestów,
   - nowy układ w poziomie: czat po lewej, pytania i decyzje po prawej, nawigacja w pasku z boku.
+- **Trzecia sprawa „Przed świtem” (27.10.2026, wieczór):**
+  - rozmowa z mężczyzną w kryzysie samobójczym: zaufanie i napięcie zamiast stanu i strachu, pytania-pułapki, decyzje o świcie i przy patrolu, 6 zakończeń,
+  - silnik: zdjęcia od rozmówcy w czacie z podglądem, przybliżaniem i szukaniem szczegółów (`PHOTOS` w danych sprawy, `herPhoto()`), słowa zależne od rozmówcy (`CASE.words`), własne nazwy i opisy wskaźników, numery pomocy na raporcie (`CASE.endNote`),
+  - cztery obrazy z GPT Image (jakość medium, ok. 0,05 $): widok przez szybę, rysunek córki, pies na tylnym siedzeniu, tło sprawy.

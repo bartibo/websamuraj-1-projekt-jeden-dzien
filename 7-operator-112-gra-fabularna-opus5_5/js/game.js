@@ -16,6 +16,11 @@ const norm = s => String(s).toLowerCase().replace(/ł/g, 'l').normalize('NFD').r
 const SET = { sound: true, pressure: true, fast: false, music: true, fx: true };
 const SET_KEY = 'pjz_settings_v1';
 const endingsKey = () => CASE.id === 'zarowka' ? 'pjz_endings_v1' : 'pjz_endings_' + CASE.id;
+/* słowa zależne od rozmówcy; sprawa może je podmienić w CASE.words */
+const WORDS = { safe: 'bezpieczna', safeBox: 'Poszkodowana bezpieczna.', found: 'Poszkodowana odnaleziona', escaped: 'Rozmówczyni wydostała się sama',
+  lostChrono: 'Utrata kontaktu z rozmówczynią', herMsgs: 'Jej wiadomości', describes: 'ona coś opisze', atVictim: 'przy poszkodowanej',
+  hid: 'Rozmówczyni ukryła telefon. Nie wysyłaj teraz wiadomości.', hpLabel: 'Stan (ocena operatora)', stLabel: 'Strach' };
+const W = k => (CASE.words && CASE.words[k]) || WORDS[k];
 
 let S = null;
 
@@ -31,7 +36,7 @@ function newState() {
     phase: 'ring', over: false, defer: null,
     seenQ: new Set(), shownQ: new Set(), seenClues: new Set(), toolsUsed: {},
     msgSeq: 0, stampMin: -1, stampSec: 0, clueAnchor: {}, protoAt: {}, tips: {}, unread: 0,
-    linkSel: [], linkTried: new Set(),
+    linkSel: [], linkTried: new Set(), photoFound: {},
     ui: { qcat: 'stan', tab: 'poszlaki', selBuilding: null, layers: {}, mcol: 'center', notes: '',
           dispatch: { target: '', zrm: true, psp: false, sirens: false },
           results: [], radio: [], mf: { age: '', hair: '', period: '', city: '', kw: '' }, q: {} },
@@ -160,6 +165,59 @@ async function radio(text, who) {
   await wait(SET.fast ? 600 : 1300);
 }
 
+/* zdjęcie od rozmówcy (PHOTOS w danych sprawy): miniatura w czacie i podgląd, w którym gracz szuka szczegółów */
+async function herPhoto(id) {
+  const p = PHOTOS[id];
+  if (!p || S.contact !== 'active' || S.over) return false;
+  showTyping(true); sfx('type');
+  await wait(SET.fast ? 900 : 2200);
+  showTyping(false);
+  if (S.contact !== 'active') return false;
+  S.battery = Math.max(0.5, S.battery - 1.2 * (has('dim') ? 0.6 : 1));
+  S.bubbles++; flag('foto_' + id);
+  const b = addBubble('her photo', p.caption || '').querySelector('.b');
+  b.insertAdjacentHTML('afterbegin', `<button class="ph-thumb" title="Obejrzyj zdjęcie"><img src="${p.src}" alt="${esc(p.title)}"><span>⌕ obejrzyj i szukaj szczegółów</span></button>`);
+  b.querySelector('img').onload = () => { if (CHAT.stick) $('#chat').scrollTop = 1e9; };
+  b.querySelector('.ph-thumb').onclick = () => openPhoto(id);
+  sfx('in'); renderStatus();
+  await sys('Zdjęcie od rozmówcy. Otwórz je i klikaj w szczegóły, które mogą coś powiedzieć.');
+  return true;
+}
+function openPhoto(id) {
+  const p = PHOTOS[id];
+  S.ui.photo = id;
+  $('#ph-title').textContent = p.title;
+  $('#ph-img').src = p.src;
+  $('#photo').classList.remove('zoom'); $('#ph-zoom').textContent = '⊕ Przybliż'; $('#ph-img').style.width = '';
+  $('#ph-msg').textContent = p.hint || 'Kliknij w szczegół, który coś mówi o miejscu albo o nim.';
+  $('#photo').hidden = false;
+  renderPhotoSpots();
+}
+function closePhoto() { $('#photo').hidden = true; }
+function renderPhotoSpots() {
+  const p = PHOTOS[S.ui.photo], found = S.photoFound[S.ui.photo] || [];
+  $('#ph-spots').innerHTML = found.map(i => { const s = p.spots[i]; return `<i class="ph-mark" style="left:${s.x * 100}%;top:${s.y * 100}%;width:${s.r * 200}%"><b>${esc(s.label)}</b></i>`; }).join('');
+  $('#ph-found').textContent = `szczegóły ${found.length}/${p.spots.length}`;
+}
+function photoClick(e) {
+  const p = PHOTOS[S.ui.photo];
+  if (!p) return;
+  const r = $('#ph-img').getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  const i = p.spots.findIndex(s => Math.hypot(x - s.x, (y - s.y) * r.height / r.width) <= s.r);
+  const msg = t => { const m = $('#ph-msg'); m.textContent = t; m.classList.remove('flash'); void m.offsetWidth; m.classList.add('flash'); };
+  if (i < 0) { msg('Nic, co by coś mówiło. Szukaj dalej.'); return; }
+  const s = p.spots[i];
+  if (s.zoom && !$('#photo').classList.contains('zoom')) { msg('Za małe, żeby coś odczytać. Przybliż zdjęcie (⊕).'); return; }
+  const f = S.photoFound[S.ui.photo] = S.photoFound[S.ui.photo] || [];
+  if (f.includes(i)) { msg(s.note); return; }
+  f.push(i); sfx('tick');
+  if (s.flag) flag(s.flag);
+  if (s.clue) clue(s.clue);
+  msg(s.note);
+  renderPhotoSpots(); renderAll();
+}
+
 function toast(html, cat) {
   const box = window.innerWidth < 980 ? $('#toasts-m') : $('#toasts');
   const d = document.createElement('div');
@@ -195,7 +253,7 @@ function tick(dt) {
         S.warned[th] = true;
         S.pending.push(async () => {
           await sys(`Telemetria: bateria urządzenia rozmówcy ${th}%.`);
-          if (S.contact === 'active') await her([th === 5 ? 'zaraz mi padnie telefon. prosze. szybciej' : th === 10 ? 'telefon pokazuje 10%' : 'bateria się kończy. 15%']);
+          if (S.contact === 'active') await her([CASE.batteryLines ? CASE.batteryLines[th] : th === 5 ? 'zaraz mi padnie telefon. prosze. szybciej' : th === 10 ? 'telefon pokazuje 10%' : 'bateria się kończy. 15%']);
         });
       }
     }
@@ -238,7 +296,7 @@ async function processEvents() {
 
 async function pauseContact(mins) {
   S.contact = 'paused'; renderAll();
-  await sys('Rozmówczyni ukryła telefon. Nie wysyłaj teraz wiadomości.');
+  await sys(W('hid'));
   await wait(SET.fast ? 600 : 1600);
   await advance(mins);
   if (S.contact === 'paused') S.contact = 'active';
@@ -249,7 +307,7 @@ async function loseContact(reason) {
   if (S.contact === 'lost') return;
   S.contact = 'lost'; S.lostAt = S.t; S.lostReason = reason;
   showTyping(false); sfx('lost');
-  const txt = {
+  const txt = (CASE.lostText && CASE.lostText[reason]) || {
     bateria: 'Urządzenie rozmówcy niedostępne: rozładowana bateria.',
     omdlenie: 'Rozmówczyni od kilku minut nie odpowiada. Telefon nadal jest zalogowany w sieci.',
     sprawca: 'Kanał zamknięty po stronie rozmówcy. Urządzenie wyłączone.',
@@ -612,8 +670,8 @@ function finish() {
   const saveT = (S.rescued || S.escaped) ? fmtDur(S.rescueT) : '—';
   const chrono = [{ t: 0, l: 'Przyjęcie zgłoszenia, kanał tekstowy' }]
     .concat(S.clueOrder.filter(c => CASE.chronoCats.includes(CLUES[c.id].cat)).map(c => ({ t: c.t, l: CLUES[c.id].title })))
-    .concat(S.lostAt != null ? [{ t: S.lostAt, l: 'Utrata kontaktu z rozmówczynią', bad: true }] : [])
-    .concat(S.rescueT != null ? [{ t: S.rescueT, l: S.escaped ? 'Rozmówczyni wydostała się sama' : 'Poszkodowana odnaleziona', ok: true }] : [])
+    .concat(S.lostAt != null ? [{ t: S.lostAt, l: W('lostChrono'), bad: true }] : [])
+    .concat(S.rescueT != null ? [{ t: S.rescueT, l: S.escaped ? W('escaped') : W('found'), ok: true }] : [])
     .concat(CASE.chronoExtra ? CASE.chronoExtra() : [])
     .sort((a, b) => a.t - b.t);
   const closed = E.tone !== 'bad';
@@ -625,6 +683,7 @@ function finish() {
       <div class="end-sub">${esc(E.sub)}</div>
       <div class="stamp ${closed ? 'ok' : 'open'}">${closed ? 'ZAMKNIĘTE<small>' + fmtClock(S.t) + '</small>' : 'OTWARTE<small>przekazano KPP</small>'}</div>
     </div>
+    ${CASE.endNote ? `<div class="end-note">${CASE.endNote}</div>` : ''}
     <div class="end-body">
       <div class="end-story">${CASE.epilogue(code)}</div>
       <aside class="end-side">
@@ -633,7 +692,7 @@ function finish() {
           <dt>Czas do uratowania</dt><dd>${saveT}</dd>
           <dt>Czas zgłoszenia</dt><dd>${fmtDur(S.t)}</dd>
           <dt>Twoje wiadomości</dt><dd>${S.questions}</dd>
-          <dt>Jej wiadomości</dt><dd>${S.bubbles}</dd>
+          <dt>${W('herMsgs')}</dt><dd>${S.bubbles}</dd>
           <dt>Poszlaki</dt><dd>${S.clues.size} / ${total}</dd>
           <dt>Bateria na końcu</dt><dd>${Math.round(S.battery)}%</dd>
           ${CASE.stats().map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}
@@ -662,7 +721,7 @@ function statusLine() {
   if (!S) return '';
   if (S.contact === 'lost') return 'kontakt utracony';
   if (S.contact === 'paused') return 'telefon ukryty';
-  if (S.rescued || S.escaped) return 'bezpieczna';
+  if (S.rescued || S.escaped) return W('safe');
   return 'kanał tekstowy 112 · aktywny';
 }
 function renderAll() {
@@ -706,9 +765,9 @@ function renderStatus() {
   lb.classList.toggle('crit', bt <= 8);
   lb.innerHTML = `▲ NISKI POZIOM BATERII<span class="xtra"> URZĄDZENIA ZGŁASZAJĄCEGO</span> · ${Math.max(0, Math.round(bt))}%${has('dim') ? '' : ' · ekran nieprzyciemniony'}`;
   const knownH = CASE.healthKnown();
-  $('#hp-val').textContent = knownH ? (S.health >= 60 ? 'stabilny' : S.health >= 35 ? 'pogarsza się' : S.health > 0 ? 'ciężki' : 'brak kontaktu') : 'nieznany';
+  $('#hp-val').textContent = CASE.hpText ? CASE.hpText(S.health) : knownH ? (S.health >= 60 ? 'stabilny' : S.health >= 35 ? 'pogarsza się' : S.health > 0 ? 'ciężki' : 'brak kontaktu') : 'nieznany';
   bar('#hp-bar', knownH ? S.health : 0, S.health < 35 ? 'crit' : S.health < 60 ? 'warn' : '');
-  $('#st-val').textContent = S.stress >= 90 ? 'panika' : S.stress >= 70 ? 'silny lęk' : S.stress >= 45 ? 'lęk' : 'względny spokój';
+  $('#st-val').textContent = CASE.stText ? CASE.stText(S.stress) : S.stress >= 90 ? 'panika' : S.stress >= 70 ? 'silny lęk' : S.stress >= 45 ? 'lęk' : 'względny spokój';
   bar('#st-bar', S.stress, S.stress >= 90 ? 'crit' : S.stress >= 70 ? 'warn' : 'calm');
   $('#sig').className = 'sig s' + (S.contact === 'lost' ? 0 : S.t > 40 ? 2 : 3);
   const name = CASE.callerName();
@@ -741,7 +800,7 @@ function renderQuestions() {
   if (S.contact === 'lost' || S.phase === 'done') {
     lostBox.hidden = false;
     if (S.phase === 'done' || S.rescued || S.escaped) {
-      lostBox.innerHTML = `<b>Poszkodowana bezpieczna.</b><p>Służby przejęły działania na miejscu. Możesz zamknąć zgłoszenie i zobaczyć raport.</p>
+      lostBox.innerHTML = `<b>${W('safeBox')}</b><p>Służby przejęły działania na miejscu. Możesz zamknąć zgłoszenie i zobaczyć raport.</p>
         <div class="lb-btns"><button class="btn primary" id="lb-end" ${S.busy || S.decision ? 'disabled' : ''}>Zamknij zgłoszenie i zobacz raport</button></div>`;
     } else {
       const enRoute = S.order && S.order.status === 'jedzie';
@@ -787,7 +846,7 @@ function renderQuestions() {
 
 function renderClues() {
   const box = $('#clues'), bar = $('#linkbar');
-  if (!S.clues.size) { box.innerHTML = '<p class="muted pad">Na razie nic. Poszlaki pojawią się tu, gdy ona coś opisze albo gdy coś znajdziesz w bazach.</p>'; bar.hidden = true; return; }
+  if (!S.clues.size) { box.innerHTML = `<p class="muted pad">Na razie nic. Poszlaki pojawią się tu, gdy ${W('describes')} albo gdy coś znajdziesz w bazach.</p>`; bar.hidden = true; return; }
   let html = '';
   for (const c in CLUE_CATS) {
     const ids = S.clueOrder.filter(x => CLUES[x.id].cat === c);
@@ -919,7 +978,7 @@ function renderDispatch() {
       <label><input type="radio" name="sig" id="d-loud" ${d.sirens ? 'checked' : ''} ${dis ? 'disabled' : ''}> na sygnałach (o ok. 20% szybciej)</label></div>
     <button class="btn primary wide" id="d-go" ${dis || !d.target ? 'disabled' : ''}>${o && o.status !== 'zakonczone' ? 'Zmień dyspozycję' : 'Zadysponuj'}</button>
     <div class="ustat"><b>Patrol 0-7:</b> ${status}</div>
-    <div class="ustat"><b>ZRM K-03:</b> ${S.zrmSent ? (S.rescued ? 'przy poszkodowanej' : 'w drodze / w gotowości') : '<span class="muted">w bazie</span>'}</div>`;
+    <div class="ustat"><b>ZRM K-03:</b> ${S.zrmSent ? (S.rescued ? W('atVictim') : 'w drodze / w gotowości') : '<span class="muted">w bazie</span>'}</div>`;
   $('#d-target').onchange = e => { d.target = e.target.value; renderDispatch(); };
   $('#d-zrm').onchange = e => d.zrm = e.target.checked;
   $('#d-psp').onchange = e => d.psp = e.target.checked;
@@ -972,6 +1031,8 @@ function startGame() {
   $('#decision').hidden = true;
   $('#composer').classList.remove('deciding');
   document.body.className = 'case-' + CASE.id;
+  $('#hp-lab').textContent = W('hpLabel'); $('#st-lab').textContent = W('stLabel');
+  $('#photo').hidden = true;
   buildMap($('#map'));
   buildSketch($('#sketch'));
   $('#incident-no').textContent = CASE.incident;
@@ -999,7 +1060,7 @@ setInterval(() => {
   S.idleReal++;
   renderSeconds();
   if (S.contact === 'active' && S.idleReal === 45 && S.idlePings < 3) {
-    act(async () => { S.idlePings++; dS(+5); await her([pick(['jesteś tam?', 'halo?? jesteś?', 'prosze odpisz', 'nie zostawiaj mnie'])]); }, true);
+    act(async () => { S.idlePings++; dS(+5); if (CASE.onIdle) CASE.onIdle(); await her([pick(CASE.idleLines || ['jesteś tam?', 'halo?? jesteś?', 'prosze odpisz', 'nie zostawiaj mnie'])]); }, true);
     return;
   }
   if (SET.pressure && S.idleReal % 30 === 0) act(() => advance(1), true);
@@ -1007,6 +1068,7 @@ setInterval(() => {
 
 document.addEventListener('keydown', e => {
   if (!S || S.over || $('#app').hidden) return;
+  if (!$('#photo').hidden) { if (e.key === 'Escape') closePhoto(); return; }
   if (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if (S.decision && S.decision.key) { if (/^[1-4]$/.test(e.key)) S.decision.key(+e.key); return; }
   if (S.phase === 'ring' && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); const b = $('#btn-answer'); if (b && !b.disabled) b.click(); return; }
@@ -1030,6 +1092,15 @@ function initApp() {
   $('#btn-help').onclick = () => $('#help').hidden = false;
   $('#notes').oninput = e => { if (S) S.ui.notes = e.target.value; };
   $('#help-close').onclick = () => $('#help').hidden = true;
+  $('#ph-close').onclick = closePhoto;
+  $('#photo').onclick = e => { if (e.target.id === 'photo') closePhoto(); };
+  $('#ph-wrap').onclick = photoClick;
+  $('#ph-zoom').onclick = () => {
+    const z = $('#photo').classList.toggle('zoom'), img = $('#ph-img'), st = $('.ph-stage');
+    $('#ph-zoom').textContent = z ? '⊖ Oddal' : '⊕ Przybliż';
+    img.style.width = z ? Math.round(img.getBoundingClientRect().width * 2.4) + 'px' : '';
+    if (z) { st.scrollLeft = (st.scrollWidth - st.clientWidth) / 2; st.scrollTop = (st.scrollHeight - st.clientHeight) / 2; }
+  };
   $('#help').onclick = e => { if (e.target.id === 'help') $('#help').hidden = true; };
   $$('#tool-tabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
   $$('#mnav button').forEach(b => b.onclick = () => { S.ui.mcol = b.dataset.col; renderTabs(); if (b.dataset.col === 'center') $('#chat').scrollTop = 1e9; });
