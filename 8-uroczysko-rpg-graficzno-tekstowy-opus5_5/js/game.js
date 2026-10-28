@@ -20,6 +20,9 @@ const SAVE_KEY = 'gmz_save_v1';
 const END_KEY = 'gmz_endings_v1';
 const SET_KEY = 'gmz_settings_v1';
 const CP_KEY = 'gmz_checkpoint_v1';
+const KRON_KEY = 'gmz_kronika_v1';
+// kronika poprzednich wędrówek: najnowsza pierwsza
+function kronika() { try { return JSON.parse(localStorage.getItem(KRON_KEY) || '[]'); } catch { return []; } }
 const PHASES = ['świt', 'dzień', 'zmierzch', 'noc'];
 const TORCH_STEPS = 6;
 
@@ -39,7 +42,7 @@ function newState(bgId, name) {
     base: { ...B.st }, mods: {}, weapon: { ...B.weapon },
     inv: { ...B.inv }, flags: {}, seen: {}, lore: [], loreSeen: [],
     day: 1, t: 1, light: 0, litNow: false, ward: 0, vision: 0, safeTravel: 0,
-    kills: 0, evCount: {}, petaEver: {}, steps: 0,
+    kills: 0, evCount: {}, petaEver: {}, steps: 0, runId: Date.now(), past: kronika()[0] || null,
     combat: null, fxq: [], riddle: 0,
   };
 }
@@ -60,7 +63,7 @@ function toastFx(text) { fx(text, 'good'); }
 function give(id, n = 1) {
   S.inv[id] = (S.inv[id] || 0) + n;
   if (ITEMS[id] && ITEMS[id].peto) S.petaEver[id] = true;
-  fx(`Zdobyto: ${ITEMS[id].n}${n > 1 ? ' ×' + n : ''}`, 'item');
+  fx(`Zdobyto: ${ITEMS[id].n}${n > 1 ? ' ×' + n : ''}`, 'loot');
 }
 function take(id, n = 1) {
   if (!S.inv[id]) return;
@@ -101,7 +104,7 @@ function znamie(d) {
 function srebro(d) {
   S.silver = Math.max(0, S.silver + d);
   const n = Math.abs(d);
-  fx(`${d > 0 ? '+' : '−'}${n} ${plural(n, 'dirham', 'dirhamy', 'dirhamów')}`, d > 0 ? 'item' : 'lose');
+  fx(`${d > 0 ? '+' : '−'}${n} ${plural(n, 'dirham', 'dirhamy', 'dirhamów')}`, d > 0 ? 'loot' : 'lose');
 }
 function learn(id, quiet) {
   if (!LORE[id] || S.lore.includes(id)) return;
@@ -110,7 +113,7 @@ function learn(id, quiet) {
   if (!quiet) fx(`Nowa wiedza: ${LORE[id].t}`, 'lore');
   $('#lore-new').hidden = false;
 }
-function equip(id) { S.weapon = { ...WEAPONS[id] }; fx(`Broń: ${S.weapon.n}`, 'item'); }
+function equip(id) { S.weapon = { ...WEAPONS[id] }; fx(`Broń: ${S.weapon.n}`, 'loot'); }
 function st(k) {
   let v = S.base[k] + (S.mods[k] || 0);
   for (const id in S.inv) { const b = ITEMS[id] && ITEMS[id].bonus; if (b && b[k]) v += b[k]; }
@@ -138,7 +141,7 @@ function whisperHurt(n) {
   rozum(-Math.max(1, Math.round(n * Math.max(0.2, k))));
   Snd.sfx.whisper(1);
 }
-function stepDown() { const again = (S.seen[S.node] || 0) > 0; whisperHurt(again ? 2 : 4); znamie(again ? 2 : 4); }
+function stepDown() { const again = (S.seen[S.node] || 0) > 0; rozum(again ? -2 : -4); Snd.sfx.whisper(1); znamie(again ? 2 : 4); }
 function hubOf(loc) { return loc === 'mszaniec' ? 'msz' : loc; }
 
 /* =====================================================================
@@ -165,7 +168,7 @@ function go(id) {
     if (S.light > 0) { S.litNow = true; S.light--; if (S.light === 0) fx('Pochodnia dopala się', 'lose'); }
     else { S.litNow = false; rozum(-4); fx('Ciemność', 'mind'); }
   } else S.litNow = false;
-  if (id === 'wk_wrota' && !S.cp) { S.cp = 1; try { localStorage.setItem(CP_KEY, JSON.stringify({ ...S, fxq: [], combat: null })); } catch { } }
+  if (id === 'wk_wrota') { S.cp = 1; try { localStorage.setItem(CP_KEY, JSON.stringify({ ...S, fxq: [], combat: null })); } catch { } }
   if (!S.seen[id] && n.first) n.first();
   if (n.on) n.on();
   if (n.end) return showEnding(n.end);
@@ -177,7 +180,7 @@ function go(id) {
 }
 
 function checkFate(n) {
-  if (S.hp <= 0) return S.znamie >= 50 ? 'zak_wilk' : 'zak_smierc';
+  if (S.hp <= 0) return S.znamie >= 50 && !(n && n.wk) ? 'zak_wilk' : 'zak_smierc';
   if (S.rozum <= 0) return 'zak_obled';
   if (S.znamie >= 100) return 'zak_pasterz';
   if (S.day > 3 && !(n && n.wk)) return 'zak_mgla';
@@ -511,7 +514,7 @@ function combatAct(act) {
     c.stun = 2; clog(`Róg ryczy. ${e.n} zatacza się, ogłuszony.`, 'you');
   } else if (act === 'glod') {
     const dd = attackRoll(st('sil') + 2, e.def, S.weapon.dmg + 3, 'Rzucasz się z zębami');
-    if (dd) { hp(Math.ceil(dd / (e.god ? 3 : 2))); }
+    if (dd && !(e.god && !F('peta_polozone'))) { hp(Math.ceil(dd / (e.god ? 3 : 2))); }
     znamie(e.god ? 8 : 5);
     if (e.god) setF('glod_boga');
     clog('<span class="szept">…dobrze… smacznie…</span>', 'whisper');
@@ -557,7 +560,7 @@ function enemyTurn() {
 
 function endFight(kind) {
   const c = S.combat;
-  if (kind === 'win') S.kills++;
+  if (kind === 'win' && !(c.e && c.e.illusion)) S.kills++;
   const target = kind === 'win' ? c.win : kind === 'flee' ? c.flee : (c.dispel || c.win);
   S.combat = null;
   $('#enemy-bar').hidden = true;
@@ -761,6 +764,11 @@ function showEnding(id) {
   $('#btn-cp').hidden = !(S.cp && cp);
   $('#ending').classList.toggle('dawn', E.tone === 'dawn');
   END_ID = id;
+  if (S.runId) {
+    const k = kronika().filter(r => r.run !== S.runId);
+    k.unshift({ run: S.runId, name: S.name, bg: S.bg, end: id, song: END_SONG });
+    try { localStorage.setItem(KRON_KEY, JSON.stringify(k.slice(0, 9))); } catch { }
+  }
   const peta = Object.keys(S.petaEver).length;
   $('#end-stats').innerHTML = [
     ['Dzień', Math.min(S.day, 4)], ['Pokonani', S.kills], ['Pęta', `${peta}/3`],
@@ -781,16 +789,17 @@ async function saveCard() {
   const cv = document.createElement('canvas'); cv.width = 1200; cv.height = 630;
   const x = cv.getContext('2d');
   x.drawImage($('#ending-bg'), 0, -22, 1200, 675);
-  const g = x.createLinearGradient(0, 0, 1200, 0); g.addColorStop(0, 'rgba(5,6,8,.94)'); g.addColorStop(0.62, 'rgba(5,6,8,.78)'); g.addColorStop(1, 'rgba(5,6,8,.25)');
+  const g = x.createLinearGradient(0, 0, 1200, 0); g.addColorStop(0, 'rgba(5,6,8,.92)'); g.addColorStop(0.55, 'rgba(5,6,8,.55)'); g.addColorStop(1, 'rgba(5,6,8,.05)');
   x.fillStyle = g; x.fillRect(0, 0, 1200, 630);
   x.strokeStyle = 'rgba(201,164,90,.45)'; x.lineWidth = 2; x.strokeRect(18, 18, 1164, 594);
-  x.fillStyle = '#c9a45a'; x.font = '600 18px Cinzel, Georgia, serif'; x.fillText('GDZIE MGŁA MA ZĘBY  ·  ZAKOŃCZENIE', 64, 82);
+  x.fillStyle = '#c9a45a'; x.font = '600 18px Cinzel, Georgia, serif'; if ('letterSpacing' in x) x.letterSpacing = '5px'; x.fillText('GDZIE MGŁA MA ZĘBY  ·  ZAKOŃCZENIE', 64, 82); if ('letterSpacing' in x) x.letterSpacing = '0px';
   x.fillStyle = '#eadfc8'; x.font = '900 64px Cinzel, Georgia, serif'; x.fillText(ENDINGS[END_ID].t, 64, 158);
-  x.fillStyle = '#948b7d'; x.font = 'italic 24px Alegreya, Georgia, serif'; x.fillText(`${S.name}, ${BACKGROUNDS[S.bg].full.toLowerCase()} · ${ENDINGS[END_ID].sub}`, 64, 202);
+  x.fillStyle = '#948b7d'; x.font = 'italic 24px Alegreya, Georgia, serif'; x.fillText(`${S.name}, ${BACKGROUNDS[S.bg].full} · ${ENDINGS[END_ID].sub}`, 64, 202);
   x.fillStyle = '#eadfc8'; x.font = 'italic 27px Alegreya, Georgia, serif';
   END_SONG.forEach((l, i) => x.fillText(l, 64, 300 + i * 44));
   x.fillStyle = '#948b7d'; x.font = '18px Alegreya, Georgia, serif';
   x.fillText(`Odkryte zakończenia: ${getEndings().length}/${ENDING_ORDER.length}`, 64, 578);
+  x.textAlign = 'right'; x.fillText('projekty.vibemaster.pl', 1136, 578); x.textAlign = 'left';
   cv.toBlob(b => {
     if (!b) return toast('Nie udało się zapisać karty');
     const a = document.createElement('a'); a.href = URL.createObjectURL(b);
@@ -832,6 +841,8 @@ function renderTitleEndings() {
   const box = $('#title-endings');
   box.innerHTML = got.length ? `<h4>Zakończenia <b>${got.length}/${ENDING_ORDER.length}</b></h4><div class="mounds">${ENDING_ORDER.map(k =>
     `<span class="mound${got.includes(k) ? ' got' : ''}" tabindex="0" data-tip="${esc(got.includes(k) ? ENDINGS[k].t + ' – ' + ENDINGS[k].sub : '??? ' + ENDINGS[k].hint)}"></span>`).join('')}</div><div class="mound-tip"></div>` : '';
+  const k = kronika();
+  if (k.length) box.insertAdjacentHTML('beforeend', `<div class="title-song"><small>Pieśń o trzech ma już ${k.length + 1} ${plural(k.length + 1, 'zwrotkę', 'zwrotki', 'zwrotek')}. Ostatnia:</small>${k[0].song.slice(0, 1).concat(k[0].song.slice(-1)).map(esc).join('<br>')}</div>`);
   const tip = $('.mound-tip', box);
   $$('.mound', box).forEach(m => { const on = () => tip.textContent = m.dataset.tip; m.addEventListener('mouseenter', on); m.addEventListener('focus', on); m.addEventListener('click', on); });
   $('#btn-continue').hidden = !load();
@@ -989,6 +1000,7 @@ function init() {
     if (e.key === ' ') { e.preventDefault(); $('#story').classList.add('instant'); if (!$('#dice').hidden) $('#dice').click(); return; }
     const k = parseInt(e.key, 10);
     if (k >= 1 && k <= 9) { e.preventDefault(); choose(k - 1); }
+    else if (k === 0) { e.preventDefault(); choose(9); }
   });
 }
 

@@ -160,7 +160,7 @@ const ENEMIES = {
 };
 
 const LORE = {
-  rana: { t: 'Ugryzienie', x: 'O zmierzchu, dzień przed przybyciem do Mszańca, wilk z bielmem na lewym oku ugryzł cię w przedramię. Nie mocno, raczej jakby chciał cię zapamiętać. Rana nie krwawi i się nie goi. Dobrawa mówi, że to znamię Pasterza.' },
+  rana: { t: 'Ugryzienie', x: 'O zmierzchu, dzień przed przybyciem do Mszańca, wilk z bielmem na lewym oku ugryzł cię w przedramię. Nie mocno, raczej jakby chciał cię zapamiętać. Rana nie krwawi i się nie goi. Pulsuje ciepło, jakby ktoś trzymał na niej dłoń.' },
   uroczysko: { t: 'Uroczysko', x: 'Sześć nocy temu, w wigilię Dziadów, ktoś zwalił w świętym gaju Czworolicego, ściął święty dąb i rozkopał kurhany. Od tamtej pory mgła się nie podnosi i znikają ludzie: najpierw pastuch Dziwisz, potem mała Wiszka. Żerca Radogost poszedł „zawiązać, co rozwiązano” i nie wrócił.' },
   kopacze: { t: 'Kopacze Hrodgara', x: 'Pięciu Waregów z wodzem Hrodgarem przyszło po „srebro umarłych”. Drogę pokazał im Sulisław, syn starosty. Najpierw rozkopali kurhan wojownika, a gdy Bjorn wszedł do środka i nie wyszedł, Hrodgar kazał kopać wielki kurhan.' },
   pasterz: { t: 'Pasterz Mgły', x: 'Według Dobrawy uroczysko nie jest święte dlatego, że mieszkają tam bogowie. Jest święte, bo tam więzi się kogoś, kto był tu przed bogami. Starzy nazywali go Pasterzem Mgły: mgła jest jego stadem, a ludzie trawą. To głód, który nauczył się myśleć.' },

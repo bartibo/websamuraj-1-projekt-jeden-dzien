@@ -128,7 +128,7 @@ const Scene = (() => {
   }
   function skull(c, x, y, s, R, kind) {
     c.save(); c.translate(x, y); c.scale(s, s);
-    c.fillStyle = '#a69d8a';
+    c.fillStyle = '#958c7e';
     if (kind === 'kon') {
       c.beginPath(); c.ellipse(0, 0, 7, 16, 0, 0, TAU); c.fill();
       c.fillStyle = '#1c1a17'; c.beginPath(); c.ellipse(-3.5, -7, 2, 2.6, 0, 0, TAU); c.ellipse(3.5, -7, 2, 2.6, 0, 0, TAU); c.fill();
@@ -873,10 +873,10 @@ const Scene = (() => {
     dzik: (c, x, y, s, t, o) => { quad(c, BOAR, x, y, s * 0.6, o.col, false, Math.sin(t * 3) * 0.01); c.strokeStyle = '#d8ccb0'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x - 0.9 * s * 0.6, y - 0.32 * s * 0.6); c.quadraticCurveTo(x - 1.0 * s * 0.6, y - 0.5 * s * 0.6, x - 0.86 * s * 0.6, y - 0.55 * s * 0.6); c.stroke(); eyesAt(c, [[x - 0.68 * s * 0.6, y - 0.56 * s * 0.6]], '#ff5a2a', s * 0.012, t); },
     straznik: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s, t, col: o.col, spear: true, wide: 0.85, cloak: false }),
     starzec: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.92, t, col: o.col, hunch: 0.5, wide: 1.25, beard: 1.6, beardCol: '#4d4a44' }),
-    starucha: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.85, t, col: o.col, hunch: 0.9, wide: 1.15, staff: true, eyes: '#e8e6dc', eyeOne: true, eyeSize: 0.2 }),
+    starucha: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.85, t, col: o.col, hunch: 0.9, wide: 1.15, staff: true, eyes: '#d9e2e6', eyeOne: true, eyeSize: 0.09 }),
     kobieta: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.9, t, col: o.col, wide: 0.85, braids: true, hunch: 0.25 }),
     sulislaw: (c, x, y, s, t, o) => { c.fillStyle = o.col; c.beginPath(); c.ellipse(x, y - s * 0.1, s * 0.07, s * 0.08, 0, 0, TAU); c.fill(); c.beginPath(); c.ellipse(x, y - s * 0.02, s * 0.16, s * 0.05, 0, Math.PI, TAU); c.fill(); c.lineWidth = s * 0.02; c.strokeStyle = o.col; c.beginPath(); c.moveTo(x - s * 0.12, y - s * 0.03); c.lineTo(x - s * 0.25, y - s * 0.18 + Math.sin(t * 2) * 4); c.stroke(); eyesAt(c, [[x - s * 0.022, y - s * 0.11], [x + s * 0.022, y - s * 0.11]], '#e6e2d4', s * 0.006, t); },
-    topielec: (c, x, y, s, t, o) => { const bob = Math.sin(t * 1.3) * 4; humanoid(c, { x, y: y + s * 0.35 + bob, h: s, t, col: '#202622', wide: 1.3, head: 1.35, arms: 'long', eyes: '#f4f6f0', eyeSize: 0.22, gape: true }); c.fillStyle = 'rgba(20,30,34,.85)'; c.fillRect(0, y + bob * 0.2, W, H - y); },
+    topielec: (c, x, y, s, t, o) => { const bob = Math.sin(t * 1.3) * 4; c.save(); c.beginPath(); c.rect(0, 0, W, y + bob * 0.2 + 2); c.clip(); humanoid(c, { x, y: y + s * 0.35 + bob, h: s, t, col: '#202622', wide: 1.3, head: 1.35, arms: 'long', eyes: '#cfe3d0', eyeSize: 0.16, gape: true, hair: true, hairCol: '#2a3530', hairLen: 0.55 }); c.restore(); c.fillStyle = 'rgba(20,30,34,.85)'; c.fillRect(0, y + bob * 0.2, W, H - y); },
     wojownik: (c, x, y, s, t, o) => { humanoid(c, { x, y, h: s * 1.05, t, col: '#141619', wide: 0.85, cloak: false, sword: true, ragged: true, ribs: true, eyes: '#7fc6ff', eyeSize: 0.22 }); },
     szkielet: (c, x, y, s, t, o) => { c.save(); c.globalAlpha = 0.28 + Math.sin(t * 0.8) * 0.06; humanoid(c, { x: 560, y: 360, h: 260, t, col: '#000', wide: 0.9, sword: true }); c.restore(); },
     matka: (c, x, y, s, t, o) => {
@@ -901,6 +901,29 @@ const Scene = (() => {
       c.strokeStyle = '#8d3a1e'; c.lineWidth = 1.4;
       for (let k = 0; k < 18; k++) { c.beginPath(); c.moveTo(x + (k - 9) * 2, y - h * 0.76); c.quadraticCurveTo(x + (k - 9) * 6 + Math.sin(t * 1.5 + k) * 10, y - h * 0.9, x + (k - 9) * 9 + Math.sin(t + k) * 14, y - h * 0.4); c.stroke(); }
     },
+    starzec_siedzi: (c, x, y, s, t, o) => {
+      const h = s * 0.92, sy = y - h * 0.26;
+      c.fillStyle = mix(o.col, '#2a1c12', 0.4); c.fillRect(x - h * 0.2, sy, h * 0.42, h * 0.05); c.fillRect(x - h * 0.17, sy, h * 0.04, h * 0.26); c.fillRect(x + h * 0.17, sy, h * 0.04, h * 0.26);
+      c.fillStyle = o.col;
+      limb(c, [[x - h * 0.02, sy - h * 0.03], [x - h * 0.24, sy - h * 0.03], [x - h * 0.26, y - h * 0.02]], [h * 0.1, h * 0.075, h * 0.055]);
+      c.beginPath(); c.ellipse(x - h * 0.3, y - h * 0.012, h * 0.05, h * 0.017, 0, 0, TAU); c.fill();
+      humanoid(c, { x, y: sy, h: h * 0.74, t, col: o.col, hunch: 0.7, wide: 1.4, beard: 1.6, beardCol: '#4d4a44' });
+    },
+    dziecko_dziupla: (c, x, y, s, t, o) => {
+      // twarz w dziupli: piegowata, z rudymi włosami i dłońmi przy ustach
+      const dx = 165, dy = 378 + Math.sin(t * 0.9) * 1.2;
+      c.save(); c.beginPath(); c.ellipse(165, 380, 22, 34, 0.05, 0, TAU); c.clip();
+      c.fillStyle = '#050403'; c.fillRect(140, 340, 50, 80);
+      c.strokeStyle = '#8a3e1c'; c.lineWidth = 2;
+      for (let k = 0; k < 9; k++) { c.beginPath(); c.moveTo(dx - 8 + k * 2, dy - 10); c.quadraticCurveTo(dx - 14 + k * 3.5, dy + 4, dx - 13 + k * 3.4 + Math.sin(t + k) * 1.5, dy + 22); c.stroke(); }
+      c.fillStyle = '#b8a28e'; c.beginPath(); c.ellipse(dx, dy, 8, 10, 0, 0, TAU); c.fill();
+      c.fillStyle = '#8a3e1c'; c.beginPath(); c.ellipse(dx, dy - 8, 9, 5, 0, Math.PI, TAU); c.fill();
+      c.fillStyle = '#b3241a'; c.fillRect(dx + 3, dy - 12, 6, 3);
+      const bl = Math.sin(t * 0.8) > 0.96 ? 0.2 : 1;
+      c.fillStyle = '#120c0a'; c.beginPath(); c.ellipse(dx - 3, dy - 1, 1.6, 1.8 * bl, 0, 0, TAU); c.ellipse(dx + 3, dy - 1, 1.6, 1.8 * bl, 0, 0, TAU); c.fill();
+      c.fillStyle = '#a48e7a'; c.beginPath(); c.ellipse(dx - 3, dy + 6, 3.6, 3, 0.3, 0, TAU); c.ellipse(dx + 3, dy + 6, 3.6, 3, -0.3, 0, TAU); c.fill();
+      c.restore();
+    },
     dziecko: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.5, t, col: o.col, wide: 0.9, head: 1.3, hair: true, hairCol: '#5a2a16', hairLen: 0.75, ribbon: true }),
     dziecko_cien: (c, x, y, s, t, o) => { c.save(); c.globalAlpha = 0.25 + Math.sin(t * 0.7) * 0.1; humanoid(c, { x: 260, y, h: s * 0.42, t, col: '#000', head: 1.3 }); c.restore(); },
     zerca: (c, x, y, s, t, o) => { humanoid(c, { x: 480, y: 330 + Math.sin(t * 0.8) * 3, h: 220, t, col: '#2a2722', wide: 0.9, arms: 'out', hair: true, hairCol: '#8a8678', hairLen: 0.4 }); c.fillStyle = 'rgba(210,205,190,.25)'; c.fillRect(455, 190, 50, 140); },
@@ -924,7 +947,7 @@ const Scene = (() => {
   };
 
   // postacie rysowane w stałym miejscu albo na cały kadr – bez poświaty
-  const FIG_FULL = new Set(['wilki_spokojne', 'szkielet', 'nici', 'dziecko_cien', 'zerca', 'kruki']);
+  const FIG_FULL = new Set(['wilki_spokojne', 'szkielet', 'nici', 'dziecko_cien', 'zerca', 'kruki', 'dziecko_dziupla']);
 
   /* =====================================================================
      WIDOK: płótno + stan + pętla
@@ -1050,7 +1073,8 @@ const Scene = (() => {
       for (const p of v.smoke) { p.y -= 14 * dt; p.x += p.vx * dt; p.r += 7 * dt; p.a -= 0.035 * dt; }
       let ns = 0; for (const p of v.smoke) if (p.a > 0) v.smoke[ns++] = p; v.smoke.length = ns;
       const puffImg = puff(s.k === 'wrota' || s.k === 'kurhany' ? '#c9b8b0' : P.fog);
-      for (const p of v.smoke) { c.globalAlpha = p.a * 0.55; c.drawImage(puffImg, p.x - p.r * 1.6, p.y - p.r * 1.6, p.r * 3.2, p.r * 3.2); }
+      const tall = s.k === 'wrota' || s.k === 'kurhany';
+      for (const p of v.smoke) { c.globalAlpha = p.a * (tall ? 0.3 : 0.55); const hh = p.r * 3.2 * (tall ? 2.4 : 1); c.drawImage(puffImg, p.x - p.r * (tall ? 0.9 : 1.6), p.y - hh / 2, p.r * (tall ? 1.8 : 3.2), hh); }
       c.globalAlpha = 1;
       if (d.fires) for (const f of d.fires) if (!f.night || (s.tod >= 2)) drawFire(c, f.x, f.y, f.s, t, f.warm);
       if (d.embers) {
@@ -1144,7 +1168,7 @@ const Scene = (() => {
         const sl = 6;
         for (let y = 0; y < H; y += sl) {
           const off = Math.sin(y * 0.022 + t * 2.1) * amp + Math.sin(y * 0.061 - t * 3.3) * amp * 0.4;
-          ctx.drawImage(v.buf, 0, y, W, sl, off, y, W, sl);
+          ctx.drawImage(v.buf, 0, y, W, sl, off - amp * 1.4, y, W + amp * 2.8, sl);
         }
       } else ctx.drawImage(v.buf, 0, 0);
       if (v.fade > 0) { ctx.globalAlpha = v.fade; ctx.drawImage(v.prev, 0, 0); ctx.globalAlpha = 1; v.fade = Math.max(0, v.fade - dt * 1.4); }
