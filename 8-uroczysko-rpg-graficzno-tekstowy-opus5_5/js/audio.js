@@ -12,7 +12,7 @@ const Snd = (() => {
   let timer = null;
 
   function init() {
-    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    if (ac) { if (on && ac.state === 'suspended' && !document.hidden) ac.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ac = new AC();
@@ -25,6 +25,7 @@ const Snd = (() => {
     buildLayers();
     setMood({});
     timer = setInterval(tickEvents, 250);
+    document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) ac.suspend(); else if (on) ac.resume(); });
   }
 
   function noiseSrc() { const s = ac.createBufferSource(); s.buffer = noise; s.loop = true; s.loopStart = Math.random(); return s; }
@@ -161,6 +162,13 @@ const Snd = (() => {
     whisper,
     roar() { if (!ac || !on) return; const t = ac.currentTime, s = noiseSrc(), lp = ac.createBiquadFilter(), g = gain(0); lp.type = 'lowpass'; lp.frequency.setValueAtTime(600, t); lp.frequency.exponentialRampToValueAtTime(120, t + 1.6); s.connect(lp); lp.connect(g); g.connect(master); env(g, t, 0.1, 0.6, 1.6); s.start(t); s.stop(t + 1.9); const o = ac.createOscillator(), g2 = gain(0); o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(38, t + 1.6); o.connect(g2); g2.connect(master); env(g2, t, 0.1, 0.12, 1.5); o.start(t); o.stop(t + 1.8); },
     horn() { if (!ac || !on) return; const t = ac.currentTime, o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = gain(0); o.type = 'sawtooth'; o.frequency.setValueAtTime(130, t); o.frequency.linearRampToValueAtTime(146, t + 0.3); lp.type = 'lowpass'; lp.frequency.value = 900; o.connect(lp); lp.connect(g); g.connect(master); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.15); g.gain.setValueAtTime(0.2, t + 1.2); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8); o.start(t); o.stop(t + 1.9); },
+    howl(v = 1) { if (!ac || !on) return; const t = ac.currentTime, o = ac.createOscillator(), o2 = ac.createOscillator(), lp = ac.createBiquadFilter(), g = gain(0), vib = ac.createOscillator(), vg = gain(9);
+      o.type = 'sawtooth'; o2.type = 'triangle'; vib.frequency.value = 5.2; vib.connect(vg); vg.connect(o.frequency); vg.connect(o2.frequency);
+      [o, o2].forEach((x, i) => { const k = i ? 2 : 1; x.frequency.setValueAtTime(380 * k, t); x.frequency.exponentialRampToValueAtTime(610 * k, t + 0.9); x.frequency.setValueAtTime(610 * k, t + 1.9); x.frequency.exponentialRampToValueAtTime(430 * k, t + 3.4); });
+      lp.type = 'lowpass'; lp.frequency.value = 1300; const dl = ac.createDelay(); dl.delayTime.value = 0.31; const fb = gain(0.32);
+      const g2 = gain(0.18); o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(master); g.connect(dl); dl.connect(fb); fb.connect(dl); fb.connect(master);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07 * v, t + 0.7); g.gain.setValueAtTime(0.07 * v, t + 2.6); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.6);
+      [o, o2, vib].forEach(x => { x.start(t); x.stop(t + 3.8); }); },
     page() { if (!ac || !on) return; const t = ac.currentTime, s = noiseSrc(), bp = ac.createBiquadFilter(), g = gain(0); bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.8; s.connect(bp); bp.connect(g); g.connect(master); env(g, t, 0.03, 0.05, 0.2); s.start(t); s.stop(t + 0.3); },
   };
 
@@ -169,6 +177,6 @@ const Snd = (() => {
     setMood,
     sfx,
     get on() { return on; },
-    setOn(v) { on = v; if (master) ramp(master.gain, v ? 0.8 : 0, 0.3); },
+    setOn(v) { on = v; if (!ac) return; ramp(master.gain, v ? 0.8 : 0, 0.3); if (v && !document.hidden) ac.resume(); else if (!v) setTimeout(() => { if (!on) ac.suspend(); }, 400); },
   };
 })();

@@ -49,17 +49,17 @@ msz: {
       `W południe Mszaniec wygląda prawie zwyczajnie: ktoś rąbie drwa, ktoś niesie wodę, ktoś łata dach. Tylko nikt nie śpiewa i nikt nie patrzy w stronę puszczy.`,
       `O zmierzchu ludzie zamykają się w chatach. Na progach sypią sól i popiół, a na drzwiach rysują węglem znaki, których sens zna już tylko Dobrawa.`,
       `Nocą Mszaniec to tylko kilka żarzących się szpar w okiennicach. Mgła wchodzi między chaty i nie wychodzi. Przy chramie płonie ognisko, a przy nim siedzi chłopak z bramy i nie śpi.`]),
-    S.day === 2 && `Rano, przy studni, ludzie mówią szeptem, że w nocy zniknął kowal Ostoja. Drzwi kuźni stały otworem, a na progu, w popiele, który sam sypał, zostały ślady bosych stóp. Za dużych. I z za wieloma palcami.`,
+    S.day === 2 && `Rano, przy studni, ludzie mówią szeptem, że w nocy zniknął kowal Ostoja. Drzwi kuźni stały otworem, a na progu, w popiele, który sam sypał, zostały ślady bosych stóp. Za dużych. I ze zbyt wieloma palcami.`,
     S.day === 3 && `Tej nocy zniknęło dwoje: stara Wierzchosława i jej wnuk. Ludzie stoją w grupkach i milkną, kiedy przechodzisz. Ktoś spluwa przez ramię. Rana na przedramieniu mówi ci, że została jedna noc. Nie wiesz, skąd to wiesz.`,
     S.znamie >= 45 && `Psy we wsi szczekają, kiedy przechodzisz. Potem nagle milkną, kładą uszy po sobie i odwracają łby.`,
     F('wiszka_w_domu') && `Spod chaty Miry dobiega cienki głos, nucący piosenkę o trzech.`,
     !F('zlecenie') && `Chłopak z bramy pokazuje ci włócznią największą chatę. – Starosta – mówi tylko.`),
   ch: [
     { t: () => F('zlecenie') ? 'Chata starosty Bogumiła' : 'Idź do starosty Bogumiła', go: () => F('zlecenie') ? 'starosta' : 'starosta1' },
-    { t: 'Chata zielarki Dobrawy, na samym skraju osady', go: () => S.seen.dobrawa1 ? 'dobrawa' : 'dobrawa1' },
+    { t: 'Chata zielarki Dobrawy, na samym skraju osady', go: () => F('wilczyca_martwa') ? (S.seen.dobrawa_martwa ? 'dobrawa_pusta' : 'dobrawa_martwa') : S.seen.dobrawa1 ? 'dobrawa' : 'dobrawa1' },
     { t: 'Mira, matka zaginionej dziewczynki', if: () => F('o_wiszce'), go: () => S.seen.mira1 ? 'mira' : 'mira1' },
     { t: 'Odprowadź Wiszkę do matki', if: () => F('wiszka_z_toba'), go: 'mira_powrot' },
-    { t: () => S.day >= 3 ? 'Ognisko przy chramie – prześpij się do świtu (to ostatnia noc)' : 'Ognisko przy chramie – prześpij się do świtu', go: 'msz_sen' },
+    { t: () => S.day >= 3 ? 'Ognisko przy chramie – to ostatnia noc' : 'Ognisko przy chramie – prześpij się do świtu', go: () => S.day >= 3 ? 'msz_sen_ostatni' : 'msz_sen' },
     { t: 'Odejdź z Mszańca na dobre', if: () => F('zlecenie'), go: 'odejscie' },
   ],
 },
@@ -82,6 +82,19 @@ msz_sen: {
     `Śpisz bez snów. W tym miejscu to najlepsze, co mogło cię spotkać.`,
     `Budzi cię zimny, szary świt.`),
   ch: [{ t: 'Wstań', go: 'msz' }],
+},
+
+msz_sen_ostatni: {
+  loc: 'mszaniec', sc: 'ognisko', title: 'Ostatnia noc',
+  text: P(
+    `Siadasz przy ognisku. Chłopak z bramy dorzuca drew i patrzy w ogień, nie na ciebie.`,
+    `– Dobrawa mówi, że to ostatnia noc – odzywa się w końcu. – Że jak ktoś do świtu nie zejdzie na dół, to rano nikt już nie będzie musiał.`,
+    `Rana na przedramieniu pulsuje powoli i spokojnie, jak serce kogoś, kto wie, że wygrał.`,
+    `Jeśli teraz zaśniesz, nie zdążysz już niczego zrobić.`),
+  ch: [
+    { t: 'Zaśnij. Niech się dzieje, co ma się dziać. (koniec wędrówki)', go: 'msz_sen' },
+    { t: 'Wstań. Póki jest noc, jest jeszcze czas.', go: 'msz' },
+  ],
 },
 
 odejscie: {
@@ -155,7 +168,7 @@ starosta_przyznanie: {
     `– Mój syn. Sulisław. Głupi chłopak, ale mój. Przyszli tu Waregowie, pięciu, z łopatami i workami na srebro. Ich wódz, Hrodgar, mówił, że w kurhanach leży srebro umarłych, a umarłym srebro na nic. Sulisław poszedł z nimi, bo znał drogę. Wszyscy w Mszańcu znają drogę. Tylko nikt nią nie chodzi.`,
     `– Nie wrócił. Żaden z nich nie wrócił.`,
     `Podnosi wzrok. W oczach ma coś gorszego niż strach: wstyd.`,
-    `– Jeśli go znajdziesz… żywego czy nie… powiedz mi. Dołożę dziesięć dirhamów.`),
+    `– Jeśli go znajdziesz… żywego czy nie… powiedz mi. Dołożę dziesięć dirhamów. – Głos mu się łamie. – Jeśli żyje, to już niedługo. Mgła nikogo długo nie trzyma.`),
   first: () => { learn('kopacze'); setF('o_sulislawie'); },
   ch: [{ t: 'Dalej', go: () => F('zlecenie') ? 'starosta' : 'starosta1' }],
 },
@@ -190,7 +203,7 @@ starosta_uroczysko: {
   loc: 'mszaniec', sc: 'chata', fig: 'starzec',
   text: P(
     `– Za płotem z czaszek zaczyna się uroczysko – mówi Bogumił. – Prosto, na północ, jest gaj, gdzie stał Czworolicy. Za gajem, na wzgórzu, krąg kamieni, gdzie dziady palili ognie. Jeszcze dalej na północ pole kurhanów: trzy małe i jeden wielki.`,
-    `– Na zachód Wilczy Jar. Tam nie chodź, chyba że musisz. Na wschód Topielisko, a za nim polana pod starym dębem, gdzie ci obcy rozbili obóz. – Wzrusza ramionami. – Tyle wiem ja. Więcej wie Dobrawa. Dobrawa zawsze wie więcej, niż mówi.`),
+    `– Na zachód Wilczy Jar. Tam nie chodź, chyba że musisz. Na wschód Topielisko, a za nim polana pod starym dębem, gdzie ci obcy rozbili obóz. – Wzrusza ramionami. – Tyle wiem ja. Resztę wie Dobrawa. Była tu, zanim się urodziłem. Może i zanim urodził się mój dziad.`),
   ch: [{ t: 'Dalej', go: 'starosta' }],
 },
 
@@ -254,6 +267,7 @@ dobrawa: {
     { t: 'Pokaż jej kij runiczny', if: () => has('kij') && !know('runy'), go: 'dobrawa_runy' },
     { t: 'Pokaż jej pęta, które zdobyłeś', if: () => petaCount() > 0 && !S.seen.dobrawa_peta, go: 'dobrawa_peta' },
     { t: 'Opowiedz jej, co się stało w dziupli', if: () => F('wiszka_zabita') && !S.seen.dobrawa_wina, go: 'dobrawa_wina' },
+    { t: 'Połóż przed nią kieł Wilczej Matki', if: () => has('kiel') && !S.seen.dobrawa_prawda, go: 'dobrawa_prawda' },
     { t: 'Co masz na sprzedaż?', go: 'dobrawa_handel' },
     { t: 'Wyjdź', go: 'msz' },
   ],
@@ -263,7 +277,7 @@ dobrawa_pasterz: {
   loc: 'mszaniec', sc: 'chata', fig: 'starucha',
   text: P(
     `– Ludzie z Mszańca myślą, że uroczysko jest święte, bo mieszkają tam bogowie. – Dobrawa rzuca w ogień garść suchych ziół. Dym robi się słodki i ciężki. – Głupcy. Uroczysko jest święte, bo tam trzymamy kogoś, kto był tu przed bogami.`,
-    `Mówi, że nie ma on imienia, które wolno wymówić. Starzy nazywali go Pasterzem Mgły, bo mgła jest jego stadem, a my trawą, na której to stado się pasie. Że jest głodem, który nauczył się myśleć. I że trzy kurhany na północy to nie groby, tylko pęta: troje ludzi, którzy dawno temu poszli pod ziemię z własnej woli, żeby go trzymać.`,
+    `Mówi, że nie ma on imienia, które wolno wymówić. Że niektórzy mylą go z Welesem, ale Weles pasie dusze zmarłych, a ten je zjada. Starzy nazywali go Pasterzem Mgły, bo mgła jest jego stadem, a my trawą, na której to stado się pasie. Że jest głodem, który nauczył się myśleć. I że trzy kurhany na północy to nie groby, tylko pęta: troje ludzi, którzy dawno temu poszli pod ziemię z własnej woli, żeby go trzymać.`,
     `– Wojownik, Matka i Dziecko. Żelazo, nić i… zabawka. Każde coś tam ze sobą zabrało. – Uśmiecha się krzywo. – A teraz przyszli jacyś z łopatami i ruszyli pęta. Wielki kopiec za nimi też otworzyli. Więc on się przeciąga, budzi i jest głodny.`,
     `– Żeby go zawiązać, trzeba zebrać pęta, zanieść je w dół, do serca, i wypowiedzieć tam jego imię. I dać mu coś, czego się już nie odbierze. Tak mówią stare pieśni. – Wzrusza ramionami. – Pieśni lubią kłamać.`),
   first: () => { learn('pasterz'); learn('peta'); },
@@ -332,14 +346,66 @@ dobrawa_handel: {
     `Dobrawa wysypuje na stół woreczki i wiązki. – Srebro za ziele – mówi. – Ziele za życie. Uczciwa wymiana.`,
     `Masz ${S.silver} ${plural(S.silver, 'dirhama', 'dirhamy', 'dirhamów')}.`),
   ch: [
-    { t: 'Bylica (3 srebra) – na szepty i strach', if: () => S.silver >= 3, go: 'dobrawa_handel', do: () => { srebro(-3); give('bylica'); } },
-    { t: 'Sól (3 srebra) – na upiory', if: () => S.silver >= 3, go: 'dobrawa_handel', do: () => { srebro(-3); give('sol'); } },
-    { t: 'Pochodnia (2 srebra)', if: () => S.silver >= 2, go: 'dobrawa_handel', do: () => { srebro(-2); give('pochodnia'); } },
-    { t: 'Chleb (1 srebro)', if: () => S.silver >= 1, go: 'dobrawa_handel', do: () => { srebro(-1); give('chleb'); } },
-    { t: 'Miód pitny (3 srebra)', if: () => S.silver >= 3, go: 'dobrawa_handel', do: () => { srebro(-3); give('miod'); } },
-    { t: 'Wywar z lulka (6 srebra)', if: () => S.silver >= 6 && F('lulek_dany'), go: 'dobrawa_handel', do: () => { srebro(-6); give('lulek'); learn('lulek'); } },
+    { t: 'Bylica (3 dirhamy) – na szepty i strach', if: () => S.silver >= 3, go: 'dobrawa_handel', do: () => { srebro(-3); give('bylica'); } },
+    { t: 'Sól (3 dirhamy) – na upiory', if: () => S.silver >= 3, go: 'dobrawa_handel', do: () => { srebro(-3); give('sol'); } },
+    { t: 'Pochodnia (2 dirhamy)', if: () => S.silver >= 2, go: 'dobrawa_handel', do: () => { srebro(-2); give('pochodnia'); } },
+    { t: 'Chleb (1 dirham)', if: () => S.silver >= 1, go: 'dobrawa_handel', do: () => { srebro(-1); give('chleb'); } },
+    { t: 'Miód pitny (3 dirhamy)', if: () => S.silver >= 3, go: 'dobrawa_handel', do: () => { srebro(-3); give('miod'); } },
+    { t: 'Wywar z lulka (6 dirhamów)', if: () => S.silver >= 6 && F('lulek_dany'), go: 'dobrawa_handel', do: () => { srebro(-6); give('lulek'); learn('lulek'); } },
     { t: 'Wystarczy', go: 'dobrawa' },
   ],
+},
+
+dobrawa_prawda: {
+  loc: 'mszaniec', sc: 'chata', fig: 'starucha', title: 'Chata Dobrawy',
+  text: P(
+    `Kładziesz kieł na stole, między pękami ziół. Dobrawa długo na niego patrzy. Potem sięga pod kaftan i wyciąga rzemień. Pusty, z małym węzełkiem na końcu, w sam raz na kieł z dziurką.`,
+    `– Myślałam, że go nie oddasz – mówi. – Wilki rzadko oddają. Ludzie jeszcze rzadziej.`,
+    `Odwraca się do ciebie i oba jej oczy, zdrowe i mleczne, patrzą na ciebie naraz.`,
+    `– Tak. Ja. To ja cię ugryzłam. Posłaniec nie szukał najemnika, szukał kogoś, kogo ugryzie wilk. Pasterz chce czwartego, zawsze chce czwartego. A ja nie chciałam, żeby to było dziecko z Mszańca. Ani Mira. Ani chłopak z bramy.`,
+    `– Wybrałam obcego. Kogoś, za kim nikt tu nie będzie płakał. – Milknie na chwilę. – Przepraszam. Tak się mówi, prawda? Dawno nikogo nie przepraszałam.`),
+  first: () => { learn('dobrawa_wilk'); rozum(-6); },
+  ch: [
+    { t: '– Wybrałaś mnie na ofiarę. Jak owcę.', go: 'dobrawa_prawda_gniew' },
+    { t: '– Pójdziesz ze mną na dół?', go: 'dobrawa_prawda_idzie' },
+  ],
+},
+
+dobrawa_prawda_gniew: {
+  loc: 'mszaniec', sc: 'chata', fig: 'starucha',
+  text: P(
+    `– Jak owcę – zgadza się Dobrawa. – Ale owca nie wie, dokąd idzie. Ty wiesz. To już coś.`,
+    `Przesuwa kieł z powrotem w twoją stronę. – Noś go. Wilki cię nie ruszą. Ja też nie.`),
+  ch: [{ t: 'Dalej', go: 'dobrawa' }],
+},
+
+dobrawa_prawda_idzie: {
+  loc: 'mszaniec', sc: 'chata', fig: 'starucha',
+  text: P(
+    `Dobrawa patrzy na ciebie tak, jakby pierwszy raz zobaczyła cię naprawdę.`,
+    `– Pójdę – mówi w końcu. – Stara jestem. Starsza, niż myślisz. Dość się nachodziłam po tym lesie na czterech łapach.`,
+    `– Idź swoją drogą. Kiedy zejdziesz do serca, będę tam. Tylko nie oglądaj się za siebie, to mnie nie zobaczysz.`),
+  first: () => { setF('dobrawa_idzie'); rozum(8); },
+  ch: [{ t: 'Dalej', go: 'dobrawa' }],
+},
+
+dobrawa_martwa: {
+  loc: 'mszaniec', sc: 'chata', title: 'Chata Dobrawy',
+  text: P(
+    `Przed chatą Dobrawy stoją ludzie. Nikt nie wchodzi do środka. Kiedy podchodzisz, rozstępują się w milczeniu i nikt nie patrzy ci w oczy.`,
+    `Dobrawa leży na klepisku przy wygasłym ogniu. W boku ma ranę, długą i głęboką, jak od miecza. Jej mleczne oko jest otwarte. Na szyi ma rzemień. Pusty, z węzełkiem na końcu.`,
+    `Kieł w twoim tobołku waży nagle więcej niż wszystko, co niesiesz. Pasuje do tego rzemienia. Wiesz o tym, zanim go przyłożysz.`,
+    `– W nocy przyszła cała we krwi – mówi chłopak z bramy, cicho, za twoimi plecami. – Mówiła, że ktoś musi zejść na dół. Że trzy małe kopce to pęta, a ten pod nimi to Pasterz Mgły. Że imię jest wyryte w korytarzu z kości, nisko, przy ziemi. Kazała ci to powtórzyć. Mówiła, że będziesz wiedział, czemu.`),
+  first: () => { learn('dobrawa_wilk'); learn('pasterz'); learn('peta'); learn('gdzie_imie'); setF('wie_gdzie_imie'); rozum(-10); },
+  ch: [{ t: 'Wyjdź', go: 'msz' }],
+},
+
+dobrawa_pusta: {
+  loc: 'mszaniec', sc: 'chata', title: 'Chata Dobrawy',
+  text: () => P(
+    `Chata Dobrawy stoi pusta. Ktoś zabrał ciało, ale nikt nie ruszył ziół. Na stole stoi gliniana misa, a w niej kilka monet. Ludzie biorą, czego potrzebują, i zostawiają srebro. Tak, jakby ona wciąż tu była.`,
+    `Masz ${S.silver} ${plural(S.silver, 'dirhama', 'dirhamy', 'dirhamów')}.`),
+  ch: [],
 },
 
 /* ------------------------------- Mira ------------------------------- */
@@ -493,7 +559,7 @@ gaj_podniesiony: {
 gaj_za_ciezki: {
   loc: 'gaj', sc: 'gaj',
   text: `Słup ani drgnie. Zostawiasz w błocie ślady butów i trochę skóry z dłoni. Może później, z większą siłą. Albo z czyjąś pomocą, której tu nie znajdziesz.`,
-  first: () => hp(-2),
+  on: () => hp(-2),
   ch: [{ t: 'Dalej', go: 'gaj' }],
 },
 
@@ -526,15 +592,19 @@ gaj_sok: {
 
 bagno: {
   loc: 'bagno', sc: 'bagno', hub: true,
+  // kto przyjdzie dopiero drugiego dnia, nie zastanie Sulisława żywego
+  on: () => { if (S.day >= 2 && !F('sul_done')) { setF('sul_done'); setF('sulislaw_martwy'); setF('sul_za_pozno'); } },
   text: () => S.seen.bagno ? P(
     `Kładka z omszałych bali. Czarna woda. Martwe olchy.`,
     !F('topielec_done') && `Trup kopacza wciąż unosi się na wodzie, twarzą w dół. Sakiewka na jego pasie połyskuje.`,
     !F('sul_done') && `Przy przewróconej olszy Sulisław wciąż szepcze. Bagno trzyma go po pierś.`,
+    F('sul_za_pozno') && !S.tmpSulSeen && (S.tmpSulSeen = 1) && `Przy przewróconej olszy nikt już nie szepcze. Z czarnej wody wystaje tylko ręka z palcami zaciśniętymi na powietrzu.`,
     night() && `Nad wodą tańczą bladozielone ogniki.`
   ) : P(
     `Topielisko zaczyna się niepostrzeżenie. Najpierw mech pod stopami robi się miękki, potem chlupie, a potem ścieżkę zastępuje kładka z omszałych bali położonych na czarnej wodzie. Z wody sterczą martwe olchy. Mgła leży tu tak nisko, że brodzisz w niej po kolana jak w mleku.`,
     `Pięćdziesiąt kroków od kładki unosi się na wodzie człowiek, twarzą w dół. Na jego pasie, w świetle, którego tu właściwie nie ma, połyskuje sakiewka.`,
-    `A dalej, przy przewróconej olszy, coś się porusza. Głowa. Ktoś tkwi w bagnie po pierś i szepcze.`),
+    F('sul_za_pozno') ? `A dalej, przy przewróconej olszy, z czarnej wody wystaje ręka. Nieruchoma, z palcami zaciśniętymi na pustym powietrzu. Ktoś tu jeszcze wczoraj szeptał. Słyszysz to po ciszy.` :
+      `A dalej, przy przewróconej olszy, coś się porusza. Głowa. Ktoś tkwi w bagnie po pierś i szepcze.`),
   ch: [
     { t: 'Podejdź do szepczącego', if: () => !F('sul_done'), go: 'bag_sulislaw' },
     { t: 'Sięgnij po sakiewkę topielca', if: () => !F('topielec_done'), go: 'bag_topielec' },
@@ -603,7 +673,7 @@ bag_topielec: {
   loc: 'bagno', sc: 'bagno', fig: 'topielec',
   text: P(
     `Kładka ugina się pod tobą, woda chlupie między balami. Przyklękasz na skraju i sięgasz po pas trupa.`,
-    `Kiedy twoje palce dotykają sakiewki, trup obraca się na plecy. Ma otwarte oczy, białe jak u ryby, i uśmiecha się szeroko, bardzo szeroko, aż do uszu.`),
+    `Kiedy twoje palce dotykają sakiewki, trup obraca się na plecy. Ma otwarte oczy, białe jak u ryby. Usta otwierają mu się powoli, coraz szerzej, szerzej, niż pozwala szczęka, i z tej czarnej dziury wylewa się woda.`),
   ch: [
     { t: 'Walcz', fight: { e: 'topielec', win: 'bag_topielec_wygrana', flee: 'bagno' } },
     { t: 'Puść sakiewkę i uciekaj na brzeg', test: { s: 'zre', dc: 8, ok: 'bagno', no: 'bag_topielec_chwyt' } },
@@ -619,7 +689,7 @@ bag_topielec_chwyt: {
 bag_topielec_wygrana: {
   loc: 'bagno', sc: 'bagno',
   text: P(
-    `Topielec zapada się w czarną wodę, wciąż uśmiechnięty. Woda zamyka się nad nim bez jednej zmarszczki.`,
+    `Topielec zapada się w czarną wodę, wciąż z rozwartą paszczą. Woda zamyka się nad nim bez jednej zmarszczki.`,
     `Sakiewka została na kładce: dwanaście dirhamów i garść siekanego srebra. Monety są zimne i trochę śliskie.`),
   first: () => { setF('topielec_done'); srebro(12); },
   ch: [{ t: 'Dalej', go: 'bagno' }],
@@ -753,7 +823,7 @@ krag_sen: {
     `Zasypiasz.`,
     `Śnisz, że jesteś bardzo stary i bardzo głodny. Że leżysz w ciemności od tysiąca zim i słuchasz kroków nad głową. Kroki są smaczne. Głosy są smaczne. Ktoś kiedyś cię nazwał. Pierwszy człowiek, który cię zobaczył, krzyknął, a ten krzyk stał się twoim imieniem.`,
     `<b>Żyr.</b>`,
-    `Budzisz się z tym słowem w ustach. Smakuje jak krew. Słońce przesunęło się po niebie. Spałeś długo.`),
+    `Budzisz się z tym słowem w ustach. Smakuje jak żelazo i ziemia. Słońce przesunęło się po niebie. Spałeś długo.`),
   first: () => { learn('imie'); znamie(12); rozum(-15); },
   ch: [{ t: 'Wstań', go: 'krag' }],
 },
@@ -787,7 +857,7 @@ oboz: {
     { t: 'Zajrzyj do dziupli', if: () => !F('wiszka_done') && !F('wie_dziupla') && !F('slady_wiszki') && !F('dziupla_proba'), do: () => setF('dziupla_proba'),
       test: { s: 'czu', dc: 9, ok: () => S.rozum < 30 ? 'wiszka_mgla' : 'wiszka_jest', no: 'oboz_dziupla_nic' } },
     { t: 'Zabierz Wiszkę do domu', if: () => F('wiszka_czeka'), go: 'wiszka_odprowadz' },
-    { t: 'Rozpal ogień i prześpij się do świtu', go: 'oboz_sen' },
+    { t: 'Rozpal ogień i prześpij się do świtu', if: () => S.day < 3, go: 'oboz_sen' },
   ],
 },
 
@@ -836,7 +906,7 @@ oboz_sen: {
     `Rozpalasz ogień z resztek drewna kopaczy i zasypiasz przy nim, z bronią pod ręką.`,
     `Śpisz źle, ale śpisz. Dwa razy budzisz się, bo coś chodzi wokół polany, i dwa razy to coś odchodzi. O świcie ogień jeszcze się żarzy.`),
   ch: [
-    { t: 'Walcz', if: () => S.tmpAmbush, fight: { e: () => S.rozum < 50 ? 'zjawa' : 'wilk', win: 'oboz', flee: 'oboz', dispel: 'oboz' } },
+    { t: 'Walcz', if: () => S.tmpAmbush, fight: { e: () => S.rozum < 50 ? 'zjawa' : F('kiel') ? 'dzik' : 'wilk', win: 'oboz', flee: 'oboz', dispel: 'oboz' } },
     { t: 'Wstań', if: () => !S.tmpAmbush, go: 'oboz' },
   ],
 },
@@ -976,13 +1046,13 @@ kw2: {
 },
 
 kw_upior: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'kw2', dark: true, fig: 'wojownik',
+  loc: 'kurhany', sc: 'kurhan', variant: 'kw2', dark: true, stay: true, fig: 'wojownik',
   text: `Kości drgają. Stukają o siebie końskie czaszki. Wojownik siada, potem wstaje, z chrzęstem, z jękiem kolczugi, i w jego oczodołach zapala się zimne, błękitne światło. Miecz unosi się w kościstej dłoni.`,
   ch: [{ t: 'Walcz', fight: { e: 'upior', win: 'kw_wygrana', flee: 'kurhany' } }],
 },
 
 kw_dar: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'kw2', dark: true, fig: 'szkielet',
+  loc: 'kurhany', sc: 'kurhan', variant: 'kw2', dark: true, stay: true, fig: 'szkielet',
   text: P(
     `Kłaniasz się nisko, do ziemi, tak jak kłaniano się kiedyś książętom. I czekasz.`,
     `Kościste palce się rozluźniają. Nie spadają, tylko powoli się rozluźniają, jakby ktoś bardzo zmęczony puszczał coś, co trzymał zbyt długo. Cień na ścianie kiwa głową i kładzie się z powrotem.`,
@@ -993,7 +1063,7 @@ kw_dar: {
 },
 
 kw_wygrana: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'kw2', dark: true,
+  loc: 'kurhany', sc: 'kurhan', variant: 'kw2', dark: true, stay: true,
   text: `Upiór rozsypuje się w proch, kości grzechocą po końskich czaszkach. Żelazo leży na ziemi. Kiedy je podnosisz, jest zimne jak lód i przez chwilę słyszysz krzyk. Nie bólu, tylko gniewu. Wojownik ci go nie dał. Sam je wziąłeś.`,
   first: () => { give('zelazo'); znamie(5); },
   ch: [{ t: 'Wyjdź z kurhanu', go: 'kurhany' }],
@@ -1017,7 +1087,7 @@ km0: {
 km0_no: {
   loc: 'kurhany', sc: 'kurhany',
   text: `Kamień ani drgnie. Napinasz się, aż coś trzaska ci w plecach. Z wnętrza kurhanu dochodzi cichy, suchy śmiech, jak szelest liści.`,
-  first: () => hp(-3),
+  on: () => hp(-3),
   ch: [{ t: 'Dalej', go: 'km0' }],
 },
 
@@ -1061,7 +1131,7 @@ km1: {
 },
 
 km1_ciecie: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'km1', dark: true,
+  loc: 'kurhany', sc: 'kurhan', variant: 'km1', dark: true, stay: true,
   text: `Nić tnie cię w policzek, druga w dłoń, trzecia przesuwa się po szyi tak lekko, że czujesz to dopiero, gdy po kołnierzu spływa ci ciepło. Przechodzisz. Krwawiąc, ale przechodzisz.`,
   first: () => hp(-4),
   ch: [{ t: 'Dalej', go: 'km2' }],
@@ -1075,7 +1145,7 @@ km2: {
     `Głowa obraca się ku tobie. Skrzypi jak stare drzwi.`,
     F('matka_gniew') ? `– Paliłeś moje nici – mówi Matka głosem jak szelest suchych liści. – Paliłeś. Niegrzeczny gość. Odpowiesz mi na trzy zagadki, a jeśli pomylisz się choć raz, zostaniesz tu ze mną na zawsze.` :
       `– Gość – mówi Matka głosem jak szelest suchych liści. – Dawno nie było gości. Tamci z łopatami nie weszli. Bali się. Ty się nie boisz? Boisz się. Dobrze. Strach to rozum.`,
-    `– Chcesz nici. Wszyscy chcą nici. Trzy zagadki, gościu. Odpowiesz, dostaniesz. Nie odpowiesz, zostaniesz i będziesz przędła ze mną.`),
+    `– Chcesz nici. Wszyscy chcą nici. Trzy zagadki, gościu. Odpowiesz, dostaniesz. Nie odpowiesz, zostaniesz tu na zawsze i będziesz prząść ze mną.`),
   ch: [
     { t: '– Pytaj, Matko.', go: 'km_z1' },
     { t: 'Wycofaj się', go: 'kurhany' },
@@ -1083,7 +1153,7 @@ km2: {
 },
 
 km_z1: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Pierwsza. Co było pierwsze w tej puszczy, zanim wyrosło pierwsze drzewo i zanim przyszedł pierwszy człowiek?`,
   ch: [
     { t: '– Drzewo.', go: 'km_z1_zle' },
@@ -1092,16 +1162,16 @@ km_z1: {
     { t: '– Woda.', go: 'km_z1_zle' },
   ],
 },
-km_z1_dobrze: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+km_z1_dobrze: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Głód – powtarza Matka i kiwa głową, skrzypiąc. – Głód był pierwszy. Drzewa przyszły, żeby było co jeść. Ludzie przyszli, żeby było kogo jeść. Dobrze.`,
   ch: [{ t: 'Dalej', go: 'km_z2' }] },
-km_z1_zle: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+km_z1_zle: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Nie – mówi Matka. Nici wokół ciebie napinają się z brzękiem i jedna przecina ci skórę na karku. – Głód. Zawsze najpierw był głód.`,
   first: () => { hp(-3); rozum(-6); },
   ch: [{ t: 'Dalej', go: 'km_z2' }] },
 
 km_z2: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Druga. Im więcej z niej bierzesz, tym większa się robi. Co to?`,
   ch: [
     { t: '– Mgła.', go: 'km_z2_zle' },
@@ -1109,20 +1179,20 @@ km_z2: {
     { t: '– Jama.', go: 'km_z2_dobrze', do: () => S.riddle++ },
   ],
 },
-km_z2_dobrze: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+km_z2_dobrze: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Jama. – Matka chichocze. – Jama, dół, grób. Tamci z łopatami brali i brali, i jama rosła. Aż urosła tak, że wyszedł z niej on.`,
   ch: [{ t: 'Dalej', go: 'km_z3' }] },
-km_z2_glod: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+km_z2_glod: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Nie. – Nić tnie cię w policzek. – Głód rośnie, kiedy mu dajesz, a nie kiedy od niego bierzesz. Zapamiętaj to, gościu. Na dole ci się przyda.`,
   first: () => { hp(-3); rozum(-6); },
   ch: [{ t: 'Dalej', go: 'km_z3' }] },
-km_z2_zle: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+km_z2_zle: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Nie. – Nici zaciskają się na twoim nadgarstku, aż drętwieją ci palce. – Jama. Dół. Grób.`,
   first: () => { hp(-3); rozum(-6); },
   ch: [{ t: 'Dalej', go: 'km_z3' }] },
 
 km_z3: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Trzecia, ostatnia. Należy do ciebie, a inni używają tego częściej niż ty. Co to?`,
   ch: [
     { t: '– Mój miecz.', go: 'km_z3_zle' },
@@ -1131,16 +1201,16 @@ km_z3: {
     { t: '– Moja krew.', go: 'km_z3_zle' },
   ],
 },
-km_z3_dobrze: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+km_z3_dobrze: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Imię. – Wrzeciono się zatrzymuje. – Pamiętaj, gościu: kto zna imię, ten może zawołać. I ten może zamknąć.`,
   ch: [{ t: 'Dalej', go: () => S.riddle >= (F('matka_gniew') ? 3 : 2) ? 'km_dar' : 'km_porazka' }] },
-km_z3_zle: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+km_z3_zle: { loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Nie. Imię. Twoje imię. Ludzie wołają cię nim częściej niż ty sam siebie. A on woła cię nim najczęściej.`,
   first: () => { hp(-3); rozum(-6); },
   ch: [{ t: 'Dalej', go: () => S.riddle >= (F('matka_gniew') ? 3 : 2) ? 'km_dar' : 'km_porazka' }] },
 
 km_dar: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: P(
     `Matka przestaje prząść. Odgryza nić – zębami, bo nożyc nie ma – i nawija ją na kawałek kości. Podaje ci ją. Nić jest szara, ciepła i bardzo lekka.`,
     `~Związałam nią coś większego niż ty. Zwiąż i ty.~`,
@@ -1150,7 +1220,7 @@ km_dar: {
 },
 
 km_porazka: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `– Za mało – mówi Matka, a nici wokół ciebie napinają się z brzękiem, setki, tysiące, ze wszystkich stron. – Zostaniesz. Będziesz prząść.`,
   ch: [
     { t: 'Walcz z nićmi', fight: { e: 'nici', win: 'km_nici_wygrana', flee: 'kurhany' } },
@@ -1159,16 +1229,16 @@ km_porazka: {
 },
 
 km_porazka_2: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `Nici oplatają ci nogi. Padasz.`,
   first: () => hp(-3),
   ch: [{ t: 'Walcz', fight: { e: 'nici', win: 'km_nici_wygrana', flee: 'kurhany' } }],
 },
 
 km_nici_wygrana: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, fig: 'matka',
+  loc: 'kurhany', sc: 'kurhan', variant: 'km2', dark: true, stay: true, fig: 'matka',
   text: `Ostatnie nici opadają, przecięte, spalone, poszarpane. Matka patrzy na ciebie długo, przekrzywiając głowę.\n\n– Silny – mówi wreszcie. – Głupi, ale silny. Weź. I tak nikt inny nie przyjdzie.\n\nRzuca ci pod nogi kawałek kości z nawiniętą szarą nicią.`,
-  first: () => { give('nic'); znamie(5); },
+  first: () => { give('nic'); znamie(5); setF('nic_splatana'); },
   ch: [{ t: 'Wyjdź z kurhanu', go: 'kurhany' }],
 },
 
@@ -1192,7 +1262,7 @@ kd1: {
 },
 
 kd_kolysanka: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'kd', dark: true,
+  loc: 'kurhany', sc: 'kurhan', variant: 'kd', dark: true, stay: true,
   text: P(
     `Śpiewasz cicho, tak cicho, jak tylko umiesz. <i>Lulaj, lulaj, dziecino, śpij spokojnie przy ojcu.</i>`,
     `Coś w ciemności wzdycha, długo i z ulgą, jak dziecko, które wreszcie zasnęło. Kościane palce rozluźniają się same. Bierzesz grzechotkę. Nie grzechocze.`),
@@ -1201,14 +1271,14 @@ kd_kolysanka: {
 },
 
 kd_wymiana: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'kd', dark: true,
+  loc: 'kurhany', sc: 'kurhan', variant: 'kd', dark: true, stay: true,
   text: `Kładziesz dar w małych dłoniach. Przez chwilę nic się nie dzieje, a potem kości… nie, to tylko złudzenie światła… palce zaciskają się na darze i luzują chwyt na grzechotce. Bierzesz ją. Gdzieś bardzo blisko, przy samym twoim uchu, ktoś chichocze, cicho i z zadowoleniem.`,
   first: () => give('grzechotka'),
   ch: [{ t: 'Wyjdź z kurhanu', go: 'kurhany' }],
 },
 
 kd_wziete: {
-  loc: 'kurhany', sc: 'kurhan', variant: 'kd', dark: true,
+  loc: 'kurhany', sc: 'kurhan', variant: 'kd', dark: true, stay: true,
   text: `Wyjmujesz grzechotkę z kościanych palców. Łatwo, za łatwo. Grzechocze w twojej dłoni, choć nią nie potrząsasz. Gdzieś za tobą, w korytarzu, którego przecież nie ma, ktoś cichutko zaczyna płakać.\n\nPłacz idzie za tobą, kiedy wychodzisz.`,
   first: () => { give('grzechotka'); setF('dziecko_idzie'); rozum(-12); },
   ch: [{ t: 'Wyjdź z kurhanu', go: 'kurhany' }],
@@ -1218,8 +1288,11 @@ kd_wziete: {
 
 wk_wrota: {
   loc: 'kurhany', sc: 'wrota', wk: true, title: 'Wrota Wielkiego Kurhanu',
-  fig: () => F('hrodgar_done') ? null : 'hrodgar',
-  text: () => F('hrodgar_done') ? P(
+  fig: () => F('hrodgar_done') && !F('hrodgar_ominiety') ? null : 'hrodgar',
+  text: () => F('hrodgar_ominiety') ? P(
+    `Wykop w boku Wielkiego Kurhanu. Schody w dół, w ciepły oddech.`,
+    `Hrodgar wciąż stoi przy wejściu, plecami do ciebie, i patrzy w ciemność. Nie zauważył, że przeszedłeś obok. Albo udaje. Oczy na jego policzku mrugają, kiedy schodzisz.`
+  ) : F('hrodgar_done') ? P(
     `Wykop w boku Wielkiego Kurhanu. Schody wycięte w ziemi prowadzą w dół, w ciemność, z której wychodzi ciepły oddech. Wdech. Wydech.`
   ) : P(
     `Wykop prowadzi w głąb Wielkiego Kurhanu stromo, schodami wyciętymi w ziemi. Kopacze pracowali tu w pośpiechu i w strachu, widać to po krzywych podporach i porzuconych narzędziach. Z dołu falami wychodzi ciepłe powietrze: wdech, wydech.`,
@@ -1248,7 +1321,8 @@ wk_hrodgar_mowa: {
     S.bg === 'wareg' ? `– Hrodgarze, synu Eirika – mówisz w jego języku, w języku zimnych fiordów i dymu z długich domów. – Wróć. Twoja łódź czeka.` :
       `Podnosisz kij runiczny, tak żeby widział znaki. Jego znaki. „Hrodgar ryje dla tego, kto przyjdzie.”`,
     `Coś w jego oczach – w tym jednym, ludzkim oku – drga. Topór opada. Hrodgar osuwa się na kolana, ciężko, jak ścięte drzewo.`,
-    `– Brat – mówi. – Zabij mnie, bracie. Sam już nie mogę. On mi nie pozwala.`),
+    S.bg === 'wareg' ? `– Brat – mówi. – Zabij mnie, bracie. Sam już nie mogę. On mi nie pozwala.` :
+      `– Ty… czytasz – mówi łamaną mową tutejszych, z trudem, jakby każde słowo wyciągał spod ziemi. – Zabij. Proszę. Sam nie mogę. On mi nie pozwala.`),
   ch: [{ t: 'Zrób to szybko', go: 'wk_hrodgar_laska' }],
 },
 
@@ -1259,7 +1333,7 @@ wk_hrodgar_laska: {
     `Hrodgar wzdycha z ulgą. Oczy na jego twarzy gasną jedno po drugim, aż zostaje tylko jedno, ludzkie, szare, i ono też się zamyka.`,
     `– Nie słuchaj go – szepcze na końcu – kiedy zacznie mówić twoim głosem.`,
     `Jego topór leży obok. Dobry, ciężki, frankijskiej roboty.`),
-  first: () => { setF('hrodgar_done'); rozum(6); },
+  first: () => { setF('hrodgar_done'); setF('ostrzezenie'); rozum(6); },
   ch: [
     { t: 'Weź topór Hrodgara (obrażenia 7, Siła)', if: () => S.weapon.n !== 'Topór Hrodgara', go: 'wk_wrota', do: () => equip('topor_hrodgara') },
     { t: 'Zostaw topór', go: 'wk_wrota' },
@@ -1272,7 +1346,7 @@ wk_hrodgar_wygrana: {
     `Hrodgar pada na kolana, potem na twarz. Oczy na jego policzku mrugają jeszcze przez chwilę, szybko, w panice, a potem gasną.`,
     `– Nie słuchaj go – charczy, zanim umrze – kiedy zacznie mówić twoim głosem.`,
     `Jego topór leży obok. Dobry, ciężki, frankijskiej roboty.`),
-  first: () => { setF('hrodgar_done'); },
+  first: () => { setF('hrodgar_done'); setF('ostrzezenie'); },
   ch: [
     { t: 'Weź topór Hrodgara (obrażenia 7, Siła)', if: () => S.weapon.n !== 'Topór Hrodgara', go: 'wk_wrota', do: () => equip('topor_hrodgara') },
     { t: 'Zostaw topór', go: 'wk_wrota' },
@@ -1300,7 +1374,7 @@ wk_kosci: {
 },
 
 wk_imie_ok: {
-  loc: 'kurhany', sc: 'kosci', dark: true, wk: true,
+  loc: 'kurhany', sc: 'kosci', dark: true, stay: true, wk: true,
   text: P(
     `Znajdujesz je nisko, przy samej ziemi, wydrapane w kości czymś ostrym. Może paznokciem. Trzy znaki, które nie są runami ani żadnym pismem, jakie znasz, a jednak umiesz je odczytać, bo – i tego boisz się najbardziej – znasz je od zawsze.`,
     `Ż. Y. R.`,
@@ -1311,7 +1385,7 @@ wk_imie_ok: {
 },
 
 wk_imie_no: {
-  loc: 'kurhany', sc: 'kosci', dark: true, wk: true,
+  loc: 'kurhany', sc: 'kosci', dark: true, stay: true, wk: true,
   text: `Kości, kości, korzenie, kości. Rysy, które mogą być znakami, a mogą być śladami zębów. Im dłużej patrzysz, tym bardziej ściany patrzą na ciebie.`,
   first: () => rozum(-5),
   ch: [{ t: 'Dalej', go: 'wk_kosci' }],
@@ -1338,9 +1412,9 @@ wk_zerca: {
 },
 
 wk_zerca_ciezko: {
-  loc: 'kurhany', sc: 'zerca', dark: true, wk: true, fig: 'zerca',
+  loc: 'kurhany', sc: 'zerca', dark: true, stay: true, wk: true, fig: 'zerca',
   text: `Korzenie są twarde jak żelazo. Tniesz, szarpiesz, a one oplatają ci nadgarstki i ciągną do siebie, jakby chciały, żebyś zawisł obok żercy. Wyrywasz się w ostatniej chwili.`,
-  first: () => { hp(-4); rozum(-4); },
+  on: () => { hp(-4); rozum(-4); },
   ch: [
     { t: 'Spróbuj jeszcze raz', test: { s: 'sil', dc: 10, ok: 'wk_zerca_wolny', no: 'wk_zerca_ciezko2' } },
     { t: 'Skróć jego męki', go: 'wk_zerca_smierc' },
@@ -1349,9 +1423,9 @@ wk_zerca_ciezko: {
 },
 
 wk_zerca_ciezko2: {
-  loc: 'kurhany', sc: 'zerca', dark: true, wk: true, fig: 'zerca',
+  loc: 'kurhany', sc: 'zerca', dark: true, stay: true, wk: true, fig: 'zerca',
   text: `Korzenie znowu cię odpychają, a potem odrastają szybciej, niż je tniesz.`,
-  first: () => { hp(-4); rozum(-4); },
+  on: () => { hp(-4); rozum(-4); },
   ch: [
     { t: 'Spróbuj jeszcze raz', test: { s: 'sil', dc: 9, ok: 'wk_zerca_wolny', no: 'wk_zerca_ciezko2' } },
     { t: 'Skróć jego męki', go: 'wk_zerca_smierc' },
@@ -1360,7 +1434,7 @@ wk_zerca_ciezko2: {
 },
 
 wk_zerca_wolny: {
-  loc: 'kurhany', sc: 'zerca', dark: true, wk: true, fig: 'zerca_wolny',
+  loc: 'kurhany', sc: 'zerca', dark: true, stay: true, wk: true, fig: 'zerca_wolny',
   text: () => P(
     `Korzenie pękają z dźwiękiem łamanych kości. Radogost spada ci w ramiona, lekki jak dziecko. Jest ślepy – oczy, kiedy je otwiera, są białe, bez źrenic. Ale się uśmiecha.`,
     `– Dobrze – mówi. Już tylko jednym głosem. – Teraz pójdę z tobą na dół. Kiedy przyjdzie czas, będę wiedział, co zrobić.`,
@@ -1370,10 +1444,10 @@ wk_zerca_wolny: {
 },
 
 wk_zerca_smierc: {
-  loc: 'kurhany', sc: 'zerca', dark: true, wk: true,
+  loc: 'kurhany', sc: 'zerca', dark: true, stay: true, wk: true,
   text: () => P(
-    `Robisz to szybko. Radogost wzdycha z ulgą, a ciepły głos – ten drugi – krzyczy z wściekłości tak, że sypie się ziemia z sufitu.`,
-    !know('imie') ? `Ostatnim tchnieniem, już tylko swoim własnym głosem, żerca szepcze ci do ucha jedno słowo. Imię. Smakuje jak krew.\n\n<b>Żyr.</b>` : `– Dziękuję – mówi tylko.`),
+    `Nie każesz mu długo czekać. Radogost wzdycha z ulgą, a ciepły głos – ten drugi – krzyczy z wściekłości tak, że sypie się ziemia z sufitu.`,
+    !know('imie') ? `Ostatnim tchnieniem, już tylko swoim własnym głosem, żerca szepcze ci do ucha jedno słowo. Imię. Smakuje jak popiół.\n\n<b>Żyr.</b>` : `– Dziękuję – mówi tylko.`),
   first: () => { setF('zerca_done'); setF('radogost_martwy'); rozum(-8); znamie(4); learn('imie'); },
   ch: [{ t: 'Wróć do korytarza', go: 'wk_kosci' }],
 },
@@ -1393,7 +1467,7 @@ g2: { loc: 'kurhany', sc: 'gardziel', depth: 2, wk: true, title: 'Gardziel · kr
 g3: { loc: 'kurhany', sc: 'gardziel', depth: 3, wk: true, title: 'Gardziel · krok trzeci',
   on: () => stepDown(),
   text: () => P(
-    `Trzeci krok. Mijasz ludzi. Stoją przy ścianach, w niszach, z zamkniętymi oczami: pastuch Dziwisz, kowal Ostoja, Bjorn z uśmiechem do uszu i inni, starsi, w strojach, jakich nikt nie nosi od stu lat. Oddychają razem ze ścianami.`,
+    `Trzeci krok. Mijasz ludzi. Stoją przy ścianach, w niszach, z zamkniętymi oczami: pastuch Dziwisz, ${S.day >= 2 ? 'kowal Ostoja, ' : ''}Bjorn z twarzą bez oczu i inni, starsi, w strojach, jakich nikt nie nosi od stu lat. Oddychają razem ze ścianami.`,
     S.day >= 3 && `Jest wśród nich stara kobieta i chłopiec, trzymający ją za rękę.`,
     F('dziecko_idzie') && `Za tobą drepczą małe stopy. Nie odwracasz się.`),
   ch: [{ t: 'Krok w dół', go: 'g4' }, { t: 'Zawróć', go: 'wk_kosci', do: () => rozum(-4) }] },
@@ -1439,9 +1513,12 @@ serce: {
     `~Witaj w domu.~`,
     `Głos jest wszędzie. Jest w tobie.`,
     `~Mogę ci dać to, czego zawsze chciałeś. Już nigdy nie będziesz głodny. Bo to ty będziesz głodem.~`,
-    F('radogost') && `Radogost stoi obok ciebie, ślepy, wsparty na twoim ramieniu. – Już blisko – mówi.`),
+    F('radogost') && `Radogost stoi obok ciebie, ślepy, wsparty na twoim ramieniu. – Już blisko – mówi.`,
+    F('dobrawa_idzie') && `Za tobą, z gardzieli, wychodzi Dobrawa. Nie słyszałeś jej kroków. Szła za tobą całą drogę, cicho, tak jak chodzą wilki. Jej mleczne oko świeci w ciemności.`),
   ch: [
     { t: 'Połóż trzy pęta w gniazdach', if: () => petaCount() === 3, go: 'serce_peta' },
+    { t: '– Żyr – wypowiedz jego imię nad pętami', if: () => F('peta_polozone') && know('imie'), go: 'serce_imie' },
+    { t: 'Niech Radogost wypowie imię nad pętami', if: () => F('peta_polozone') && !know('imie') && F('radogost'), go: 'serce_imie_radogost' },
     { t: () => `Połóż pęta, które masz (${petaCount()} z 3)`, if: () => petaCount() > 0 && petaCount() < 3 && !F('serce_brak'), go: 'serce_brak', do: () => setF('serce_brak') },
     { t: 'Walcz z nim', fight: { e: 'zyr', win: '@zak_bogobojca', flee: 'serce_ucieczka' } },
     { t: 'Uklęknij', end: 'zak_pasterz' },
@@ -1482,9 +1559,22 @@ serce_peta: {
   first: () => { take('zelazo'); take('nic'); take('grzechotka'); setF('peta_polozone'); },
   ch: [
     { t: '– Żyr – powiedz jego imię', if: () => know('imie'), go: 'serce_imie' },
+    { t: '– Żyr – powiedz jego imię', voice: true, if: () => know('imie') && S.rozum < 50 && !F('glos_byl'), go: 'serce_glos' },
     { t: 'Niech Radogost wypowie imię', if: () => F('radogost') && !know('imie'), go: 'serce_imie_radogost' },
     { t: 'Krzycz cokolwiek, jakiekolwiek imię', if: () => !know('imie') && !F('radogost'), go: 'serce_bez_imienia' },
+    { t: 'Cofnij się. Wrócisz, kiedy poznasz imię.', if: () => !know('imie') && !F('radogost'), go: 'serce_ucieczka' },
   ],
+},
+
+serce_glos: {
+  loc: 'kurhany', sc: 'serce', fig: 'pasterz', wk: true,
+  text: () => P(
+    `Otwierasz usta, żeby wypowiedzieć imię. Ale to nie ty je mówisz.`,
+    `Twoje wargi się poruszają, a głos, który z nich wychodzi, jest ciepły, łagodny i głodny. Mówi: ~Chodź. Chodź tu. Jestem twój.~`,
+    `Sznury drgają i luzują się o jeden splot. Setki oczu w porożu mrużą się z zadowolenia.`,
+    F('ostrzezenie') ? `„Nie słuchaj go, kiedy zacznie mówić twoim głosem” – przypominasz sobie. Za późno. Ale teraz już wiesz, jak to brzmi.` : `Dopiero teraz rozumiesz, że było dwóch mówiących. I że wybrałeś złego.`),
+  first: () => { setF('glos_byl'); rozum(-15); znamie(12); },
+  ch: [{ t: 'Zaciśnij zęby. Spróbuj jeszcze raz, swoim głosem.', go: 'serce_peta' }],
 },
 
 serce_bez_imienia: {
@@ -1507,13 +1597,15 @@ serce_imie_radogost: {
 
 serce_imie: {
   loc: 'kurhany', sc: 'serce', fig: 'pasterz', wk: true,
-  text: P(
+  text: () => P(
     `Imię uderza w serce kurhanu jak kamień w taflę wody. Całe wnętrze krzyczy.`,
     `Sznury napinają się. Pasterz kurczy się, maleje, wciągany w głąb ziemi, wyje setką gardeł. Ale nie znika. Jeszcze nie. Trzy pęta trzymają, ale między nimi zostało puste miejsce. Czwarte.`,
+    F('nic_splatana') && `Nić Matki, wyrwana siłą, trzeszczy i strzępi się w swoim gnieździe. Trzyma. Ledwie.`,
     `~Ktoś musi zostać~ – mówi Pasterz twoim głosem, i ma rację, i to jest najgorsze.`),
-  first: () => znamie(-15),
+  first: () => znamie(F('nic_splatana') ? -8 : -15),
   ch: [
-    { t: 'Radogost zostaje', if: () => F('radogost'), end: 'zak_peta' },
+    { t: 'Radogost zostaje', if: () => F('radogost'), do: () => setF('zostaje_radogost'), end: 'zak_peta' },
+    { t: 'Dobrawa zostaje', if: () => F('dobrawa_idzie'), do: () => setF('zostaje_dobrawa'), end: 'zak_peta' },
     { t: 'Ty zostajesz', end: 'zak_czwarte' },
     { t: 'Nikt nie zostaje. Uciekaj, póki trzyma.', end: 'zak_niedomkniete' },
   ],
@@ -1608,9 +1700,12 @@ ev_dzik: {
   ch: [
     { t: 'Walcz', fight: { e: 'dzik', win: 'ev_dzik_po', flee: '@after' } },
     { t: 'Wdrap się na drzewo', test: { s: 'zre', dc: 9, ok: 'ev_dzik_drzewo', no: 'ev_dzik_atak' } },
-    { t: 'Zadmij w róg', if: () => has('rog'), go: 'ev_wilki_rog' },
+    { t: 'Zadmij w róg', if: () => has('rog'), go: 'ev_dzik_rog' },
   ],
 },
+ev_dzik_rog: { sc: 'puszcza', title: 'W drodze',
+  text: `Róg Dziwisza ryczy w mgle niskim, pasterskim głosem. Odyniec staje jak wryty, kwiczy i zawraca w krzaki, łamiąc gałęzie. Pastuch musiał nim zaganiać nie tylko owce.`,
+  ch: [{ t: 'Idź dalej', go: '@after' }] },
 ev_dzik_drzewo: { sc: 'puszcza', title: 'W drodze',
   text: `Siedzisz na gałęzi, aż odyniec się znudzi. Trwa to długo. Bardzo długo.`,
   first: () => tick(1),
@@ -1697,9 +1792,16 @@ const EVENTS = [
    ===================================================================== */
 const ENDING_TEXT = {
   zak_peta: () => P(
-    `Radogost puszcza twoje ramię.`,
-    `– Idź – mówi. – Na górze świta. Słyszę, jak budzą się ptaki.`,
-    `Wchodzi w ciemność bez wahania, z uśmiechem, jak ktoś, kto wraca do domu po bardzo długiej drodze. Korzenie przyjmują go łagodnie, jak ręce. Czwarty sznur napina się i trzyma. Pasterz krzyczy wszystkimi oczami naraz, a potem oczy gasną, jedno po drugim, aż zostaje tylko ciemność. Zwyczajna. Ziemna. Cicha.`,
+    ...(F('zostaje_dobrawa') ? [
+      `Dobrawa zdejmuje z szyi pusty rzemień i wkłada ci go do ręki.`,
+      `– Kieł zatrzymaj – mówi. – Niech ci przypomina, że wilki też umieją przepraszać.`,
+      `Kładzie się w czwartym gnieździe powoli, jak stara suka przy piecu: najpierw kolana, potem bok. Przez chwilę widzisz ją taką, jaka była naprawdę: siwą, wielką, z bielmem na lewym oku. Potem korzenie przykrywają ją jak koc.`,
+    ] : [
+      `Radogost puszcza twoje ramię.`,
+      `– Idź – mówi. – Na górze świta. Słyszę, jak budzą się ptaki.`,
+      `Wchodzi w ciemność bez wahania, z uśmiechem, jak ktoś, kto wraca do domu po bardzo długiej drodze. Korzenie przyjmują go łagodnie, jak ręce.`,
+    ]),
+    `Czwarty sznur napina się i trzyma. Pasterz krzyczy wszystkimi oczami naraz, a potem oczy gasną, jedno po drugim, aż zostaje tylko ciemność. Zwyczajna. Ziemna. Cicha.`,
     `Wychodzisz z kurhanu o świcie. Mgła się podnosi. Pierwszy raz od tylu dni widzisz nad puszczą niebo – blade, jesienne, piękne.`,
     villageEpilogue(),
     `Odchodzisz na wschód. Rana na przedramieniu zasklepia się w ciągu tygodnia i zostaje po niej tylko jasna blizna.`,
@@ -1709,29 +1811,41 @@ const ENDING_TEXT = {
     `– Ja – mówisz.`,
     `To najłatwiejsze słowo, jakie kiedykolwiek wypowiedziałeś.`,
     F('radogost') && `Radogost łapie cię za rękę, ślepy, przerażony, ale ty już się kładziesz.`,
+    F('dobrawa_idzie') && `Dobrawa nie próbuje cię zatrzymać. Kładzie ci tylko dłoń na czole, szorstką jak wilcza łapa. – Dobrze – mówi. – Dobrze, synku.`,
     `Ziemia jest ciepła. Korzenie oplatają cię delikatnie, jakbyś był czymś cennym. Czwarty sznur napina się i trzyma. Pasterz wyje – długo, coraz ciszej, coraz dalej – aż zostaje tylko oddech ziemi i twój własny, i po chwili nie umiesz już ich od siebie odróżnić.`,
     `Nie umierasz. Po prostu przestajesz się spieszyć.`,
     `Na górze mgła się podnosi. W Mszańcu przez następne sto lat matki będą śpiewać dzieciom piosenkę, w której jest o jedną zwrotkę więcej:`,
     `<i>Śpi wojak z żelazem, śpi matka przy kądzieli,<br>śpi dzieciątko z grzechotką i najemnik zza kniei,<br>co przyszedł tu po srebro, a został w ciemnej ziemi,<br>by tamten już nie wstał, nie wstał z pościeli.</i>`,
     F('wiszka_w_domu') && `Najgłośniej śpiewa ją Wiszka. Potem jej córki. Potem córki jej córek.`,
+    F('sulislaw_uratowany') && `Sulisław co roku w wigilię Dziadów zostawia na wielkim kurhanie bochenek chleba i dzban miodu. Nie wie, dla kogo. Wie, że trzeba.`,
+    F('dobrawa_idzie') && `Dobrawa przeżyła cię o trzy zimy. Potem pewnej nocy wyszła do lasu na czterech łapach i już nie wróciła. Ludzie mówią, że śpi na twoim kurhanie.`,
     `Nikt nie zna twojego imienia. Ty też już go nie pamiętasz. To nic. Masz czas. Masz bardzo dużo czasu.`),
 
   zak_niedomkniete: () => P(
     `Uciekasz.`,
     `Gardziel ciągnie się w górę bez końca, siedem kroków, siedemdziesiąt, siedemset, a za tobą Pasterz szarpie się w więzach i krzyczy twoim głosem, głosem twojej matki, głosem dziecka. Pęta trzymają. Bez czwartego sznura trzeszczą, ale trzymają.`,
     `Wychodzisz na powierzchnię. Mgła się podnosi – nie cała, nie od razu, ale się podnosi.`,
-    `Dobrawa, kiedy jej o tym mówisz, długo milczy.`,
-    `– Na jedno pokolenie – mówi w końcu. – Może dwa. Potem sznury się przetrą i ktoś będzie musiał zejść.`,
-    `Patrzy na ciebie zdrowym okiem, a potem tym drugim, mlecznym.`,
-    `– Wiesz, kto.`,
+    ...(F('wilczyca_martwa') ? [
+      `W Mszańcu nie ma już nikogo, kto by ci powiedział, na jak długo. Dobrawa leży pod kopczykiem za chatą, z pustym rzemieniem na szyi.`,
+      `Ale wiesz sam. Na jedno pokolenie. Może dwa. Potem sznury się przetrą i ktoś będzie musiał zejść.`,
+      `Wiesz, kto.`,
+    ] : [
+      `Dobrawa, kiedy jej o tym mówisz, długo milczy.`,
+      `– Na jedno pokolenie – mówi w końcu. – Może dwa. Potem sznury się przetrą i ktoś będzie musiał zejść.`,
+      `Patrzy na ciebie zdrowym okiem, a potem tym drugim, mlecznym.`,
+      `– Wiesz, kto.`,
+    ]),
+    villageEpilogue(true),
     `Wiesz. Odchodzisz z Mszańca z pełną sakiewką i przekonaniem, że jesteś wolny. Przez trzydzieści lat wierzysz w to prawie zawsze. A potem, pewnej jesieni, już jako stary człowiek, budzisz się w nocy, bo ktoś cię woła.`,
     `Z daleka. Z dołu. Twoim imieniem.`),
 
   zak_bogobojca: () => P(
     `Pasterz pada.`,
+    F('glod_boga') && `Nie pamiętasz, kiedy zacząłeś gryźć. Pamiętasz smak.`,
     `Nie tak, jak padają ludzie albo zwierzęta: rozpada się, rozwiewa, rozsypuje w mgłę, a mgła w nic. Setki oczu gasną w porożu jak iskry nad ogniskiem. Serce kurhanu przestaje oddychać.`,
     `Stoisz sam w wielkiej, pustej jamie pod ziemią i słyszysz tylko własny oddech. Ciężki. Głęboki. Głodny.`,
-    `Wychodzisz na powierzchnię. Mgła się podnosi. W Mszańcu witają cię jak bohatera, Bogumił płaci, ile obiecał, i jeszcze trochę, a Dobrawa patrzy na ciebie długo i nic nie mówi. Wyjeżdżasz następnego dnia.`,
+    `Wychodzisz na powierzchnię. Mgła się podnosi. W Mszańcu witają cię jak bohatera, Bogumił płaci, ile obiecał, i jeszcze trochę${F('wilczyca_martwa') ? '' : ', a Dobrawa patrzy na ciebie długo i nic nie mówi'}. Wyjeżdżasz następnego dnia.`,
+    villageEpilogue(true),
     `Dopiero w drodze zaczynasz zauważać. Psy kładą uszy, kiedy przechodzisz. Ptaki milkną. Jesz za trzech i wciąż jesteś głodny. W nocy śnią ci się ciepłe domy pełne śpiących ludzi i budzisz się z ustami pełnymi śliny.`,
     `A kiedy pochylasz się nad wodą, żeby się napić, za twoim odbiciem, w mgle, ktoś ma poroże.`,
     `Czy można zabić głód? Można mu tylko zmienić dom.`),
@@ -1741,7 +1855,8 @@ const ENDING_TEXT = {
     `To nie boli. Wszyscy mówili, że będzie bolało, a to nie boli wcale. Mgła wchodzi w ciebie przez usta, przez oczy, przez ranę na przedramieniu, która otwiera się szeroko jak drzwi do domu. Setki oczu w porożu mrugają z czułością.`,
     `~Dobrze. Bardzo dobrze. Teraz już nigdy nie będziesz głodny.~`,
     `I to prawda. Jesteś głodem, więc nie możesz być głodny. Jesteś mgłą, więc nie możesz zabłądzić. Jesteś wszędzie: w korzeniach, w bagnie, w Wilczym Jarze, w każdej szparze w okiennicach Mszańca.`,
-    `Pierwszej nocy znika Bogumił. Drugiej – Dobrawa, która jedna wiedziała, że tak się skończy, i nawet nie zamknęła drzwi. Trzeciej…`,
+    F('wilczyca_martwa') ? `Pierwszej nocy znika Bogumił. Drugiej – chłopak z bramy, który do końca nie wypuścił z rąk włóczni. Trzeciej…` :
+      `Pierwszej nocy znika Bogumił. Drugiej – Dobrawa, która jako jedyna wiedziała, że tak się skończy, i nawet nie zamknęła drzwi. Trzeciej…`,
     `Jesteś bardzo, bardzo szczęśliwy.`,
     `A daleko, za trzema puszczami, idzie najemnik, którego jeszcze nie znasz. Wyślesz po niego wilka.`),
 
@@ -1763,8 +1878,8 @@ const ENDING_TEXT = {
     `Coś w tobie pęka – cicho, prawie przyjemnie, jak lód na kałuży pod butem.`,
     `Potem jest już tylko mgła. Idziesz w niej i nie wiesz, dokąd ani jak długo. Rozmawiasz z kimś, kto idzie obok i ma twój głos. Śmiejecie się razem. Czasem jesz coś, czego nie pamiętasz.`,
     `Drwale z Mszańca znajdują cię wiosną. Chodzisz w kółko wokół płotu z czaszek, boso, w podartym płaszczu, i liczysz pale. Za każdym razem wychodzi ci inna liczba. Kiedy próbują cię zabrać, gryziesz.`,
-    `Dobrawa każe zostawić cię w spokoju.`,
-    `– On już nie jest tutaj – mówi. – Ale nie jest też tam. Stoi na granicy. Niech stoi. Ktoś musi.`,
+    F('wilczyca_martwa') ? `Chłopak z bramy każe zostawić cię w spokoju. Mówi, że tak by kazała Dobrawa.` : `Dobrawa każe zostawić cię w spokoju.`,
+    F('wilczyca_martwa') ? `– On już nie jest tutaj – mówi. – Ale nie jest też tam. Stoi na granicy. Niech stoi. Ktoś musi.` : `– On już nie jest tutaj – mówi. – Ale nie jest też tam. Stoi na granicy. Niech stoi. Ktoś musi.`,
     `Mówisz dwoma głosami. Jeden prosi o pomoc. Drugi o jedzenie.`),
 
   zak_smierc: () => P(
@@ -1785,6 +1900,8 @@ const ENDING_TEXT = {
   zak_mgla: () => P(
     `Trzeciej nocy mgła wchodzi do Mszańca na dobre.`,
     `Nie ma krzyku. Nie ma walki. Rano przez otwartą bramę wiatr przewiewa pustą osadę: drzwi chat uchylone, garnki na wygasłych paleniskach, w chacie Miry niedokończona czerwona wstążka. Na progach leży sól i popiół, nietknięte. Nie pomogły.`,
+    F('wiszka_w_domu') && `W chacie Miry, na posłaniu, leżą dwie czerwone wstążki. Jedna przy drugiej.`,
+    F('sulislaw_uratowany') && `Bogumił siedzi przy wygasłym palenisku z synem na kolanach, jak z małym dzieckiem. Obaj mają otwarte oczy. Obaj się uśmiechają.`,
     `Gdziekolwiek jesteś, czujesz to. Rana na przedramieniu jest ciepła i syta.`,
     `Z puszczy dobiega dźwięk, jakby ktoś bardzo duży, gdzieś bardzo głęboko, westchnął z zadowoleniem i przewrócił się na drugi bok.`,
     `Prześpi teraz długo. Może sto lat. A kiedy się obudzi, znowu będzie głodny.`),
@@ -1799,13 +1916,114 @@ const ENDING_TEXT = {
     `To znaczy: dowiesz się. Każdej nocy, we śnie, przez resztę życia.`),
 };
 
-function villageEpilogue() {
+function villageEpilogue(short) {
   const p = [];
-  p.push(`W Mszańcu ludzie wychodzą z chat i patrzą w niebo, jakby nigdy go nie widzieli.`);
+  if (!short) p.push(`W Mszańcu ludzie wychodzą z chat i patrzą w niebo, jakby nigdy go nie widzieli.`);
   if (F('wiszka_w_domu')) p.push(`Wiszka siedzi Mirze na kolanach i śpiewa piosenkę o trzech. Teraz, mówi, trzeba będzie dopisać zwrotkę o żercy.`);
   else if (F('wiszka_zabita')) p.push(`Mira wciąż plecie czerwoną wstążkę. Nie patrzysz jej w oczy. Nikt w Mszańcu nie wie, co się stało w dziupli pod dębem. Ty też nie. To znaczy – nie chcesz wiedzieć.`);
   else p.push(`Mira wciąż czeka przy progu z czerwoną wstążką. Może Wiszka jeszcze wróci, teraz, kiedy mgła odeszła. Może.`);
+  if (F('obietnica') && !F('wiszka_w_domu')) p.push(`Obiecałeś jej. Pamiętasz to przy każdej czerwonej wstążce, którą zobaczysz do końca życia.`);
   if (F('sulislaw_uratowany')) p.push(`Bogumił obejmuje cię jak syna, choć swojego syna znowu ma przy sobie.`);
-  p.push(`Starosta płaci ci dwadzieścia dirhamów. Liczysz je dwa razy. Wszystkie są.`);
+  else if (F('sulislaw_martwy')) p.push(`Bogumił siedzi przy wygasłym palenisku, tak jak wtedy, gdy go poznałeś. Nie pyta o nic. Bagno zawsze bierze najmłodszych.`);
+  if (F('idol')) p.push(`W gaju Czworolicy stoi znowu, krzywo, podparty kamieniami. Ktoś już położył przed nim pierwszy wieniec.`);
+  if (F('srebro_umarlych')) p.push(`Srebro umarłych ciąży ci w sakiewce. W nocy wydaje ci się, że jest go trochę mniej niż rano.`);
+  if (!short) p.push(`Starosta płaci ci dwadzieścia dirhamów. Liczysz je dwa razy. Wszystkie są.`);
   return p.join('\n\n');
+}
+
+/* =====================================================================
+   Gardziel: Pasterz wypomina czyny z tej wędrówki. Można mu odpowiedzieć.
+   ===================================================================== */
+const DEEDS = [
+  { if: () => F('sulislaw_martwy') && !F('sul_za_pozno'), t: 'Chłopak w bagnie szeptał do końca. Twoje imię. Nie swoje. Twoje.' },
+  { if: () => F('sul_za_pozno'), t: 'Chłopak w bagnie czekał na ciebie cały dzień. Przyszedłeś za późno. Ja nie.' },
+  { if: () => F('wilczyca_martwa'), t: 'Zabiłeś tę, która cię wybrała. Teraz zostałem ci tylko ja.' },
+  { if: () => F('wiszka_zabita'), t: 'Wstążka była czerwona. Ładnie pachniała dymem. Smakowało ci?' },
+  { if: () => F('srebro_umarlych'), t: 'Srebro w twojej sakiewce jest ciepłe. To moje ciepło. Liczyłeś je w nocy, pamiętasz?' },
+  { if: () => F('sok'), t: 'Piłeś z pnia. Pamiętasz ten smak? Ja pamiętam twój.' },
+  { if: () => F('krag_krew'), t: 'Dałeś kamieniom krwi. Jesteśmy krewnymi. Krewni nie zamykają przed sobą drzwi.' },
+  { if: () => F('dziecko_idzie'), t: 'Wziąłeś grzechotkę za darmo. Dziecko idzie za tobą. Zawsze chciało mieć ojca.' },
+  { if: () => F('wiszka_w_domu'), t: 'Oddałeś dziecko matce. Myślisz, że to cię wybieli? Ona też kiedyś zejdzie. Wszystkie schodzą.' },
+  { if: () => F('sulislaw_uratowany'), t: 'Wyciągnąłeś chłopaka z bagna. Śmieje się teraz przez sen. Wiesz, z czego? Ze mnie. Ja też się śmieję.' },
+  { if: () => F('obietnica') && !F('wiszka_w_domu'), t: 'Obiecałeś matce, że jej poszukasz. Ja też jej coś obiecałem.' },
+  { if: () => F('radogost_martwy'), t: 'Starzec dziękował ci, umierając. Nikt ci nie podziękuje, kiedy przyjdzie twoja kolej.' },
+  { if: () => F('hrodgar_done') && !F('hrodgar_ominiety'), t: 'Hrodgar prosił cię o to samo, o co ty poprosisz mnie. Dałeś mu to. Ja nie dam.' },
+  { if: () => F('idol'), t: 'Podniosłeś drewnianego boga. Patrzy teraz na północ. Na mnie. Boi się.' },
+  { if: () => F('lulek_pity'), t: 'Wypiłeś wywar starej. Teraz widzisz mnie wyraźniej. Ona o tym wiedziała.' },
+  { if: () => F('kiel') && !F('wilczyca_martwa'), t: 'Nosisz jej ząb. Stado cię przyjęło. Stado jest moje.' },
+  { if: () => true, t: 'Przyszedłeś po srebro. Ja też po coś przyszedłem.' },
+  { if: () => true, t: 'Pamiętasz pierwszego człowieka, którego zabiłeś? Był taki ciepły. Ja pamiętam za ciebie.' },
+  { if: () => true, t: 'Twoja matka śpiewała ci inną kołysankę. Ja ją pamiętam. Ty już nie.' },
+];
+function deedAt(k) { return (S.deeds || [])[k] || ''; }
+{
+  const g1on = NODES.g1.on;
+  NODES.g1.on = () => { S.deeds = DEEDS.filter(d => d.if()).map(d => d.t); g1on(); };
+  const OK = {
+    2: `– Kłamiesz – mówisz. Głośno. Twój głos odbija się od ścian gardzieli i wraca do ciebie mniejszy, ale twój.\n\nOddech w ścianach na chwilę się zacina.`,
+    3: `– To było moje – mówisz. – Nie twoje. Moje.\n\nCoś w dole mruga nierówno, jakby nie zrozumiało, jak można coś mieć i tego nie zjeść.`,
+    4: `Odpowiadasz mu imieniem matki, którego nie wypowiadałeś od dwudziestu zim. Nie wiesz, dlaczego akurat tym. Pomaga.`,
+    5: `– Wiem – mówisz. – Wiem, co zrobiłem. Nie musisz mi tego mówić.\n\nKiedy mówi to on, to waży. Kiedy mówisz ty, przestaje.`,
+    6: `Śmiejesz się. Krótko i chrapliwie, jak najemnicy przy ognisku, kiedy ktoś opowiada o śmierci, bo co innego można z nią zrobić. W ścianach coś cichnie, urażone.`,
+  };
+  const NO = [
+    `Otwierasz usta i nie wiesz, co powiedzieć. Bo to prawda. Wszystko to prawda.\n\n~Właśnie.~`,
+    `Chcesz zaprzeczyć, ale głos więźnie ci w gardle, ciepły i lepki jak miód.\n\n~Nie musisz nic mówić. Ja wiem.~`,
+  ];
+  for (let k = 2; k <= 6; k++) {
+    const g = NODES['g' + k], txt = g.text;
+    g.text = () => P(typeof txt === 'function' ? txt() : txt, !(k === 4 && F('wiszka_zabita')) && deedAt(k - 2) && `~${deedAt(k - 2)}~`);
+    g.ch.splice(1, 0, { t: 'Odpowiedz mu', if: () => !!deedAt(k - 2) && !F('odp' + k), do: () => setF('odp' + k), test: { s: 'wol', dc: 9, ok: 'g' + k + '_ok', no: 'g' + k + '_no' } });
+    const base = { loc: 'kurhany', sc: 'gardziel', depth: k, wk: true, title: g.title };
+    const next = [{ t: 'Krok w dół', go: 'g' + (k + 1) }, { t: 'Zawróć', go: 'wk_kosci' }];
+    NODES['g' + k + '_ok'] = { ...base, text: OK[k], first: () => { S.odparte = (S.odparte || 0) + 1; rozum(5); }, ch: next };
+    NODES['g' + k + '_no'] = { ...base, text: NO[k % 2], first: () => { znamie(4); rozum(-3); }, ch: next };
+  }
+  // chata Dobrawy bez Dobrawy: zioła za srebro zostawione w misie
+  NODES.dobrawa_pusta.ch = NODES.dobrawa_handel.ch.filter(c => c.t !== 'Wystarczy').map(c => ({ ...c, go: 'dobrawa_pusta' })).concat([{ t: 'Wyjdź', go: 'msz' }]);
+}
+
+/* =====================================================================
+   Pieśń o tobie: zwrotka dopisana do piosenki o trzech i losy ludzi
+   ===================================================================== */
+const SONG_DEEDS = [
+  ['wiszka_w_domu', 'co dziecko z dziupli wyniósł i oddał je matce,'],
+  ['wiszka_zabita', 'co w dziupli zabił strachy, a strach miał rude włosy,'],
+  ['sulislaw_uratowany', 'co syna z bagna wyrwał, choć bagno nie chciało,'],
+  ['sul_za_pozno', 'co przyszedł na bagno o jeden dzień za późno,'],
+  ['sulislaw_martwy', 'co syna bagnu oddał i się nie obejrzał,'],
+  ['dobrawa_idzie', 'co starej wilczycy przebaczył ugryzienie,'],
+  ['wilczyca_martwa', 'co Wilczą Matkę zabił, a ona go wybrała,'],
+  ['srebro_umarlych', 'co srebro umarłych wziął i nosi je w sakwie,'],
+  ['idol', 'co boga z błota podniósł na własnym ramieniu,'],
+  ['kiel', 'co wilczy kieł nosi, bo stado go przyjęło,'],
+];
+const END_LINE = {
+  zak_peta: () => F('zostaje_dobrawa') ? 'a starą wilczycę zostawił w ciemnej ziemi.' : 'a żercę zostawił w ziemi, by starzec wrócił do domu.',
+  zak_czwarte: () => 'a sam został w ciemnej ziemi, by tamten nie wstał z pościeli.',
+  zak_niedomkniete: () => 'a pęta zawiązał krzywo – lulaj, póki trzymają.',
+  zak_bogobojca: () => 'a boga zabił mieczem i głodny poszedł dalej.',
+  zak_pasterz: () => 'a teraz pasie mgłę i zagląda nam w okiennice.',
+  zak_goraczka: () => 'a może tylko śnił to w gorączce u starej.',
+  zak_obled: () => 'a teraz liczy pale i zawsze mu wychodzi inaczej.',
+  zak_smierc: () => 'a teraz patrzy z poroża, jednym okiem ze stu.',
+  zak_wilk: () => 'a teraz chodzi w mgle na czterech łapach i gryzie.',
+  zak_mgla: () => 'a kiedy wrócił z lasu, Mszańca już nie było.',
+  zak_droga: () => 'a potem poszedł na wschód, a mgła poszła za nim.',
+};
+function songOf(endId) {
+  const who = { wareg: 'z Północy', moraw: 'z Moraw', lowca: 'z puszczy' }[S.bg];
+  const deeds = SONG_DEEDS.filter(([f]) => F(f)).map(([, t]) => t).slice(0, 2);
+  if (!deeds.length) deeds.push('co szedł przez mgłę trzy dni i nikt go nie znał,');
+  return [`…i ${S.name} ${who}, co przyszedł tu po srebro,`, ...deeds, END_LINE[endId] ? END_LINE[endId]() : ''].filter(Boolean);
+}
+function fatesOf() {
+  const L = [];
+  L.push(['Wiszka', F('wiszka_w_domu') ? 'wróciła do matki' : F('wiszka_zabita') ? 'nie wróciła; w dziupli została wstążka' : F('wiszka_czeka') ? 'czeka w dziupli; nikt po nią nie przyszedł' : null]);
+  L.push(['Sulisław', F('sulislaw_uratowany') ? 'żyje i śmieje się przez sen' : F('sul_za_pozno') ? 'utonął, zanim przyszedłeś' : F('sulislaw_martwy') ? 'został w bagnie' : null]);
+  L.push(['Dobrawa', F('wilczyca_martwa') ? 'nie żyje; nosisz jej kieł' : F('dobrawa_idzie') ? 'zeszła za tobą do serca' : know('dobrawa_wilk') ? 'przyznała się do ugryzienia' : null]);
+  L.push(['Radogost', F('radogost') ? 'zszedł z tobą do serca' : F('radogost_martwy') ? 'umarł w korzeniach i podziękował' : null]);
+  L.push(['Hrodgar', F('hrodgar_ominiety') ? 'wciąż stoi przy wrotach' : F('hrodgar_done') ? 'nie żyje' : null]);
+  L.push(['Czworolicy', F('idol') ? 'znów stoi w gaju' : F('idol_obejrzany') ? 'leży w błocie' : null]);
+  return L;
 }

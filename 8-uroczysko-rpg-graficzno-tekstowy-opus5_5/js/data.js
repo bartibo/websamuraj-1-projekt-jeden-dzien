@@ -104,19 +104,19 @@ const ENEMIES = {
     miss: ['Kłapnięcie tuż przy twarzy.', 'Wilk krąży, szuka luki.', 'Odskakujesz przed kłami.'],
   },
   wilczyca: {
-    n: 'Wilcza Matka', hp: 14, def: 9, atk: 4, dmg: [2, 5], beast: true, fig: 'wilczyca',
-    intro: 'Wielka, siwa, z bielmem na lewym oku. To ona cię ugryzła trzy noce temu.',
+    n: 'Wilcza Matka', hp: 14, def: 9, atk: 5, dmg: [2, 5], beast: true, fig: 'wilczyca',
+    intro: 'Wielka, siwa, z bielmem na lewym oku. To ona ugryzła cię o zmierzchu, dzień przed Mszańcem.',
     hit: ['Wilczyca uderza całym ciężarem i powala cię na kolano.', 'Kły tną ci bark.', 'Pazury orzą ci pierś.'],
     miss: ['Wilczyca patrzy na ciebie zdrowym okiem i czeka.', 'Unika twojego ciosu i zachodzi cię z boku.', 'Jej kły zamykają się na pustym powietrzu.'],
   },
   topielec: {
     n: 'Topielec', hp: 12, def: 8, atk: 3, dmg: [2, 5], spirit: true, rz: 2, fig: 'topielec',
-    intro: 'Napuchnięty trup kopacza, z białymi jak u ryby oczami i uśmiechem od ucha do ucha.',
+    intro: 'Napuchnięty trup kopacza, z białymi jak u ryby oczami i rozwartą, czarną paszczą, z której cieknie woda.',
     hit: ['Zimne palce zaciskają się na twojej kostce i ciągną pod wodę.', 'Topielec bije cię w pierś pięścią ciężką jak kamień.', 'Woda wlewa ci się do ust.'],
     miss: ['Topielec chwyta za płaszcz, ale tkanina się wyrywa.', 'Bulgocze coś, co może być śmiechem.', 'Ślizga się na kładce.'],
   },
   upior: {
-    n: 'Upiór wojownika', hp: 16, def: 10, atk: 4, dmg: [2, 6], spirit: true, rz: 3, fig: 'wojownik',
+    n: 'Upiór wojownika', hp: 16, def: 10, atk: 5, dmg: [2, 6], spirit: true, rz: 3, fig: 'wojownik',
     intro: 'Kości w resztkach kolczugi, a w oczodołach zimny błękit. Wojownik wstał, bo ktoś dotknął jego żelaza.',
     hit: ['Kościste palce zaciskają się na twoim gardle, zimne jak lód.', 'Upiór uderza cię płazem starego miecza.', 'Czujesz w piersi zimno, jakby ktoś włożył ci tam garść śniegu.'],
     miss: ['Upiór się zatacza, stawy mu trzeszczą.', 'Zimne ostrze świszcze nad twoją głową.', 'Upiór wpatruje się w ciebie pustymi oczodołami.'],
@@ -128,7 +128,7 @@ const ENEMIES = {
     miss: ['Nici brzęczą tuż przy uchu.', 'Przecinasz kilka nici, ale na ich miejsce przychodzą następne.', 'Nici drżą i cofają się.'],
   },
   hrodgar: {
-    n: 'Hrodgar', hp: 20, def: 9, atk: 4, dmg: [3, 6], spirit: true, rz: 2, fig: 'hrodgar',
+    n: 'Hrodgar', hp: 20, def: 9, atk: 5, dmg: [3, 6], spirit: true, rz: 2, fig: 'hrodgar',
     intro: 'Wódz kopaczy z toporem w dłoni. Połowę twarzy porasta kora i dziesiątki mrugających oczu.',
     hit: ['Topór Hrodgara spada na ciebie z dzikim, nieludzkim rykiem.', 'Hrodgar uderza cię głową, a oczy na jego twarzy mrugają z uciechy.', 'Ostrze tnie ci bok.'],
     miss: ['Topór wbija się w ziemię tuż obok twojej stopy.', 'Hrodgar zatrzymuje się w pół ruchu i coś mamrocze w mowie Północy.', 'Uchylasz się.'],
@@ -160,7 +160,7 @@ const ENEMIES = {
 };
 
 const LORE = {
-  rana: { t: 'Ugryzienie', x: 'Trzy noce przed przybyciem do Mszańca wilk z bielmem na lewym oku ugryzł cię w przedramię. Nie mocno, raczej jakby chciał cię zapamiętać. Rana nie krwawi i się nie goi. Dobrawa mówi, że to znamię Pasterza.' },
+  rana: { t: 'Ugryzienie', x: 'O zmierzchu, dzień przed przybyciem do Mszańca, wilk z bielmem na lewym oku ugryzł cię w przedramię. Nie mocno, raczej jakby chciał cię zapamiętać. Rana nie krwawi i się nie goi. Dobrawa mówi, że to znamię Pasterza.' },
   uroczysko: { t: 'Uroczysko', x: 'Sześć nocy temu, w wigilię Dziadów, ktoś zwalił w świętym gaju Czworolicego, ściął święty dąb i rozkopał kurhany. Od tamtej pory mgła się nie podnosi i znikają ludzie: najpierw pastuch Dziwisz, potem mała Wiszka. Żerca Radogost poszedł „zawiązać, co rozwiązano” i nie wrócił.' },
   kopacze: { t: 'Kopacze Hrodgara', x: 'Pięciu Waregów z wodzem Hrodgarem przyszło po „srebro umarłych”. Drogę pokazał im Sulisław, syn starosty. Najpierw rozkopali kurhan wojownika, a gdy Bjorn wszedł do środka i nie wyszedł, Hrodgar kazał kopać wielki kurhan.' },
   pasterz: { t: 'Pasterz Mgły', x: 'Według Dobrawy uroczysko nie jest święte dlatego, że mieszkają tam bogowie. Jest święte, bo tam więzi się kogoś, kto był tu przed bogami. Starzy nazywali go Pasterzem Mgły: mgła jest jego stadem, a ludzie trawą. To głód, który nauczył się myśleć.' },
@@ -171,21 +171,22 @@ const LORE = {
   piesn2: { t: 'Piosenka o trzech', x: '<i>Śpi wojak z żelazem, śpi matka przy kądzieli,<br>śpi dzieciątko z grzechotką, by tamten nie wstał z pościeli.<br>Wojakowi się pokłoń, nie bierz mu miecza siłą,<br>matce odpowiedz mądrze, co było, co się śniło.<br>Dzieciątku daj coś w zamian, za darmo nic nie bierz,<br>a imię powiedz w sercu, gdzie ciemność jak zwierz.<br>A kto pęta zawiąże, ten zostanie przy kopcu –<br>lulaj, lulaj, dziecino, śpij spokojnie przy ojcu.</i>' },
   runy: { t: 'Runy Hrodgara', x: '„Hrodgar ryje dla tego, kto przyjdzie. Ziemia tu oddycha. Bjorn wszedł do kopca wojownika, nie wyszedł, wyszedł tylko jego śmiech. Dziewczynka ze wsi przyszła za nami i schowała się w dziupli, nie gońcie jej, tylko ona jest tu czysta. Chłopak ze wsi uciekł przez bagno. Ja schodzę do wielkiego. Srebro jest tam. Albo on. Jeśli nie wrócę, spalcie obóz.”' },
   lulek: { t: 'Wywar z lulka', x: 'Wywar Dobrawy goi rany i zbija gorączkę, ale otwiera oczy. „Jedni widzą prawdę, inni to, czego się boją. Nie wiem, którzy mają gorzej.” Może to, co widzisz w puszczy, to tylko lulek i gorączka?' },
+  dobrawa_wilk: { t: 'Dobrawa', x: 'Dobrawa ma bielmo na lewym oku, tak jak Wilcza Matka. To nie przypadek. To ona cię ugryzła. Posłaniec szukał kogoś, kogo ugryzie wilk, bo Pasterz zawsze chce czwartego, a ona nie chciała, żeby to było dziecko z Mszańca.' },
   gdzie_imie: { t: 'Gdzie szukać imienia', x: 'Dobrawa nie wypowie imienia, bo „on usłyszy, że ktoś go woła”. Ale ostatni żerca przed Radogostem wydrapał je na ścianie w korytarzu z kości, w wielkim kurhanie. Trzeba światła. Dużo światła.' },
 };
 
 const ENDINGS = {
-  zak_peta:        { t: 'Pęta', sub: 'Ktoś został na dole. Nie ty.', sc: 'kurhany', tone: 'dawn' },
-  zak_czwarte:     { t: 'Czwarte pęto', sub: 'Zostałeś, żeby inni mogli odejść.', sc: 'serce', tone: 'dark' },
-  zak_niedomkniete:{ t: 'Niedomknięte', sub: 'Nikt nie został. Pęta trzymają. Na razie.', sc: 'kurhany', tone: 'dawn' },
-  zak_bogobojca:   { t: 'Bogobójca', sub: 'Zabiłeś głód. Głód potrzebował nowego domu.', sc: 'bagno', tone: 'red' },
-  zak_pasterz:     { t: 'Nowy Pasterz', sub: 'Granica się zatarła. Po drugiej stronie było ciepło.', sc: 'serce', tone: 'red' },
-  zak_goraczka:    { t: 'Gorączka', sub: 'Obudziłeś się. Chyba.', sc: 'chata', tone: 'warm' },
-  zak_obled:       { t: 'Mgła w głowie', sub: 'Rozum pękł cicho, jak lód na kałuży.', sc: 'skraj', tone: 'mist' },
-  zak_smierc:      { t: 'Pożarty', sub: 'Jeszcze jedno oko w porożu.', sc: 'mgla', tone: 'dark' },
-  zak_wilk:        { t: 'Biały wilk', sub: 'Koło się zamyka. Ktoś musi ugryźć następnego.', sc: 'puszcza', tone: 'mist' },
-  zak_mgla:        { t: 'Mgła w Mszańcu', sub: 'Zabrakło czasu. Pasterz się najadł.', sc: 'osada', tone: 'mist' },
-  zak_droga:       { t: 'Droga na wschód', sub: 'Odszedłeś. Mgła nie.', sc: 'puszcza', tone: 'mist' },
+  zak_peta:        { t: 'Pęta', sub: 'Ktoś został na dole. Nie ty.', sc: 'kurhany', tone: 'dawn', hint: 'Ktoś inny może zostać na dole.' },
+  zak_czwarte:     { t: 'Czwarte pęto', sub: 'Zostałeś, żeby inni mogli odejść.', sc: 'serce', tone: 'dark', hint: 'Czasem czwartym pętem jest ten, kto przyniósł trzy.' },
+  zak_niedomkniete:{ t: 'Niedomknięte', sub: 'Nikt nie został. Pęta trzymają. Na razie.', sc: 'kurhany', tone: 'dawn', hint: 'Zawiąż i uciekaj, póki trzyma.' },
+  zak_bogobojca:   { t: 'Bogobójca', sub: 'Zabiłeś głód. Głód potrzebował nowego domu.', sc: 'bagno', tone: 'red', hint: 'Głód da się zabić mieczem. Tylko gdzie potem zamieszka?' },
+  zak_pasterz:     { t: 'Nowy Pasterz', sub: 'Granica się zatarła. Po drugiej stronie było ciepło.', sc: 'serce', tone: 'red', hint: 'Po drugiej stronie granicy jest ciepło.' },
+  zak_goraczka:    { t: 'Gorączka', sub: 'Obudziłeś się. Chyba.', sc: 'chata', tone: 'warm', hint: 'Lulek otwiera oczy. Czasem je zamyka.' },
+  zak_obled:       { t: 'Mgła w głowie', sub: 'Rozum pękł cicho, jak lód na kałuży.', sc: 'skraj', tone: 'mist', hint: 'Rozum pęka cicho.' },
+  zak_smierc:      { t: 'Pożarty', sub: 'Jeszcze jedno oko w porożu.', sc: 'mgla', tone: 'dark', hint: 'W porożu jest jeszcze jedno wolne miejsce.' },
+  zak_wilk:        { t: 'Biały wilk', sub: 'Koło się zamyka. Ktoś musi ugryźć następnego.', sc: 'puszcza', tone: 'mist', hint: 'Umrzeć z wilkiem w sobie.' },
+  zak_mgla:        { t: 'Mgła w Mszańcu', sub: 'Zabrakło czasu. Pasterz się najadł.', sc: 'osada', tone: 'mist', hint: 'Trzy noce to niewiele.' },
+  zak_droga:       { t: 'Droga na wschód', sub: 'Odszedłeś. Mgła nie.', sc: 'puszcza', tone: 'mist', hint: 'Brama Mszańca prowadzi też na wschód.' },
 };
 const ENDING_ORDER = ['zak_peta', 'zak_czwarte', 'zak_niedomkniete', 'zak_bogobojca', 'zak_pasterz', 'zak_goraczka', 'zak_obled', 'zak_smierc', 'zak_wilk', 'zak_mgla', 'zak_droga'];
 

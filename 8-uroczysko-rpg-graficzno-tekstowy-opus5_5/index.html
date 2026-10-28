@@ -17,11 +17,16 @@
 <!-- ================= EKRAN TYTUŁOWY ================= -->
 <section id="title" class="screen active">
   <canvas id="title-bg" aria-hidden="true"></canvas>
+  <button id="gate" class="gate" aria-label="Wejdź do gry">
+    <span class="gate-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M8 30v-6a16 16 0 0 1 32 0v6"/><rect x="5" y="28" width="9" height="13" rx="3"/><rect x="34" y="28" width="9" height="13" rx="3"/></svg></span>
+    <span class="gate-t">Załóż słuchawki</span>
+    <span class="gate-s">Kliknij, by wejść w mgłę</span>
+  </button>
   <div class="title-wrap">
-    <div class="title-kicker">Puszcza · IX wiek · przed Dziadami</div>
+    <div class="title-kicker">Puszcza · IX wiek · po Dziadach</div>
     <h1 class="title-main">Gdzie mgła<br>ma zęby</h1>
     <p class="title-lead">Najemnik. Osada na skraju puszczy. Zbezczeszczone uroczysko, zwalony bóg, rozkopane kurhany i mgła, która nie chce się podnieść. Ludzie znikają. Ty masz miecz, trochę światła i ranę po ugryzieniu wilka, która nie chce się zagoić.</p>
-    <p class="title-lead dim">Im głębiej zejdziesz, tym mniej będziesz pewien, co jest obłędem, a co bogiem.</p>
+    <p class="title-lead dim">Im głębiej zejdziesz, tym mniej będziesz pewien, co jest <span class="fxw mad" data-fx="mad" tabindex="0">obłędem</span>, a co <span class="fxw god" data-fx="god" tabindex="0">bogiem</span>.</p>
     <div class="title-buttons">
       <button class="btn primary big" id="btn-new">Nowa wędrówka</button>
       <button class="btn big" id="btn-continue" hidden>Kontynuuj</button>
@@ -56,7 +61,7 @@
 <!-- ================= GRA ================= -->
 <div id="game" class="screen">
   <header class="topbar">
-    <div class="tb-title">Gdzie mgła ma zęby</div>
+    <div class="tb-days" id="tb-days" title="Do Dziadów zostały trzy dni. Co noc ktoś w Mszańcu znika."></div>
     <div class="tb-place"><b id="tb-loc">—</b><span id="tb-time">—</span></div>
     <div class="tb-btns">
       <button class="icon-btn" id="btn-sound" title="Dźwięk (M)" aria-label="Dźwięk">♪</button>
@@ -72,7 +77,7 @@
         <div class="scene-hud">
           <div class="enemy-bar" id="enemy-bar" hidden><span id="enemy-name"></span><div class="eb"><i id="enemy-hp"></i></div></div>
         </div>
-        <div class="mini-hud" aria-hidden="true"><span class="m-hp"><i id="mh-hp"></i></span><span class="m-rz"><i id="mh-rz"></i></span><span class="m-zn"><i id="mh-zn"></i></span></div>
+        <div class="mini-hud" aria-hidden="true"><span class="m-hp"><b id="mv-hp"></b><em><i id="mh-hp"></i></em></span><span class="m-rz"><b id="mv-rz"></b><em><i id="mh-rz"></i></em></span><span class="m-zn"><b id="mv-zn"></b><em><i id="mh-zn"></i></em></span></div>
       </div>
       <div class="story-col">
         <article id="story" aria-live="polite"></article>
@@ -151,16 +156,23 @@
     <h2 class="ending-title" id="end-title">—</h2>
     <div class="ending-sub" id="end-sub"></div>
     <div class="ending-text" id="end-text"></div>
+    <div class="ending-song" id="end-song"></div>
+    <div class="ending-harm" id="end-harm" hidden></div>
+    <div class="ending-fates" id="end-fates"></div>
     <div class="ending-stats" id="end-stats"></div>
     <div class="ending-list" id="end-list"></div>
     <div class="ending-buttons">
       <button class="btn primary big" id="btn-again">Jeszcze raz w mgłę</button>
+      <button class="btn" id="btn-cp" hidden>Wróć przed Wielki Kurhan</button>
+      <button class="btn" id="btn-card">Zapisz kartę</button>
+      <button class="btn" id="btn-copy">Kopiuj pieśń</button>
       <button class="btn" id="btn-end-title">Ekran tytułowy</button>
     </div>
   </div>
 </section>
 
 <div id="toast" class="toast" hidden></div>
+<div id="bite" class="bite" aria-hidden="true"></div>
 
 <script src="js/data.js"></script>
 <script src="js/story.js"></script>

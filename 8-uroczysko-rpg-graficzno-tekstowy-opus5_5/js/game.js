@@ -19,6 +19,7 @@ function plural(n, one, few, many) {
 const SAVE_KEY = 'gmz_save_v1';
 const END_KEY = 'gmz_endings_v1';
 const SET_KEY = 'gmz_settings_v1';
+const CP_KEY = 'gmz_checkpoint_v1';
 const PHASES = ['świt', 'dzień', 'zmierzch', 'noc'];
 const TORCH_STEPS = 6;
 
@@ -67,10 +68,21 @@ function take(id, n = 1) {
   if (S.inv[id] <= 0) delete S.inv[id];
   fx(`Ubyło: ${ITEMS[id].n}`, 'lose');
 }
+// jednorazowe wyjaśnienie wskaźnika przy jego pierwszej zmianie
+const TIPS = {
+  rz: 'Rozum spada od szeptów, ciemności i tego, co widzisz. Przy zerze zgubisz się w mgle na zawsze.',
+  zn: 'Znamię rośnie, im bliżej jesteś Pasterza. Daje siłę, ale przy stu stajesz się nim.',
+  glod: 'Znamię otwiera nowe wybory, oznaczone „głód”. Kuszą. Przybliżają cię do niego.',
+  ciemno: 'W kurhanach potrzebujesz światła. Pochodnia starcza na sześć kroków w ciemności, a bez niej tracisz rozum.',
+};
+function tipOnce(k) { S.tips = S.tips || {}; if (S.tips[k]) return; S.tips[k] = 1; fx(TIPS[k], 'tip'); }
+// ostatnie straty, pokazywane przy złym zakończeniu
+function harm(text) { S.harm = S.harm || []; const where = (NODES[S.node] && NODES[S.node].title) || (LOCS[S.loc] && LOCS[S.loc].n) || ''; S.harm.push(`${where}: ${text}`); if (S.harm.length > 6) S.harm.shift(); }
 function hp(d) {
   const old = S.hp; S.hp = clamp(S.hp + d, 0, S.hpMax);
   const r = S.hp - old; if (!r) return;
   fx(`${r > 0 ? '+' : '−'}${Math.abs(r)} Zdrowie`, r > 0 ? 'good' : 'bad');
+  if (r < 0) harm(`−${-r} zdrowia`);
   if (r < 0) { Snd.sfx.hurt(); mainView && mainView.hit(); }
 }
 function rozum(d) {
@@ -78,15 +90,18 @@ function rozum(d) {
   const r = S.rozum - old; if (!r) return;
   fx(`${r > 0 ? '+' : '−'}${Math.abs(r)} Rozum`, r > 0 ? 'good' : 'mind');
   if (r <= -6) Snd.sfx.whisper(0.8);
+  if (r < 0) { harm(`−${-r} rozumu`); tipOnce('rz'); }
 }
 function znamie(d) {
   const old = S.znamie; S.znamie = clamp(S.znamie + d, 0, 100);
   const r = S.znamie - old; if (!r) return;
   fx(`${r > 0 ? '+' : '−'}${Math.abs(r)} Znamię`, r > 0 ? 'mark' : 'good');
+  if (r > 0) { harm(`+${r} znamienia`); tipOnce('zn'); if (S.znamie >= 25) tipOnce('glod'); }
 }
 function srebro(d) {
   S.silver = Math.max(0, S.silver + d);
-  fx(`${d > 0 ? '+' : '−'}${Math.abs(d)} srebra`, d > 0 ? 'item' : 'lose');
+  const n = Math.abs(d);
+  fx(`${d > 0 ? '+' : '−'}${n} ${plural(n, 'dirham', 'dirhamy', 'dirhamów')}`, d > 0 ? 'item' : 'lose');
 }
 function learn(id, quiet) {
   if (!LORE[id] || S.lore.includes(id)) return;
@@ -123,7 +138,7 @@ function whisperHurt(n) {
   rozum(-Math.max(1, Math.round(n * Math.max(0.2, k))));
   Snd.sfx.whisper(1);
 }
-function stepDown() { whisperHurt(4); znamie(4); }
+function stepDown() { const again = (S.seen[S.node] || 0) > 0; whisperHurt(again ? 2 : 4); znamie(again ? 2 : 4); }
 function hubOf(loc) { return loc === 'mszaniec' ? 'msz' : loc; }
 
 /* =====================================================================
@@ -143,11 +158,14 @@ function go(id) {
   S.visited = S.visited || {}; if (S.loc) S.visited[S.loc] = 1;
   if (S.ward > 0) S.ward--;
   // światło
-  if (n.dark) {
+  if (n.dark && n.stay) { /* ta sama komora: światło bez zmian */ }
+  else if (n.dark) {
+    tipOnce('ciemno');
     if (S.light <= 0 && has('pochodnia') && has('krzesiwo')) { S.inv.pochodnia--; if (!S.inv.pochodnia) delete S.inv.pochodnia; S.light = TORCH_STEPS; fx('Zapalasz nową pochodnię', ''); }
     if (S.light > 0) { S.litNow = true; S.light--; if (S.light === 0) fx('Pochodnia dopala się', 'lose'); }
     else { S.litNow = false; rozum(-4); fx('Ciemność', 'mind'); }
   } else S.litNow = false;
+  if (id === 'wk_wrota' && !S.cp) { S.cp = 1; try { localStorage.setItem(CP_KEY, JSON.stringify({ ...S, fxq: [], combat: null })); } catch { } }
   if (!S.seen[id] && n.first) n.first();
   if (n.on) n.on();
   if (n.end) return showEnding(n.end);
@@ -220,7 +238,7 @@ function render(n) {
   $('#game').classList.remove('combat');
   const title = n.title || (LOCS[S.loc] && n.loc ? LOCS[S.loc].n : (n.loc ? '' : 'W drodze')) || '—';
   $('#tb-loc').textContent = title;
-  $('#tb-time').textContent = `Dzień ${Math.min(S.day, 3)} · ${PHASES[phaseIdx()]}`;
+  renderClock();
 
   let paras = fmtParas(evalText(n) || '');
   // szepty wtrącone
@@ -243,12 +261,20 @@ function render(n) {
   story.classList.toggle('fast', SET.fast);
   $$('#story > *').forEach((el, i) => el.style.animationDelay = (i * (SET.fast ? 0.06 : 0.32)) + 's');
   story.scrollTop = 0;
-  $('.story-col').scrollTop = 0;
+  scrollTopAll();
 
   renderChoices(n);
   renderSide();
   updateScene(n);
   updateMood(n);
+}
+
+// trzy znaczniki dni i pora dnia w pasku górnym
+function renderClock() {
+  const ph = phaseIdx();
+  $('#tb-time').textContent = `Dzień ${Math.min(S.day, 3)} · ${PHASES[ph]}`;
+  $('#tb-days').innerHTML = [1, 2, 3].map(d => `<span class="d${d < S.day ? ' gone' : d === S.day ? ' now' : ''}">${['I', 'II', 'III'][d - 1]}</span>`).join('')
+    + `<span class="ph${ph === 3 ? ' night' : ''}" title="${PHASES[ph]}">${['◐', '☀', '◑', '☾'][ph]}</span>`;
 }
 
 function choiceList(n) {
@@ -267,8 +293,17 @@ function choiceList(n) {
       else out.push({ t: `Wycofaj się powoli: ${LOCS[L.adj[0]].n}`, travel: L.adj[0] });
     }
   }
-  if (S.rozum < 30 && !n.end && Math.random() < 0.7) out.splice(rnd(0, out.length), 0, { t: pick(['Posłuchaj go.', 'Pozwól mu mówić.', 'Otwórz usta.']), fake: true });
+  if (S.rozum < 30 && !n.end && S.fakeAt !== S.node && Math.random() < 0.7) out.push({ t: pick(['Posłuchaj go.', 'Pozwól mu mówić.', 'Otwórz usta.']), fake: true });
+  // głos Pasterza udający prawdziwy wybór: miejsce losowe, a kto słyszał ostrzeżenie Hrodgara, słyszy też echo
+  const vi = out.findIndex(c => c.voice);
+  if (vi >= 0 && Math.random() < 0.5) { const [v] = out.splice(vi, 1); out.splice(Math.max(0, vi - 1), 0, v); }
   return out;
+}
+
+// na telefonie przewija się cała strona, a nie kolumna tekstu
+function scrollTopAll() {
+  $('.story-col').scrollTop = 0;
+  if (matchMedia('(max-width: 900px)').matches) window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 function chanceOf(stat, dc) {
@@ -292,7 +327,7 @@ function renderChoices(n) {
     if (c.hunger) tags += `<span class="tag hunger">głód</span>`;
     const flick = S.rozum < 30 && !c.fake && Math.random() < 0.22;
     const inner = flick ? `<span class="lbl">${esc(label)}</span><span class="alt">${esc(pick(FAKE_CHOICES))}</span>` : `<span class="lbl">${label}</span>`;
-    return `<button class="ch${c.fake ? ' fake' : ''}${flick ? ' flick' : ''}${c.travel ? ' travel' : ''}" data-i="${i}"><b class="num">${i + 1}</b><span class="txt">${inner}${c.sub ? `<small>${esc(c.sub)}</small>` : ''}</span>${tags}</button>`;
+    return `<button class="ch${c.fake ? ' fake' : ''}${flick ? ' flick' : ''}${c.travel ? ' travel' : ''}${c.voice && F('ostrzezenie') ? ' echo' : ''}" data-i="${i}"><b class="num">${i + 1}</b><span class="txt">${inner}${c.sub ? `<small>${esc(c.sub)}</small>` : ''}</span>${tags}</button>`;
   }).join('');
   $$('#choices .ch').forEach(b => b.addEventListener('click', () => choose(+b.dataset.i)));
 }
@@ -304,7 +339,7 @@ function choose(i) {
   Snd.init(); Snd.sfx.click();
   if (S.combat) return combatAct(c.act);
   if (c.fake) {
-    rozum(-4); znamie(4); Snd.sfx.whisper(1);
+    S.fakeAt = S.node; rozum(-4); znamie(4); Snd.sfx.whisper(1);
     const fate = checkFate(NODES[S.node]); if (fate) return showEnding(fate);
     return render(NODES[S.node]);
   }
@@ -377,7 +412,7 @@ function startFight(f) {
 
 function zyrHp() {
   const p = F('peta_polozone') ? 3 : petaCount();
-  return Math.max(12, 40 - p * 6 - (F('idol') ? 6 : 0) - (F('radogost') ? 4 : 0));
+  return Math.max(12, 40 - p * 6 - (F('idol') ? 6 : 0) - (F('radogost') ? 4 : 0) - (S.odparte || 0) * 2);
 }
 
 function nextEnemy() {
@@ -385,6 +420,7 @@ function nextEnemy() {
   const E = ENEMIES[id];
   const hpv = id === 'zyr' ? zyrHp() : E.hp;
   S.combat.e = { id, ...E, hp: hpv, max: hpv };
+  if (id === 'zyr') S.combat.e.def = F('peta_polozone') ? 11 : 13 - Math.min(2, petaCount());
   clog(`<b>${E.n}.</b> ${E.intro}`, 'intro');
   if (id === 'zyr') Snd.sfx.roar();
 }
@@ -416,7 +452,7 @@ function chanceHit(mod, def) {
 function renderCombat() {
   const c = S.combat, e = c.e;
   $('#game').classList.add('combat');
-  $('#tb-loc').textContent = 'Walka: ' + e.n;
+  $('#tb-loc').textContent = (matchMedia('(max-width: 520px)').matches ? '' : 'Walka: ') + e.n;
   const pdef = 9 + st('zre');
   $('#story').innerHTML = `<div class="clog">${c.log.map(l => `<p class="${l.cls}">${glitchHTML(l.t)}</p>`).join('')}</div>
     <p class="cstat">Twoja obrona: <b>${pdef}</b> · obrona wroga: <b>${e.def}</b>${e.spirit ? ' · <i>upiór</i>' : ''}${e.beast ? ' · <i>zwierzę</i>' : ''}</p>`;
@@ -433,7 +469,8 @@ function renderCombat() {
   const n = NODES[S.node];
   mainView.set({ ...sceneSpec(n), enemy: e.fig, fig: null });
   updateMood(n, true);
-  const sc = $('.story-col'); sc.scrollTop = 0;
+  if (c.round === 0) scrollTopAll();
+  renderClock();
 }
 
 function attackRoll(mod, def, dmg, label) {
@@ -474,8 +511,9 @@ function combatAct(act) {
     c.stun = 2; clog(`Róg ryczy. ${e.n} zatacza się, ogłuszony.`, 'you');
   } else if (act === 'glod') {
     const dd = attackRoll(st('sil') + 2, e.def, S.weapon.dmg + 3, 'Rzucasz się z zębami');
-    if (dd) { hp(Math.ceil(dd / 2)); }
-    znamie(5);
+    if (dd) { hp(Math.ceil(dd / (e.god ? 3 : 2))); }
+    znamie(e.god ? 8 : 5);
+    if (e.god) setF('glod_boga');
     clog('<span class="szept">…dobrze… smacznie…</span>', 'whisper');
   } else if (act === 'przejrzyj') {
     const a = d6(), b = d6(), sum = a + b + st('wol'), ok = a + b === 12 || (a + b !== 2 && sum >= 10);
@@ -587,6 +625,7 @@ function renderSide() {
   $('#b-rz').style.width = S.rozum + '%';
   $('#b-zn').style.width = S.znamie + '%';
   $('#mh-hp').style.width = (S.hp / S.hpMax * 100) + '%'; $('#mh-rz').style.width = S.rozum + '%'; $('#mh-zn').style.width = S.znamie + '%';
+  $('#mv-hp').textContent = `Zdrowie ${S.hp}`; $('#mv-rz').textContent = `Rozum ${S.rozum}`; $('#mv-zn').textContent = `Znamię ${S.znamie}`;
   const mad = 100 - S.rozum, god = S.znamie;
   $('#bs-mad').style.width = mad + '%';
   $('#bs-god').style.width = god + '%';
@@ -667,7 +706,7 @@ function sceneSpec(n) {
   if (F('idol') && k === 'gaj') fogAmt = 0.3;
   const flagsKey = k === 'gaj' ? `${F('idol')}${F('wstazka_wzieta')}` : k === 'bagno' ? `${F('topielec_done')}${F('sul_done')}` : k === 'serce' ? `${F('peta_polozone')}` : k === 'kurhan' ? `${has('grzechotka')}` : '';
   return {
-    k, variant: n.variant, depth: n.depth, dark: !!n.dark, tod: phaseIdx(), lit: !!n.dark && S.litNow,
+    k, variant: n.variant || ((k === 'puszcza' || k === 'mgla') ? S.node.split('_').slice(0, 2).join('_') : k === 'chata' ? (/^starosta/.test(S.node) ? 'starosta' : /^mira/.test(S.node) ? 'mira' : 'dobrawa') : undefined), depth: n.depth, dark: !!n.dark, tod: phaseIdx(), lit: !!n.dark && S.litNow,
     fig: resolveId(n.fig) || null, rozum: S.rozum, znamie: S.znamie, fogAmt, flagsKey, enemy: null,
   };
 }
@@ -699,6 +738,7 @@ function updateMood(n, combat) {
    ZAKOŃCZENIA
    ===================================================================== */
 function getEndings() { try { return JSON.parse(localStorage.getItem(END_KEY) || '[]'); } catch { return []; } }
+let END_SONG = [], END_ID = null;
 function showEnding(id) {
   const E = ENDINGS[id];
   const got = getEndings();
@@ -710,6 +750,17 @@ function showEnding(id) {
   $('#end-sub').textContent = E.sub;
   $('#end-text').innerHTML = fmtParas(text).join('');
   $$('#end-text > p').forEach((p, i) => p.style.animationDelay = (0.6 + i * 0.5) + 's');
+  // pieśń o tobie, losy ludzi, a przy złym końcu ostatnie straty
+  END_SONG = songOf(id);
+  $('#end-song').innerHTML = `<h4>Zwrotka, której jeszcze nikt nie śpiewał</h4><p class="old">Śpi wojak z żelazem, śpi matka przy kądzieli,<br>śpi dzieciątko z grzechotką…</p><p>${END_SONG.map(esc).join('<br>')}</p>`;
+  $('#end-fates').innerHTML = `<h4>Co po tobie zostało</h4><ul>${fatesOf().map(([who, f]) => `<li class="${f ? '' : 'unk'}"><b>${who}</b><span>${f ? esc(f) : '???'}</span></li>`).join('')}</ul>`;
+  const bad = ['zak_smierc', 'zak_obled', 'zak_wilk', 'zak_pasterz', 'zak_mgla'].includes(id);
+  $('#end-harm').hidden = !(bad && S.harm && S.harm.length);
+  if (bad && S.harm) $('#end-harm').innerHTML = `<h4>Co cię zgubiło</h4><ul>${S.harm.slice().reverse().map(h => `<li>${esc(h)}</li>`).join('')}</ul>`;
+  let cp = null; try { cp = JSON.parse(localStorage.getItem(CP_KEY) || 'null'); } catch { }
+  $('#btn-cp').hidden = !(S.cp && cp);
+  $('#ending').classList.toggle('dawn', E.tone === 'dawn');
+  END_ID = id;
   const peta = Object.keys(S.petaEver).length;
   $('#end-stats').innerHTML = [
     ['Dzień', Math.min(S.day, 4)], ['Pokonani', S.kills], ['Pęta', `${peta}/3`],
@@ -722,6 +773,30 @@ function showEnding(id) {
   endView.set({ k: E.sc, tod: tone === 'dawn' ? 0 : tone === 'mist' ? 1 : tone === 'red' ? 2 : 3, fig: id === 'zak_wilk' ? 'wilczyca' : (id === 'zak_pasterz' || id === 'zak_czwarte') ? 'pasterz' : id === 'zak_goraczka' ? 'starucha' : null, rozum: id === 'zak_obled' ? 10 : 100, znamie: tone === 'red' ? 70 : 0, fogAmt: tone === 'dawn' ? 0.35 : 0.8, dark: false });
   Snd.setMood({ wind: 0.4, drone: tone === 'dawn' ? 0.1 : 0.5, fire: id === 'zak_goraczka' ? 0.8 : 0, drip: 0, birds: tone === 'dawn' ? 1 : 0, owls: 0, village: tone === 'dawn' ? 0.6 : 0, deep: tone === 'red' || tone === 'dark' ? 0.6 : 0, whisper: id === 'zak_obled' ? 0.8 : 0, heart: 0, red: tone === 'red' ? 0.6 : 0 });
   renderTitleEndings();
+}
+
+// karta zakończenia 1200×630: kadr, tytuł, imię i zwrotka
+async function saveCard() {
+  try { await document.fonts.ready; } catch { }
+  const cv = document.createElement('canvas'); cv.width = 1200; cv.height = 630;
+  const x = cv.getContext('2d');
+  x.drawImage($('#ending-bg'), 0, -22, 1200, 675);
+  const g = x.createLinearGradient(0, 0, 1200, 0); g.addColorStop(0, 'rgba(5,6,8,.94)'); g.addColorStop(0.62, 'rgba(5,6,8,.78)'); g.addColorStop(1, 'rgba(5,6,8,.25)');
+  x.fillStyle = g; x.fillRect(0, 0, 1200, 630);
+  x.strokeStyle = 'rgba(201,164,90,.45)'; x.lineWidth = 2; x.strokeRect(18, 18, 1164, 594);
+  x.fillStyle = '#c9a45a'; x.font = '600 18px Cinzel, Georgia, serif'; x.fillText('GDZIE MGŁA MA ZĘBY  ·  ZAKOŃCZENIE', 64, 82);
+  x.fillStyle = '#eadfc8'; x.font = '900 64px Cinzel, Georgia, serif'; x.fillText(ENDINGS[END_ID].t, 64, 158);
+  x.fillStyle = '#948b7d'; x.font = 'italic 24px Alegreya, Georgia, serif'; x.fillText(`${S.name}, ${BACKGROUNDS[S.bg].full.toLowerCase()} · ${ENDINGS[END_ID].sub}`, 64, 202);
+  x.fillStyle = '#eadfc8'; x.font = 'italic 27px Alegreya, Georgia, serif';
+  END_SONG.forEach((l, i) => x.fillText(l, 64, 300 + i * 44));
+  x.fillStyle = '#948b7d'; x.font = '18px Alegreya, Georgia, serif';
+  x.fillText(`Odkryte zakończenia: ${getEndings().length}/${ENDING_ORDER.length}`, 64, 578);
+  cv.toBlob(b => {
+    if (!b) return toast('Nie udało się zapisać karty');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+    a.download = `mgla-${S.name.toLowerCase().replace(/[^a-ząćęłńóśźż0-9]+/gi, '-')}-${END_ID.slice(4)}.png`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
 }
 
 /* =====================================================================
@@ -751,19 +826,50 @@ function toast(t) {
   clearTimeout(toastT); toastT = setTimeout(() => { el.classList.remove('on'); setTimeout(() => el.hidden = true, 300); }, 2200);
 }
 
+// rząd kopców: odkryte zakończenia z nazwą, nieodkryte z zagadkową podpowiedzią
 function renderTitleEndings() {
   const got = getEndings();
-  $('#title-endings').innerHTML = got.length ? `Odkryte zakończenia: <b>${got.length}/${ENDING_ORDER.length}</b> · ${got.map(k => ENDINGS[k].t).join(' · ')}` : '';
+  const box = $('#title-endings');
+  box.innerHTML = got.length ? `<h4>Zakończenia <b>${got.length}/${ENDING_ORDER.length}</b></h4><div class="mounds">${ENDING_ORDER.map(k =>
+    `<span class="mound${got.includes(k) ? ' got' : ''}" tabindex="0" data-tip="${esc(got.includes(k) ? ENDINGS[k].t + ' – ' + ENDINGS[k].sub : '??? ' + ENDINGS[k].hint)}"></span>`).join('')}</div><div class="mound-tip"></div>` : '';
+  const tip = $('.mound-tip', box);
+  $$('.mound', box).forEach(m => { const on = () => tip.textContent = m.dataset.tip; m.addEventListener('mouseenter', on); m.addEventListener('focus', on); m.addEventListener('click', on); });
   $('#btn-continue').hidden = !load();
+}
+
+/* ---------- ekran tytułowy: wilczyca patrzy za kursorem, słowa pokazują obłęd i boga ---------- */
+const TITLE_SPEC = { k: 'puszcza', tod: 2, fig: 'wilczyca', figX: 700, rozum: 100, znamie: 0, fogAmt: 0.6, cam: { x: 0, y: 0 }, look: 0 };
+function titleFx(kind) {
+  titleView.spec.rozum = kind === 'mad' ? 12 : 100;
+  titleView.spec.znamie = kind === 'god' ? 88 : 0;
+  if (!Snd.on) return;
+  Snd.setMood(kind === 'mad' ? { whisper: 0.9, heart: 0.5, red: 0 } : kind === 'god' ? { red: 0.8, deep: 0.6, heart: 0.3, whisper: 0 } : { whisper: 0, heart: 0, red: 0, deep: 0 });
+}
+function enterGate() {
+  const g = $('#gate'); if (g.classList.contains('out')) return;
+  Snd.init();
+  g.classList.add('out'); $('#title').classList.remove('gated');
+  Snd.setMood({ wind: 0.7, drone: 0.3, owls: 0.6, birds: 0, fire: 0, drip: 0, village: 0, deep: 0.1, whisper: 0, heart: 0, red: 0 });
+  setTimeout(() => Snd.sfx.howl(), 900);
+}
+// ugryzienie: wilczyca, czerwony błysk i serce, dopiero potem prolog
+function biteThen(fn) {
+  const b = $('#bite');
+  if (SET.calm || matchMedia('(prefers-reduced-motion: reduce)').matches) return fn();
+  busy = true;
+  b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
+  Snd.sfx.hurt(); setTimeout(() => Snd.sfx.hurt(), 420);
+  setTimeout(() => { busy = false; fn(); }, 900);
 }
 
 let chosenBg = 'wareg';
 function buildCreate() {
   $('#bg-cards').innerHTML = Object.entries(BACKGROUNDS).map(([id, B]) => `
     <button class="bg-card${id === chosenBg ? ' sel' : ''}" data-bg="${id}">
+      <canvas class="bg-portrait" width="300" height="140" data-k="${id}" aria-hidden="true"></canvas>
       <h3>${B.n}</h3><div class="bg-full">${B.full}</div>
       <p>${B.d}</p>
-      <div class="bg-stats">${Object.keys(STATS).map(k => `<span><small>${STATS[k]}</small><b>${B.st[k]}</b></span>`).join('')}</div>
+      <div class="bg-stats">${Object.keys(STATS).map(k => `<span class="${B.st[k] === Math.max(...Object.values(B.st)) ? 'top' : ''}"><small>${STATS[k]}</small><b>${B.st[k]}</b></span>`).join('')}</div>
       <div class="bg-meta">Zdrowie ${B.hp} · ${B.weapon.n} (${B.weapon.dmg})</div>
       <div class="bg-perk">${B.perk}</div>
     </button>`).join('');
@@ -776,11 +882,13 @@ function buildCreate() {
     if (!inp.value.trim() || inp.value.trim() === prevDefault) inp.value = BACKGROUNDS[chosenBg].name;
   }));
   $('#in-name').value = BACKGROUNDS[chosenBg].name;
+  $$('.bg-portrait').forEach(cv => Scene.portrait(cv, cv.dataset.k));
 }
 
 function startNew() {
   const name = ($('#in-name').value.trim() || BACKGROUNDS[chosenBg].name).slice(0, 16);
   S = newState(chosenBg, name);
+  try { localStorage.removeItem(CP_KEY); } catch { }
   invSel = null;
   $('#lore-new').hidden = true;
   show('game');
@@ -797,7 +905,10 @@ function continueGame() {
 }
 
 function loadSettings() {
-  try { Object.assign(SET, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch { }
+  let saved = null;
+  try { saved = localStorage.getItem(SET_KEY); } catch { }
+  if (!saved && matchMedia('(prefers-reduced-motion: reduce)').matches) SET.calm = true;
+  try { Object.assign(SET, JSON.parse(saved || '{}')); } catch { }
   applySettings();
 }
 function applySettings() {
@@ -816,26 +927,49 @@ function init() {
   mainView = Scene.view($('#scene'), { amb: $('#scene-amb') });
   titleView = Scene.view($('#title-bg'), { always: true });
   endView = Scene.view($('#ending-bg'), { always: true });
-  titleView.set({ k: 'puszcza', tod: 2, fig: 'wilczyca', rozum: 100, znamie: 0, fogAmt: 0.7 });
+  titleView.set(TITLE_SPEC);
   loadSettings();
   buildCreate();
   renderTitleEndings();
   show('title');
+  $('#title').classList.add('gated');
+  $('#gate').addEventListener('click', enterGate);
+  $('#title').addEventListener('pointermove', e => {
+    const r = $('#title').getBoundingClientRect(), nx = (e.clientX - r.left) / r.width * 2 - 1, ny = (e.clientY - r.top) / r.height * 2 - 1;
+    TITLE_SPEC.cam.x = nx; TITLE_SPEC.cam.y = ny; TITLE_SPEC.look = nx;
+  });
+  $$('.fxw').forEach(w => {
+    w.addEventListener('mouseenter', () => titleFx(w.dataset.fx)); w.addEventListener('focus', () => titleFx(w.dataset.fx));
+    w.addEventListener('mouseleave', () => titleFx(null)); w.addEventListener('blur', () => titleFx(null));
+    w.addEventListener('click', () => { titleFx(w.dataset.fx); setTimeout(() => titleFx(null), 2500); });
+  });
 
   $('#btn-new').addEventListener('click', () => { Snd.init(); Snd.sfx.click(); show('create'); Snd.setMood({ wind: 0.6, drone: 0.2, owls: 0.8 }); });
   $('#btn-continue').addEventListener('click', () => { Snd.init(); Snd.sfx.click(); continueGame(); });
   $('#btn-back').addEventListener('click', () => show('title'));
-  $('#btn-go').addEventListener('click', () => { Snd.init(); Snd.sfx.click(); startNew(); });
-  $('#in-name').addEventListener('keydown', e => { if (e.key === 'Enter') startNew(); });
+  $('#btn-go').addEventListener('click', () => { if (busy) return; Snd.init(); Snd.sfx.click(); biteThen(startNew); });
+  $('#in-name').addEventListener('keydown', e => { if (e.key === 'Enter' && !busy) biteThen(startNew); });
   $('#btn-again').addEventListener('click', () => { buildCreate(); show('create'); });
-  $('#btn-end-title').addEventListener('click', () => { renderTitleEndings(); show('title'); });
+  $('#btn-cp').addEventListener('click', () => {
+    let cp = null; try { cp = JSON.parse(localStorage.getItem(CP_KEY) || 'null'); } catch { }
+    if (!cp) return;
+    S = cp; S.fxq = []; S.combat = null; invSel = null;
+    show('game'); go(S.node === 'wk_wrota' ? 'wk_wrota' : S.node);
+    toast('Wracasz przed Wielki Kurhan');
+  });
+  $('#btn-copy').addEventListener('click', () => {
+    const txt = `${ENDINGS[END_ID].t} – Gdzie mgła ma zęby\n\n${END_SONG.join('\n')}`;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Pieśń skopiowana'), () => toast('Nie udało się skopiować'));
+  });
+  $('#btn-card').addEventListener('click', saveCard);
+  $('#btn-end-title').addEventListener('click', () => { renderTitleEndings(); show('title'); titleFx(null); });
 
   const bindOpt = (id, k) => $(id).addEventListener('change', e => { SET[k] = e.target.checked; Snd.init(); applySettings(); });
   ['sound', 'fast', 'calm'].forEach(k => { bindOpt('#opt-' + k, k); bindOpt('#m-' + k, k); });
   $('#btn-sound').addEventListener('click', () => { SET.sound = !SET.sound; Snd.init(); applySettings(); });
   $('#btn-menu').addEventListener('click', () => { $('#menu').hidden = false; });
   $('#m-close').addEventListener('click', () => { $('#menu').hidden = true; });
-  $('#m-title').addEventListener('click', () => { $('#menu').hidden = true; save(); renderTitleEndings(); show('title'); });
+  $('#m-title').addEventListener('click', () => { $('#menu').hidden = true; save(); renderTitleEndings(); show('title'); titleFx(null); Snd.setMood({ wind: 0.7, drone: 0.3, owls: 0.6, fire: 0, drip: 0, village: 0, deep: 0.1, birds: 0 }); });
 
   $$('.tab').forEach(t => t.addEventListener('click', () => {
     $$('.tab').forEach(x => x.classList.toggle('active', x === t));
@@ -848,6 +982,7 @@ function init() {
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT') return;
     const gameOn = $('#game').classList.contains('active');
+    if ((e.key === 'Enter' || e.key === ' ') && !$('#gate').classList.contains('out')) { e.preventDefault(); enterGate(); return; }
     if (e.key === 'Escape') { if (gameOn) $('#menu').hidden = !$('#menu').hidden; return; }
     if (e.key === 'm' || e.key === 'M') { SET.sound = !SET.sound; Snd.init(); applySettings(); return; }
     if (!gameOn || !$('#menu').hidden) return;
