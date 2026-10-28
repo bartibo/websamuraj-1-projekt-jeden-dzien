@@ -1,7 +1,7 @@
 'use strict';
 /* Aplikacja: ustawienia, kolejka zadań, archiwum, dorobek i start. */
 
-A.settings = Object.assign({ sfx: true, tick: false, voice: true, notify: true, modes: {} }, store.get('settings', {}));
+A.settings = Object.assign({ sfx: true, tick: false, voice: true, notify: true, eco: true, modes: {} }, store.get('settings', {}));
 
 A.app = (() => {
   let queue = store.get('queue', []);
@@ -19,12 +19,13 @@ A.app = (() => {
   function saveQueue() { store.set('queue', queue); renderQueue(); }
   function addToQueue(task) { queue.push(task); saveQueue(); }
   function peekQueue() { return queue[0] || null; }
-  function startFromQueue(i = 0) {
+  // express: bez kolejki w urzędzie, od razu decyzja (gdy idziemy prosto z raportu)
+  function startFromQueue(i = 0, express = false) {
     const t = queue.splice(i, 1)[0];
     saveQueue();
     if (!t) return home();
     home();
-    A.creator.process(t, x => A.session.start(x));
+    A.creator.process(t, x => A.session.start(x), null, { express });
   }
   function renderQueue() {
     const ul = $('#queue');
@@ -50,10 +51,17 @@ A.app = (() => {
   /* ---------- Archiwum i dorobek ---------- */
 
   function record(entry) {
+    // druga karta mogła w międzyczasie coś dopisać
+    history = store.get('history', history);
     history.unshift(entry);
     history = history.slice(0, 300);
     store.set('history', history);
     renderTotals();
+  }
+
+  function todayCount() {
+    const d = new Date().toDateString();
+    return history.filter(h => h.outcome !== 'quit' && new Date(h.at).toDateString() === d).length;
   }
 
   function totals() {
@@ -70,8 +78,11 @@ A.app = (() => {
       return;
     }
     const tot = t.sec;
+    const rk = A.dossier.rank(t.count), nx = A.dossier.nextRank(t.count), pg = A.dossier.pierogi();
     box.innerHTML = `
       <div class="tot-big"><b>${t.count}</b><span>${plural(t.count, 'zadanie ukończone', 'zadania ukończone', 'zadań ukończonych')}</span></div>
+      <div class="tot-rank"><small>Ranga urzędowa</small><b>${esc(rk.name)}</b>${nx ? `<small>do awansu na „${esc(nx.name)}”: ${nx.at - t.count} ${plural(nx.at - t.count, 'zadanie', 'zadania', 'zadań')}</small>` : ''}</div>
+      <div class="tot-pantry">🥟 Spiżarnia: <b>${pg}</b> ${plural(Math.abs(pg), 'pieróg', 'pierogi', 'pierogów')}${pg < 0 ? ' <small>(dług u babci, babcia pamięta)</small>' : ''}</div>
       <ul class="tot-list">
         <li>Łącznie <b>${A.finale.durWords(tot)}</b></li>
         <li>czyli <b>${fmt(tot / 240, 1)}</b> jajka na miękko</li>
@@ -79,7 +90,8 @@ A.app = (() => {
         <li>albo <b>${fmt(tot / (4 * 31557600))}</b> kadencji Sejmu</li>
         <li>Twoje włosy urosły w tym czasie o <b>${fmt(tot * 0.0405 / 100, 2)} m</b></li>
         ${t.quit ? `<li>Porzucone: <b>${t.quit}</b> (z godnością)</li>` : ''}
-      </ul>`;
+      </ul>
+      <p class="tot-since">${A.dossier.sinceFirst()}</p>`;
   }
 
   function showArchive() {
@@ -117,13 +129,14 @@ A.app = (() => {
         <label class="chk"><input type="checkbox" id="s-tick" ${s.tick ? 'checked' : ''}> <span>⏱️ Tykanie zegara co sekundę</span></label>
         <label class="chk"><input type="checkbox" id="s-voice" ${s.voice ? 'checked' : ''}> <span>🗣️ Lektor (komunikaty dworcowe) ${A.audio.hasVoice() ? '' : '<small>– brak polskiego głosu w przeglądarce</small>'}</span></label>
         <label class="chk"><input type="checkbox" id="s-notify" ${s.notify ? 'checked' : ''}> <span>🔔 Powiadomienie, gdy zadanie skończy się w tle</span></label>
+        <label class="chk"><input type="checkbox" id="s-eco" ${s.eco ? 'checked' : ''}> <span>🔋 Oszczędzanie energii <small>– animacje 30 klatek na sekundę zamiast 60. Bateria dziękuje, ślimak nie zauważy</small></span></label>
       </div>
       <h3>Sposoby odliczania</h3>
       <div class="set-modes">${modes}</div>
       <p class="small">Wyłączone sposoby nie pojawią się w trakcie zadania. Przynajmniej jeden musi zostać, inaczej zegar się obrazi.</p>`,
     [{ label: 'Zapisz', cls: 'primary', fn: () => {
       s.sfx = $('#s-sfx', dlg).checked; s.tick = $('#s-tick', dlg).checked;
-      s.voice = $('#s-voice', dlg).checked; s.notify = $('#s-notify', dlg).checked;
+      s.voice = $('#s-voice', dlg).checked; s.notify = $('#s-notify', dlg).checked; s.eco = $('#s-eco', dlg).checked;
       $$('[data-mode]', dlg).forEach(c => { s.modes[c.dataset.mode] = c.checked; });
       if (!A.MODES.some(m => s.modes[m.id] !== false)) { s.modes = {}; A.ui.toast('ZEGAR SIĘ OBRAZIŁ', 'Wyłączono wszystkie sposoby, więc włączyliśmy wszystkie z powrotem.'); }
       applySettings();
@@ -137,6 +150,7 @@ A.app = (() => {
     document.title = 'Absurdoro – pomodoro, które mierzy czas wszystkim, tylko nie minutami';
     renderQueue(); renderTotals();
     A.ui.screen('scr-home');
+    A.dossier.deliverMail();
   }
 
   function init() {
@@ -152,10 +166,10 @@ A.app = (() => {
       else home();
     });
     document.body.dataset.screen = 'scr-home';
-    if (!A.session.resumeIfAny()) $('#f-name').focus({ preventScroll: true });
+    if (!A.session.resumeIfAny()) { $('#f-name').focus({ preventScroll: true }); A.dossier.deliverMail(); }
   }
 
-  return { init, addToQueue, peekQueue, startFromQueue, record, home };
+  return { init, addToQueue, peekQueue, startFromQueue, record, home, todayCount, history: () => history };
 })();
 
 A.app.init();

@@ -115,24 +115,39 @@ A.creator = (() => {
     ['Dezynfekcja minut', 'minuty czyste'],
     ['Pytanie babci o zdanie', 'babcia mówi, żeby najpierw zjeść'],
     ['Kalibracja czasoprzestrzeni', 'wszystko się zakrzywia prawidłowo'],
+    ['Wyjmowanie teczki z szafy', 'teczka znaleziona za kaloryferem'],
+    ['Ważenie sekund', 'każda waży tyle samo, ku zaskoczeniu komisji'],
+    ['Odkurzanie pieczątki', 'pieczątka lśni'],
+    ['Zapytanie do kota', 'kot zrzucił zapytanie ze stołu, uznano za zgodę'],
   ];
 
-  function process(task, onStart, onBack) {
+  // opt.express – bez kolejki i kroków urzędu (powtórka, następne zadanie prosto z raportu)
+  function process(task, onStart, onBack, opt = {}) {
     const ovl = $('#ovl-process'), steps = $('#steps'), cert = $('#cert');
     steps.innerHTML = ''; cert.hidden = true; cert.innerHTML = '';
     steps.hidden = false;
+    $$('.skip', ovl).forEach(b => b.remove());
     $('.process h2', ovl).textContent = 'Rozpatrywanie wniosku…';
     ovl.hidden = false;
+    if (opt.express) { showCert(true); return () => {}; }
+    const vip = A.dossier.rankIndex() >= 4;
     const chosen = shuffle(STEPS).slice(0, 4);
     const queueNo = randInt(31, 77);
     const list = [...chosen.map(s => ({ t: s[0], r: s[1] })),
-      { t: `Oczekiwanie w kolejce do okienka nr 3`, r: '', queue: true },
+      vip ? { t: 'Kolejka VIP do okienka nr 3', r: 'jest Pan/Pani pierwszy(-a). I jedyny(-a)' } : { t: 'Oczekiwanie w kolejce do okienka nr 3', r: '', queue: true },
       { t: 'Przybijanie pieczątki', r: 'BUM' }];
     let i = 0, cancelled = false, skip = false;
-    const skipBtn = el('button', 'btn tiny skip', '🥟 Pomiń kolejkę (łapówka: 1 pieróg)');
+    const pg = A.dossier.pierogi();
+    const skipBtn = el('button', 'btn tiny skip', pg > 0
+      ? `🥟 Pomiń kolejkę (łapówka: 1 pieróg, w spiżarni: ${pg})`
+      : '🥟 Pomiń kolejkę (pieróg na kredyt u babci)');
     skipBtn.type = 'button';
-    skipBtn.addEventListener('click', () => { skip = true; skipBtn.remove(); A.audio.sfx.pop(); });
-    steps.after(skipBtn);
+    skipBtn.addEventListener('click', () => {
+      skip = true; skipBtn.remove(); A.audio.sfx.pop();
+      const left = A.dossier.spendPieroga();
+      if (left < 0) A.ui.toast('KREDYT U BABCI', `Babcia pożyczyła pieroga. Dług: ${-left} ${plural(-left, 'pieróg', 'pierogi', 'pierogów')}. Babcia pamięta. Babcia zawsze pamięta.`);
+    });
+    if (!vip) steps.after(skipBtn);
 
     function next() {
       if (cancelled) return;
@@ -163,36 +178,78 @@ A.creator = (() => {
       }, skip ? 80 : rand(320, 560));
     }
 
-    function showCert() {
+    function showCert(express) {
       const m = metrics(task.name, task.min);
       task.patron = m.patron; task.success = m.success; task.procr = m.procr; task.aura = m.aura; task.drink = m.drink;
       task.sig = `ABS/${new Date().getFullYear()}/${String(m.seed % 90000 + 10000)}`;
       const unit = pick(A.UNITS.filter(u => u.sec > 0.01 && u.sec < 3600 && u.sec !== 60 && u.sec !== 1));
       const v = task.min * 60 / unit.sec;
+      const minTxt = `${task.min} ${plural(task.min, 'minutę', 'minuty', 'minut')}`;
+      // Wariant decyzji: zwykle „przyznać”, czasem z niespodzianką
+      const verdict = pickWeighted(A.VERDICTS).kind;
+      task.cond = null;
+      let decide = '<b>przyznać</b>', big = minTxt, stamp = 'ZATWIERDZONO', note = '';
+      if (verdict === 'typo') {
+        const [unitBad, who] = pick(A.TYPOS);
+        big = `<s>${task.min} ${unitBad}</s> <span class="cert-fix">${minTxt}</span>`;
+        note = `Korekta odręczna: ${esc(who)} pomylił(a) jednostki. Za utrudnienia przepraszamy.`;
+        stamp = 'SPROSTOWANO';
+      } else if (verdict === 'cond') {
+        task.cond = pick(A.CONDITIONS);
+        decide = '<b>przyznać warunkowo</b>';
+        note = `⚠️ Warunek: <b>${esc(task.cond)}</b>. Spełnienie warunku zostanie sprawdzone po zakończeniu zadania.`;
+        stamp = 'WARUNKOWO';
+      } else if (verdict === 'escalate') {
+        const [who, txt, st] = pick(A.ESCALATIONS);
+        note = `Ze względu na wagę sprawy wniosek przekazano do rozpatrzenia ${esc(who)}. ${esc(txt)}`;
+        stamp = st;
+      } else if (verdict === 'appeal') {
+        decide = '<b>odmówić</b>';
+        note = `Uzasadnienie odmowy: ${esc(pick(A.REFUSALS))}.`;
+        stamp = 'ODMOWA';
+      }
       $('.process h2', ovl).textContent = 'Decyzja administracyjna';
       steps.hidden = true;
       cert.hidden = false;
       cert.innerHTML = `
         <div class="cert-head">DECYZJA nr ${esc(task.sig)}<small>${new Date().toLocaleString('pl-PL')}</small></div>
-        <p>Po rozpatrzeniu wniosku o przydział czasu Ministerstwo postanawia <b>przyznać</b>:</p>
-        <div class="cert-big">${task.min} ${plural(task.min, 'minutę', 'minuty', 'minut')}</div>
+        <p class="cert-decide">Po rozpatrzeniu wniosku o przydział czasu Ministerstwo postanawia ${decide}:</p>
+        <div class="cert-big">${big}</div>
         <div class="cert-eq">czyli ${qty(v, unit.forms)}</div>
+        ${note ? `<p class="cert-note">${note}</p>` : ''}
         <table>
           <tr><th>Zadanie</th><td>${esc(task.name)}</td></tr>
+          <tr><th>Wnioskodawca</th><td>${esc(A.dossier.rank().name)} <small>(ranga urzędowa)</small></td></tr>
+          <tr><th>Kartoteka</th><td>${esc(A.dossier.certLine(task))}</td></tr>
           <tr><th>Powód</th><td>${esc(task.reason)}</td></tr>
           <tr><th>Patron zadania</th><td>${esc(m.patron.name)} <small>– ${esc(m.patron.role)}</small></td></tr>
           <tr><th>Szansa powodzenia</th><td>${fmt(m.success, 1)}% <small>(margines błędu: tak)</small></td></tr>
           <tr><th>Poziom absurdu</th><td>${task.level}/5 – ${esc(A.LEVELS[task.level - 1].name)}</td></tr>
           <tr><th>Przerwa po zadaniu</th><td>${task.brk ? task.brk + ' min' : 'brak (z własnej woli)'}</td></tr>
         </table>
-        <div class="stamp big">ZATWIERDZONO</div>
+        <div class="stamp big${verdict === 'appeal' ? ' deny' : ''}">${esc(stamp)}</div>
         <div class="cert-btns">
           <button type="button" class="btn big primary" id="cert-start">▶ Start! Czas rusza</button>
           <button type="button" class="btn" id="cert-back">Wycofaj wniosek</button>
         </div>`;
-      A.audio.sfx.stamp();
       const startBtn = $('#cert-start');
-      startBtn.focus();
+      if (verdict === 'appeal') {
+        // Odmowa, a zaraz po niej odwołanie rozpatrzone pozytywnie
+        A.audio.sfx.sad();
+        startBtn.disabled = true; startBtn.textContent = '⏳ Składanie odwołania…';
+        setTimeout(() => {
+          if (cert.hidden || !startBtn.isConnected) return;
+          $('.cert-decide', cert).innerHTML = 'Po rozpatrzeniu wniosku o przydział czasu Ministerstwo postanawia <s>odmówić</s> <b>przyznać</b>:';
+          $('.cert-note', cert).insertAdjacentHTML('beforeend', ` <b>Odwołanie rozpatrzono pozytywnie w ${fmt(rand(0.2, 0.9), 1)} s. Rekord urzędu.</b>`);
+          cert.insertAdjacentHTML('beforeend', '<div class="stamp big second">ODWOŁANIE UWZGLĘDNIONE</div>');
+          A.audio.sfx.stamp();
+          startBtn.disabled = false; startBtn.textContent = '▶ Start! Czas rusza'; startBtn.focus({ preventScroll: true });
+        }, 2200);
+      } else {
+        A.audio.sfx.stamp();
+        startBtn.focus({ preventScroll: true });
+      }
+      if (express) A.ui.toast('TRYB EKSPRESOWY', 'Wnioskodawca znany urzędowi. Kolejkę pominięto. Pieróg nie był potrzebny.');
       startBtn.addEventListener('click', () => { ovl.hidden = true; onStart(task); });
       $('#cert-back').addEventListener('click', () => {
         ovl.hidden = true; A.audio.sfx.sad();

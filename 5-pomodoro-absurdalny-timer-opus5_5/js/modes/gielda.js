@@ -57,9 +57,10 @@ A.defineMode({
         g.clearRect(0, 0, W, H);
         const now = price(s.elapsed), open = price(0);
         const ch = (now / open - 1) * 100;
-        priceB.textContent = fmt(now, 2);
-        priceS.textContent = `${ch >= 0 ? '▲ +' : '▼ '}${fmt(ch, 2)}%`;
-        priceS.className = ch >= 0 ? 'up' : 'dn';
+        setText(priceB, fmt(now, 2));
+        setText(priceS, `${ch >= 0 ? '▲ +' : '▼ '}${fmt(ch, 2)}%`);
+        const cls = ch >= 0 ? 'up' : 'dn';
+        if (priceS.className !== cls) priceS.className = cls;
         // siatka
         const N = 160;
         const pts = [];
@@ -95,9 +96,9 @@ A.defineMode({
         g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, cyy, 4 + Math.sin(performance.now() / 150) * 1.5, 0, TAU); g.fill();
         g.textAlign = 'center'; g.fillStyle = 'rgba(255,255,255,.4)';
         g.fillText('prognoza analityków (wróżka Bożenka) ↗', Math.min(W - 140, cx + (W - cx) / 2), clamp(Y(lerp(now, pts[N], 0.5)) - 10, 16, H - 8));
-        closeEl.innerHTML = s.remaining > 0
+        setHTML(closeEl, s.remaining > 0
           ? `Do zamknięcia sesji: <b>${mmss(s.remaining)}</b> · obroty: ${fmtInt(s.elapsed * 1337)} pomidorów`
-          : '🔔 DZWONEK! Sesja zamknięta. Rekord wszech czasów.';
+          : '🔔 DZWONEK! Sesja zamknięta. Rekord wszech czasów.');
         if (s.remaining <= 0 && !lastClose) { lastClose = true; }
       },
       destroy() {},

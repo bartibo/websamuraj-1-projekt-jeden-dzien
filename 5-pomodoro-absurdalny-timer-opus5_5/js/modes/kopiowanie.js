@@ -55,12 +55,13 @@ A.defineMode({
           hist.push(mbps); if (hist.length > 120) hist.shift();
         }
         const p = s.p;
-        pct.textContent = `Ukończono ${fmt(p * 100, 0)}%`;
-        prog.style.width = (p * 100) + '%';
-        speed.textContent = `${fmt(mbps, 1)} MB/s (≈ ${fmt(mbps * 0.37, 2)} pieroga/s)`;
+        setText(pct, `Ukończono ${fmt(p * 100, 0)}%`);
+        const pw = (p * 100).toFixed(1) + '%';
+        if (prog.style.width !== pw) prog.style.width = pw;
+        setText(speed, `${fmt(mbps, 1)} MB/s (≈ ${fmt(mbps * 0.37, 2)} pieroga/s)`);
         const left = Math.ceil(s.remaining);
-        items.textContent = `${fmtInt(left)} (${fmt(left * 1.37, 1)} MB wątpliwości)`;
-        honest.textContent = s.paused ? 'Kopiowanie wstrzymane. Pliki czekają cierpliwie.' : `Naprawdę zostało ${mmss(s.remaining)}. Nie mów systemowi.`;
+        setText(items, `${fmtInt(left)} (${fmt(left * 1.37, 1)} MB wątpliwości)`);
+        setText(honest, s.paused ? 'Kopiowanie wstrzymane. Pliki czekają cierpliwie.' : `Naprawdę zostało ${mmss(s.remaining)}. Nie mów systemowi.`);
         // wykres szybkości
         const r = cv.getBoundingClientRect();
         const W = Math.max(10, Math.round(r.width)), H = Math.max(10, Math.round(r.height));

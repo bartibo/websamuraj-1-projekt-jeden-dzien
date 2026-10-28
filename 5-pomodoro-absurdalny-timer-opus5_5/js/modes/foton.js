@@ -45,15 +45,16 @@ A.defineMode({
             g.fillStyle = 'rgba(180,170,150,.6)';
             for (const b of belt) g.fillRect(px + b.dx * 10, cy + b.y * h * 0.32, 1.5, 1.5);
           } else {
-            const pg = g.createRadialGradient(px - p.r * 0.3, cy - p.r * 0.3, 0, px, cy, p.r);
-            pg.addColorStop(0, '#fff'); pg.addColorStop(0.3, p.color); pg.addColorStop(1, '#111');
-            g.fillStyle = pg; g.beginPath(); g.arc(px, cy, p.r, 0, TAU); g.fill();
-            if (p.ring) { g.strokeStyle = 'rgba(230,208,142,.8)'; g.lineWidth = 2; g.beginPath(); g.ellipse(px, cy, p.r * 2, p.r * 0.5, -0.3, 0, TAU); g.stroke(); }
+            const pr = Math.max(6, p.r * Math.min(1.6, h / 420));
+            const pg = g.createRadialGradient(px - pr * 0.3, cy - pr * 0.3, 0, px, cy, pr);
+            pg.addColorStop(0, '#fff'); pg.addColorStop(0.35, p.color); pg.addColorStop(1, '#1a1a22');
+            g.fillStyle = pg; g.beginPath(); g.arc(px, cy, pr, 0, TAU); g.fill();
+            if (p.ring) { g.strokeStyle = 'rgba(230,208,142,.8)'; g.lineWidth = 2; g.beginPath(); g.ellipse(px, cy, pr * 2, pr * 0.5, -0.3, 0, TAU); g.stroke(); }
           }
-          g.fillStyle = 'rgba(255,255,255,.75)'; g.font = '600 12px system-ui';
-          const ly = i % 2 ? cy + 34 : cy - 28;
+          g.fillStyle = p.belt ? 'rgba(255,255,255,.7)' : p.color; g.font = '700 13px system-ui';
+          const ly = i % 2 ? cy + 40 : cy - 32;
           g.fillText(p.name, px, ly);
-          g.fillStyle = 'rgba(255,255,255,.4)'; g.font = '11px system-ui';
+          g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '12px system-ui';
           g.fillText(mmss(p.t), px, ly + 14);
           if (!passed.has(p.name) && s.elapsed >= p.t) {
             passed.add(p.name);
@@ -78,7 +79,9 @@ A.defineMode({
         glow.addColorStop(0, '#fff'); glow.addColorStop(0.3, 'rgba(255,240,150,.9)'); glow.addColorStop(1, 'rgba(255,200,80,0)');
         g.fillStyle = glow; g.beginPath(); g.arc(fx, cy, 22 + Math.sin(t * 8) * 2, 0, TAU); g.fill();
         g.fillStyle = '#fff'; g.font = '700 14px "Bricolage Grotesque", system-ui';
-        g.fillText('foton Fotek', fx, cy + 60);
+        g.textAlign = fx > ex - 90 && fx < ex + 20 ? 'right' : 'center';
+        g.fillText('foton Fotek', fx - (g.textAlign === 'right' ? 16 : 0), cy + 66);
+        g.textAlign = 'center';
 
         // dalekie planety poza skalą
         const far = A.PLANETS.find(p => p.t > tMax && !p.belt);
@@ -94,7 +97,7 @@ A.defineMode({
           g.globalAlpha = 1;
         }
         const km = s.elapsed * 299792;
-        cap.innerHTML = `Foton przeleciał <b>${fmt(km / 1e6, 1)} mln km</b> · prędkość 299 792 km/s (bez mandatu) · do końca zadania doleci jeszcze <b>${fmt(s.remaining * 0.299792, 0)} mln km</b>`;
+        setHTML(cap, `Foton przeleciał <b>${fmt(km / 1e6, 1)} mln km</b> · prędkość 299 792 km/s (bez mandatu) · do końca zadania doleci jeszcze <b>${fmt(s.remaining * 0.299792, 0)} mln km</b>`);
       },
       destroy() {},
     };

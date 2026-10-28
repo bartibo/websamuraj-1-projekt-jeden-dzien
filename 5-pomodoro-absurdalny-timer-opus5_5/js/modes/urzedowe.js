@@ -13,8 +13,8 @@ A.defineMode({
             <div>RZECZPOSPOLITA ABSURDALNA<br><small>Ministerstwo Czasu Nadmiernie Mierzonego<br>Departament Odliczania, pokój 404</small></div>
             <div class="md-nr">Sygn. akt: ${nr}</div>
           </div>
-          <h2>ZAŚWIADCZENIE<br><small>o czasie pozostałym do końca zadania</small></h2>
-          <p class="md-lead">Niniejszym zaświadcza się, że do końca zadania „<b>${esc(s0.task.name || 'Zadanie bez nazwy')}</b>” pozostało:</p>
+          <h2>ZAŚWIADCZENIE<br><small>o czasie pozostałym do końca ${s0.kind === 'break' ? 'przerwy' : 'zadania'}</small></h2>
+          <p class="md-lead">${s0.kind === 'break' ? `Niniejszym zaświadcza się, że do końca przerwy po zadaniu „<b>${esc(s0.task.name || 'Zadanie bez nazwy')}</b>” pozostało (odpoczywać wolno do ostatniej sekundy):` : `Niniejszym zaświadcza się, że do końca zadania „<b>${esc(s0.task.name || 'Zadanie bez nazwy')}</b>” pozostało:`}</p>
           <table class="md-table">
             <tr><th>Słownie</th><td data-k="slow"></td></tr>
             <tr><th>Słownie, w minutach</th><td data-k="slowm"></td></tr>

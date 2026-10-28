@@ -86,9 +86,12 @@ A.defineMode({
       g.restore();
     }
 
-    function drawStem(g, R) {
+    // fall 0..1 – szypułka spada na talerz, gdy zjedzony zostanie środek pomidora
+    function drawStem(g, R, fall) {
       g.save();
-      g.translate(0, -R * 0.95);
+      const f = easeOut(fall);
+      g.translate(lerp(0, R * 0.25, f), lerp(-R * 0.95, R * 0.82, f * f));
+      g.rotate(f * 1.75);
       g.fillStyle = '#3c8d3a'; g.strokeStyle = '#1f5a20'; g.lineWidth = 2;
       for (let i = 0; i < 6; i++) {
         g.save(); g.rotate(i / 6 * TAU + 0.3);
@@ -190,7 +193,7 @@ A.defineMode({
         const sq = 1 + Math.sin(t * 2) * 0.01;
         g.save(); g.translate(cx, cy); g.scale(1 / sq, sq);
         g.drawImage(off, -S / 2, -S / 2);
-        drawStem(g, R);
+        drawStem(g, R, clamp((p - 0.55) / 0.1, 0, 1));
         g.restore();
 
         // okruchy
@@ -203,30 +206,40 @@ A.defineMode({
 
         // gąsienica przy ostatnim kęsie
         const cur = bites[Math.max(0, Math.min(N - 1, k))];
-        const gx = cx + cur.x * R + R * 0.18, gy = cy + cur.y * R;
+        // pod koniec gąsienica schodzi na talerz
+        const down = clamp((p - 0.86) / 0.12, 0, 1);
+        const gx = cx + lerp(cur.x * R + R * 0.18, -R * 0.4, down), gy = cy + lerp(cur.y * R, R * 0.8, easeInOut(down));
         drawCaterpillar(g, gx, gy, R, p, t, chew > 0 || (!s.paused && Math.sin(t * 1.3) > 0.4));
 
         // dymek pomidora
         let line = LINES[0][1];
         for (const [pp, l] of LINES) if (p >= pp) line = l;
-        g.font = `600 ${Math.max(13, R * 0.1)}px "Bricolage Grotesque", system-ui, sans-serif`;
-        const tw = Math.min(w * 0.42, g.measureText(line).width + 28);
-        const bx = Math.max(10, cx - R * 1.35 - tw * 0.55), by = cy - R * 1.25;
+        const fs = Math.max(13, Math.min(22, R * 0.1));
+        g.font = `600 ${fs}px "Bricolage Grotesque", system-ui, sans-serif`;
+        // dymek łamie tekst na linie, zamiast go ucinać
+        const maxW = Math.min(w * 0.8, Math.max(220, R * 2.2));
+        const lines = [];
+        for (const word of line.split(' ')) {
+          const cand = lines.length ? lines[lines.length - 1] + ' ' + word : word;
+          if (lines.length && g.measureText(cand).width <= maxW - 28) lines[lines.length - 1] = cand; else lines.push(word);
+        }
+        const lh = fs * 1.25, bh = lines.length * lh + 18;
+        const tw = Math.min(maxW, Math.max(...lines.map(l => g.measureText(l).width)) + 28);
+        const bx = clamp(cx - R * 1.35 - tw * 0.55, 10, w - tw - 10), by = Math.max(bh / 2 + 6, cy - R * 1.25);
+        const tipX = clamp(cx - R * 0.5, bx + 20, bx + tw - 20);
         g.fillStyle = '#fff'; g.strokeStyle = '#2a1d17'; g.lineWidth = 2;
-        roundRect(g, bx, by - 22, tw, 44, 14); g.fill(); g.stroke();
-        g.beginPath(); g.moveTo(bx + tw * 0.7, by + 22); g.lineTo(cx - R * 0.5, cy - R * 0.75); g.lineTo(bx + tw * 0.55, by + 22); g.closePath(); g.fill(); g.stroke();
-        g.fillStyle = '#fff'; g.fillRect(bx + tw * 0.55 + 2, by + 19, tw * 0.15 - 4, 5);
+        roundRect(g, bx, by - bh / 2, tw, bh, 14); g.fill(); g.stroke();
+        g.beginPath(); g.moveTo(tipX + 12, by + bh / 2); g.lineTo(cx - R * 0.5, cy - R * 0.75); g.lineTo(tipX - 4, by + bh / 2); g.closePath(); g.fill(); g.stroke();
+        g.fillStyle = '#fff'; g.fillRect(tipX - 2, by + bh / 2 - 3, 12, 5);
         g.fillStyle = '#2a1d17'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.save(); g.beginPath(); g.rect(bx + 6, by - 22, tw - 12, 44); g.clip();
-        g.fillText(line, bx + tw / 2, by + 1);
-        g.restore();
+        lines.forEach((l, i) => g.fillText(l, bx + tw / 2, by - bh / 2 + 9 + lh * (i + 0.5)));
         if (chew > 0) {
           g.font = `700 ${Math.max(14, R * 0.12)}px "Bricolage Grotesque", sans-serif`;
           g.fillStyle = `rgba(45,93,24,${chew})`;
           g.fillText('mniam', gx + R * 0.3, gy - R * 0.35 - (0.8 - chew) * 30);
         }
 
-        cap.innerHTML = `Pomidor zjedzony w <b>${fmt(p * 100, 0)}%</b> · gąsienica Grażyna przytyła o <b>${fmt(p * 14, 1)} g</b> · zostało ${mmss(s.remaining)}`;
+        setHTML(cap, `Pomidor zjedzony w <b>${fmt(p * 100, 0)}%</b> · gąsienica Grażyna przytyła o <b>${fmt(p * 14, 1)} g</b> · zostało ${mmss(s.remaining)}`);
       },
       destroy() {},
     };

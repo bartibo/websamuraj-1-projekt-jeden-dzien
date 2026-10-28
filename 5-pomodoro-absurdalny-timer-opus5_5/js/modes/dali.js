@@ -9,6 +9,9 @@ A.defineMode({
     const cap = el('div', 'mode-caption');
     host.appendChild(cap);
     const off = document.createElement('canvas'), og = off.getContext('2d');
+    // roztopiony zegar składany z pasków bez cienia, cień nakładany raz na całość
+    const mel = document.createElement('canvas'), mg = mel.getContext('2d');
+    let faceKey = '';
     let t = 0, drips = [], dripT = 0;
     const ants = Array.from({ length: 9 }, () => ({ a: rand(0, TAU), sp: rand(0.4, 1.2) * (chance(0.5) ? 1 : -1), r: rand(0.3, 0.8) }));
     const QUOTES = [
@@ -22,6 +25,9 @@ A.defineMode({
     let q = quote(), qT = 0;
 
     function face(S, s) {
+      const key = S + '|' + Math.ceil(s.remaining);
+      if (key === faceKey) return;
+      faceKey = key;
       if (off.width !== S) { off.width = S; off.height = S; }
       const R = S / 2 - 6;
       og.setTransform(1, 0, 0, 1, 0, 0);
@@ -77,7 +83,9 @@ A.defineMode({
         g.strokeStyle = '#3b2412'; g.lineCap = 'round';
         g.lineWidth = 16; g.beginPath(); g.moveTo(trunkX, h * 0.82); g.quadraticCurveTo(trunkX - 10, h * 0.6, trunkX + 4, branchY); g.stroke();
         g.lineWidth = 9; g.beginPath(); g.moveTo(trunkX + 4, branchY); g.quadraticCurveTo(w * 0.3, branchY - 14, tipX, branchY - 2); g.stroke();
-        g.lineWidth = 5; g.beginPath(); g.moveTo(trunkX + 2, branchY + 10); g.lineTo(trunkX - 30, branchY - 40); g.stroke();
+        g.lineWidth = 5; g.beginPath(); g.moveTo(trunkX + 2, branchY + 10); g.quadraticCurveTo(trunkX - 22, branchY - 14, trunkX - 30, branchY - 46); g.stroke();
+        g.lineWidth = 3; g.beginPath(); g.moveTo(trunkX - 16, branchY - 22); g.lineTo(trunkX - 38, branchY - 26);
+        g.moveTo(trunkX + 2, h * 0.62); g.quadraticCurveTo(trunkX + 26, h * 0.58, trunkX + 34, h * 0.52); g.stroke();
         // plinta
         g.fillStyle = '#5a3a1c'; g.fillRect(w * 0.05, h * 0.8, w * 0.38, h * 0.06);
         g.fillStyle = '#7a5428'; g.fillRect(w * 0.05, h * 0.78, w * 0.38, h * 0.025);
@@ -91,16 +99,20 @@ A.defineMode({
         const X0 = tipX - S * 0.55, Y0 = branchY - S * 0.38;
         const u0 = 0.5;
         const strip = 2;
-        g.save();
-        g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 12; g.shadowOffsetY = 6;
+        const MW = S + 4, MH = Math.ceil(S * 2.8);
+        if (mel.width !== MW || mel.height !== MH) { mel.width = MW; mel.height = MH; }
+        mg.clearRect(0, 0, MW, MH);
         for (let x = 0; x < S; x += strip) {
           const u = x / S;
           const k = Math.max(0, u - u0) / (1 - u0);
           const kl = Math.max(0, 0.12 - u) / 0.12;
           const sag = melt * S * 0.75 * Math.pow(k, 1.5) + kl * melt * S * 0.12 + Math.sin(t * 0.8 + u * 5) * 2 * melt;
           const st = 1 + melt * 0.9 * k;
-          g.drawImage(off, x, 0, strip, S, X0 + x, Y0 + sag, strip + 0.6, S * st);
+          mg.drawImage(off, x, 0, strip, S, x, sag + 4, strip + 0.6, S * st);
         }
+        g.save();
+        g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 12; g.shadowOffsetY = 6;
+        g.drawImage(mel, X0, Y0 - 4);
         g.restore();
         // gałąź przechodzi przez zegar – zegar na niej wisi
         g.strokeStyle = '#3b2412'; g.lineWidth = 9; g.lineCap = 'round';
@@ -122,8 +134,13 @@ A.defineMode({
 
         // zamknięty zegarek z mrówkami
         const px = w * 0.6, py = h * 0.8, pr = Math.min(w, h) * 0.06;
-        g.fillStyle = '#d06a1d'; g.strokeStyle = '#6b3205'; g.lineWidth = 2;
-        g.beginPath(); g.ellipse(px, py, pr * 1.2, pr * 0.6, 0, 0, TAU); g.fill(); g.stroke();
+        // koperta zegarka kieszonkowego z koronką
+        g.fillStyle = '#b8862f'; g.strokeStyle = '#5a3a0a'; g.lineWidth = 2;
+        g.beginPath(); g.ellipse(px - pr * 1.25, py - pr * 0.05, pr * 0.14, pr * 0.1, 0, 0, TAU); g.fill(); g.stroke();
+        g.beginPath(); g.ellipse(px, py + pr * 0.08, pr * 1.2, pr * 0.62, 0, 0, TAU); g.fill(); g.stroke();
+        g.fillStyle = '#d06a1d';
+        g.beginPath(); g.ellipse(px, py, pr * 1.08, pr * 0.52, 0, 0, TAU); g.fill(); g.stroke();
+        g.strokeStyle = 'rgba(255,220,150,.5)'; g.beginPath(); g.ellipse(px - pr * 0.2, py - pr * 0.12, pr * 0.6, pr * 0.22, -0.2, Math.PI * 1.1, Math.PI * 1.7); g.stroke();
         g.fillStyle = '#111';
         for (const a of ants) {
           if (!s.paused) a.a += a.sp * dt;
@@ -132,8 +149,8 @@ A.defineMode({
 
         g.font = `italic ${Math.max(14, Math.min(20, w * 0.02))}px Georgia, serif`;
         g.fillStyle = 'rgba(30,20,10,.75)'; g.textAlign = 'right';
-        g.fillText(`„${q}”`, w - 20, h * 0.08);
-        cap.innerHTML = `Stopień roztopienia: <b>${fmt(melt * 100, 0)}%</b> · zostało <b>${mmss(s.remaining)}</b> · mrówki na zegarku: <b>${ants.length}</b> (nie wiedzą, która godzina)`;
+        g.fillText(`„${q}”`, w - 32, h * 0.08);
+        setHTML(cap, `Stopień roztopienia: <b>${fmt(melt * 100, 0)}%</b> · zostało <b>${mmss(s.remaining)}</b> · mrówki na zegarku: <b>${ants.length}</b> (nie wiedzą, która godzina)`);
       },
       destroy() {},
     };

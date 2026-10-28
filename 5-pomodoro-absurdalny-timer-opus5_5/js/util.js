@@ -23,6 +23,22 @@ function bag(arr) {
   let pool = [];
   return () => { if (!pool.length) pool = shuffle(arr); return pool.pop(); };
 }
+// Jak bag, ale pula przetrwa przeładowanie strony – teksty nie wracają w kolejnej sesji
+function bagStored(key, arr) {
+  return () => {
+    let pool = store.get('bag.' + key, []).filter(i => i < arr.length);
+    if (!pool.length) pool = shuffle(arr.map((_, i) => i));
+    const i = pool.pop();
+    store.set('bag.' + key, pool);
+    return arr[i];
+  };
+}
+// Losowanie z wagami: [{ w, ... }]
+function pickWeighted(arr, r = Math.random()) {
+  let x = r * arr.reduce((a, o) => a + o.w, 0);
+  for (const o of arr) { x -= o.w; if (x < 0) return o; }
+  return arr[arr.length - 1];
+}
 // Deterministyczny generator (stałe „losowe” cechy zadania)
 function mulberry32(seed) {
   return function () {
@@ -77,10 +93,19 @@ function fmt(v, maxDec) {
   else if (a >= 10) dec = 1;
   else if (a >= 1) dec = 2;
   else dec = Math.min(20, Math.ceil(-Math.log10(a)) + 2);
-  let s = v.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: dec, useGrouping: true });
-  return s.replace(/\s/g, NBSP);
+  return nf(dec).format(v).replace(/\s/g, NBSP);
 }
-function fmtInt(v) { return Math.round(v).toLocaleString('pl-PL').replace(/\s/g, NBSP); }
+function fmtInt(v) { return nf(0).format(Math.round(v)).replace(/\s/g, NBSP); }
+// Gotowe formattery (tworzenie Intl.NumberFormat co klatkę jest drogie)
+const NF = new Map();
+function nf(dec) {
+  let f = NF.get(dec);
+  if (!f) { f = new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: dec, useGrouping: true }); NF.set(dec, f); }
+  return f;
+}
+// Zapis do DOM tylko przy zmianie treści
+function setHTML(node, html) { if (node.__h !== html) { node.__h = html; node.innerHTML = html; } }
+function setText(node, txt) { if (node.__t !== txt) { node.__t = txt; node.textContent = txt; } }
 // Wartość liczbowa po zaokrągleniu jak w fmt (do doboru formy)
 function roundedLike(v) {
   const s = fmt(v).replace(/ /g, '').replace(',', '.');
@@ -179,10 +204,13 @@ function makeCanvas(host) {
   host.appendChild(cv);
   const g = cv.getContext('2d');
   const o = { cv, g, w: 1, h: 1, dpr: 1 };
+  // Wymiary z ResizeObservera – bez odczytu układu strony w każdej klatce
+  let rw = 0, rh = 0;
+  if ('ResizeObserver' in window) new ResizeObserver(es => { const r = es[es.length - 1].contentRect; rw = r.width; rh = r.height; }).observe(host);
   o.fit = () => {
-    const r = host.getBoundingClientRect();
+    if (!rw) { const r = host.getBoundingClientRect(); rw = r.width; rh = r.height; }
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+    const w = Math.max(1, Math.round(rw)), h = Math.max(1, Math.round(rh));
     if (w !== o.w || h !== o.h || dpr !== o.dpr) {
       o.w = w; o.h = h; o.dpr = dpr;
       cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);

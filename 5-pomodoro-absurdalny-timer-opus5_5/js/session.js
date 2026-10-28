@@ -9,8 +9,11 @@ A.session = (() => {
   let S = null;              // zapisany stan sesji
   let list = [], idx = 0, inst = null, pinned = false, rotT = 0;
   let raf = 0, lastTs = 0, evT = 0, nextEv = 60, lastSec = -1, lastF10 = 0, titleT = 0, titleAlt = false;
-  let controlOpen = false, ending = false;
-  const events = bag(A.EVENTS);
+  let controlOpen = false, controlClose = null, controlTimer = 0, ending = false, dossierSaid = false;
+  const events = bagStored('events', A.EVENTS);
+  const controls = bagStored('controls', A.CONTROLS);
+  const breakEvents = bagStored('breakEvents', A.BREAK_EVENTS);
+  const breakTips = bagStored('breakTips', A.BREAK_TIPS);
 
   function level() { return A.LEVELS[(S.task.level || 3) - 1]; }
   function save() { store.set('session', S); }
@@ -34,13 +37,18 @@ A.session = (() => {
   function start(task, kind = 'work', resume = null) {
     A.audio.ensure();
     const total = (kind === 'break' ? task.brk : task.min) * 60;
-    S = resume || { task, kind, total, endAt: Date.now() + total * 1000, pausedRemain: null, startedAt: Date.now(), pauses: 0, controls: 0, modeId: null, pinned: false };
+    S = resume || { task, kind, total, endAt: Date.now() + total * 1000, pausedRemain: null, startedAt: Date.now(), pauses: 0, controls: 0, modeId: null, pinned: false, log: [] };
+    S.log = S.log || [];
     save();
-    ending = false; lastSec = -1; lastF10 = 0; controlOpen = false;
+    ending = false; lastSec = -1; lastF10 = 0; controlOpen = false; dossierSaid = !!resume;
     document.body.dataset.kind = S.kind;
     document.body.dataset.level = S.task.level;
-    $('#run-kind').textContent = S.kind === 'break' ? 'PRZERWA (ZATWIERDZONA)' : `ZADANIE W TOKU · sygn. ${S.task.sig || 'ABS/—'}`;
-    $('#run-name').textContent = S.kind === 'break' ? pick(A.BREAK_TIPS) : S.task.name;
+    const today = A.app.todayCount();
+    $('#run-kind').textContent = S.kind === 'break' ? `PRZERWA (ZATWIERDZONA) · 🍅 dziś: ${today}` : `ZADANIE W TOKU · sygn. ${S.task.sig || 'ABS/—'} · 🍅 dziś: ${today}`;
+    $('#run-name').textContent = S.kind === 'break' ? breakTips() : S.task.name;
+    $('#b-done').textContent = S.kind === 'break' ? '☕ Koniec przerwy' : '✓ Skończone';
+    $('#b-quit').hidden = S.kind === 'break';
+    if (S.kind === 'work') A.dossier.markStart();
     A.ui.screen('scr-run');
     list = shuffle(modesFor(S.kind));
     const at = list.findIndex(m => m.id === S.modeId);
@@ -51,7 +59,8 @@ A.session = (() => {
     if (!resume) {
       if (S.kind === 'work') {
         A.audio.sfx.gong();
-        setTimeout(() => A.audio.say(`Zadanie ${S.task.name}. Czas start. Ministerstwo trzyma kciuki.`), 900);
+        const nm = S.task.name, sess = S;
+        setTimeout(() => { if (S === sess) A.audio.say(`Zadanie ${nm}. Czas start. Ministerstwo trzyma kciuki.`); }, 900);
         A.ui.toast('CZAS RUSZYŁ', `Zadanie „${S.task.name}” oficjalnie trwa. Patron: ${S.task.patron ? S.task.patron.name : 'nieznany'}.`);
       } else {
         A.audio.sfx.slurp();
@@ -94,7 +103,7 @@ A.session = (() => {
     $('#mode-name').textContent = m.name;
     $('#mode-tag').textContent = m.tagline;
     S.modeId = m.id; save();
-    rotT = 0;
+    rotT = 0; lastTs = 0;
     renderMenu();
     if (!quiet) A.audio.sfx.whoosh();
   }
@@ -119,19 +128,40 @@ A.session = (() => {
   }
   function fireEvent(s) {
     const L = +S.task.level;
-    if (L >= 3 && !controlOpen && chance(0.28)) {
+    // Przerwa: tylko łagodne komunikaty, bez kontroli i bez psucia ekranu
+    if (S.kind === 'break') {
+      const [title, text] = breakEvents();
+      A.audio.sfx.ding();
+      A.ui.toast(title, text);
+      return;
+    }
+    const fromFile = !dossierSaid && chance(0.6) ? A.dossier.sessionLine(S.task) : null;
+    if (fromFile) {
+      dossierSaid = true;
+      A.audio.sfx.stamp();
+      A.ui.toast(fromFile[0], fromFile[1], { ttl: 11000 });
+    } else if (L >= 3 && !controlOpen && s.remaining > 40 && chance(0.3)) {
       controlOpen = true;
-      const k = randInt(0, A.CONTROLS.length - 1);
-      A.audio.sfx.siren();
-      const close = A.ui.toast('🚨 KONTROLA', A.CONTROLS[k], {
-        kind: 'control', ttl: 25000,
-        buttons: A.CONTROL_ANSWERS[k].map(a => ({ label: a, fn: () => {
-          controlOpen = false; S.controls++; save();
+      const c = controls();
+      L >= 4 ? A.audio.sfx.siren() : A.audio.sfx.ding();
+      const at = s.elapsed;
+      controlClose = A.ui.toast('🚨 ' + c.t, c.q, {
+        kind: 'control', ttl: 20000,
+        buttons: c.a.map(([label, reply]) => ({ label, fn: () => {
+          controlOpen = false; clearTimeout(controlTimer);
+          if (!S) return;
+          S.controls++; S.log.push({ t: at, k: 'control', q: c.q, a: label }); save();
+          A.dossier.noteAnswer(c.q, label);
           A.audio.sfx.stamp();
-          A.ui.toast('PROTOKÓŁ', pick(A.CONTROL_REPLIES));
+          A.ui.toast('PROTOKÓŁ', reply);
         } })),
       });
-      setTimeout(() => { if (controlOpen) { controlOpen = false; close(); A.ui.toast('PROTOKÓŁ', 'Inspektor odszedł bez odpowiedzi. Zanotował coś w zeszycie. Pewnie nic ważnego.'); } }, 24000);
+      controlTimer = setTimeout(() => {
+        if (!controlOpen || !S) return;
+        controlOpen = false; controlClose();
+        S.log.push({ t: at, k: 'control', q: c.q, a: '(brak odpowiedzi)' }); save();
+        A.ui.toast('PROTOKÓŁ', 'Inspektor odszedł bez odpowiedzi. Zanotował coś w zeszycie. Pewnie nic ważnego.');
+      }, 19000);
     } else {
       const [title, text] = events()(s);
       A.audio.sfx.ding();
@@ -145,20 +175,25 @@ A.session = (() => {
 
   /* ---------- Pętla ---------- */
 
+  // Oszczędzanie energii: scena rysowana do 30 razy na sekundę, w pauzie i pod menu raz na sekundę
   function loop(ts) {
     if (!S) return;
+    raf = requestAnimationFrame(loop);
+    const s = state();
+    const minGap = s.paused || !menu.hidden ? 1000 : A.settings.eco ? 1000 / 30 - 2 : 0;
+    if (lastTs && ts - lastTs < minGap && !(s.remaining <= 0 && !s.paused)) return;
     const dt = Math.min(0.1, (ts - (lastTs || ts)) / 1000);
     lastTs = ts;
-    const s = state();
     if (inst) { try { inst.frame(s, dt); } catch (e) { console.error(e); inst = null; } }
     tickUI(s, dt);
-    if (s.remaining <= 0 && !s.paused) { finish('done'); return; }
-    raf = requestAnimationFrame(loop);
+    if (s.remaining <= 0 && !s.paused) { cancelAnimationFrame(raf); finish('done'); }
   }
 
   function tickUI(s, dt) {
-    real.textContent = mmss(s.remaining);
-    bar.style.width = (s.p * 100) + '%';
+    setText(real, mmss(s.remaining));
+    // paski przez transform – bez przeliczania układu strony
+    const bw = `scaleX(${s.p.toFixed(4)})`;
+    if (bar.style.transform !== bw) bar.style.transform = bw;
     const sec = Math.ceil(s.remaining);
     if (sec !== lastSec) {
       if (lastSec > 0 && !s.paused) (sec % 2 ? A.audio.sfx.tick : A.audio.sfx.tock)();
@@ -166,11 +201,12 @@ A.session = (() => {
     }
     // rotacja
     const L = level();
-    if (pinned) { rotLabel.textContent = '📌 przypięty – bez zmian'; rotBar.style.width = '0%'; }
+    if (pinned) { setText(rotLabel, '📌 przypięty – bez zmian'); rotBar.style.transform = 'scaleX(0)'; }
     else {
       if (!s.paused && s.remaining > 11) rotT += dt;
-      rotLabel.textContent = `następny sposób za ${Math.max(0, Math.ceil(L.rotate - rotT))} s`;
-      rotBar.style.width = (rotT / L.rotate * 100) + '%';
+      setText(rotLabel, `następny sposób za ${Math.max(0, Math.ceil(L.rotate - rotT))} s`);
+      const rw = `scaleX(${Math.min(1, rotT / L.rotate).toFixed(3)})`;
+      if (rotBar.style.transform !== rw) rotBar.style.transform = rw;
       if (rotT >= L.rotate) nextMode(1);
     }
     // komunikaty
@@ -183,10 +219,11 @@ A.session = (() => {
       const n = Math.ceil(s.remaining);
       if (n !== lastF10) {
         lastF10 = n;
-        const [big, sub] = A.FINAL_COUNT[n] || [String(n), ''];
+        const [big, sub] = A.FINAL_COUNT[n] ? pick(A.FINAL_COUNT[n]) : [String(n), ''];
         f10.hidden = false;
         f10n.textContent = big; f10s.textContent = `${n} – ${sub}`;
-        f10n.classList.remove('pop'); void f10n.offsetWidth; f10n.classList.add('pop');
+        f10n.className = 'f10-num' + (/\p{Extended_Pictographic}/u.test(big) ? ' emoji' : /^[−·\s]+$/.test(big) ? ' morse' : '');
+        void f10n.offsetWidth; f10n.classList.add('pop');
         A.audio.sfx.count(n);
         if (n === 5) A.audio.say('Pięć!', { rate: 1.2 });
         if (+S.task.level >= 4) { document.body.classList.remove('quake'); void document.body.offsetWidth; document.body.classList.add('quake'); }
@@ -200,12 +237,21 @@ A.session = (() => {
 
   function updateTitle(s) {
     const pre = s.paused ? '⏸ ' : S.kind === 'break' ? '☕ ' : '🍅 ';
-    document.title = titleAlt && !s.paused
-      ? `${pre}${fmtInt(s.remaining / 3.5)} ${plural(Math.round(s.remaining / 3.5), 'mrugnięcie', 'mrugnięcia', 'mrugnięć')} · Absurdoro`
+    // Czas zawsze na początku, żeby był widoczny na wąskiej karcie
+    const title = titleAlt && !s.paused
+      ? `${pre}${mmss(s.remaining)} · ${fmtInt(s.remaining / 3.5)} ${plural(Math.round(s.remaining / 3.5), 'mrugnięcie', 'mrugnięcia', 'mrugnięć')}`
       : `${pre}${mmss(s.remaining)} · ${S.kind === 'break' ? 'przerwa' : S.task.name}`;
+    if (document.title !== title) document.title = title;
   }
 
-  // W ukrytej karcie requestAnimationFrame stoi – pilnujemy końca zegarem
+  // W ukrytej karcie requestAnimationFrame stoi – pilnujemy końca zegarem.
+  // Pojedynczy setTimeout na koniec nie podlega dławieniu interwałów w tle.
+  let endTimer = 0;
+  document.addEventListener('visibilitychange', () => {
+    clearTimeout(endTimer);
+    if (!document.hidden || !S || ending || S.pausedRemain != null) return;
+    endTimer = setTimeout(() => { if (S && !ending && state().remaining <= 0) finish('done'); }, Math.max(0, S.endAt - Date.now()) + 50);
+  });
   setInterval(() => {
     if (!S || ending) return;
     const s = state();
@@ -233,6 +279,7 @@ A.session = (() => {
     } else {
       S.pausedRemain = state().remaining;
       S.pauses++;
+      S.log.push({ t: S.total - S.pausedRemain, k: 'pause' });
       A.audio.sfx.sad();
     }
     save(); setPausedUI();
@@ -268,6 +315,10 @@ A.session = (() => {
     f10.hidden = true; menu.hidden = true; veil.hidden = true;
     document.body.classList.remove('is-paused', 'quake', 'glitch');
     if (A.ui.dialogOpen()) A.ui.closeDialog();
+    // Komunikaty z zadania nie przechodzą na raport
+    clearTimeout(controlTimer); controlOpen = false;
+    A.ui.clearToasts();
+    $('#b-quit').hidden = false;
     store.del('session');
     const done = S;
     S = null;
@@ -285,8 +336,13 @@ A.session = (() => {
       id: done.task.id, name: done.task.name, min: done.task.min, sec: Math.round(elapsed), at: Date.now(),
       outcome, pauses: done.pauses, controls: done.controls, level: done.task.level, reason: done.task.reason, sig: done.task.sig,
     };
+    const rankBefore = A.dossier.rankIndex();
     A.app.record(entry);
-    A.finale.show(entry, done.task, whileAway);
+    // Spiżarnia: pieróg za każde rozpoczęte 5 minut pracy
+    entry.pierogi = outcome === 'quit' ? 0 : Math.max(1, Math.round(elapsed / 300));
+    if (entry.pierogi) A.dossier.addPierogi(entry.pierogi);
+    A.dossier.queueMail(entry);
+    A.finale.show(entry, done.task, whileAway, { log: done.log || [], total: done.total, promoted: A.dossier.rankIndex() > rankBefore });
   }
 
   /* ---------- Klawisze i przyciski ---------- */
@@ -299,6 +355,15 @@ A.session = (() => {
   $('#b-done').addEventListener('click', askDone);
   $('#b-quit').addEventListener('click', askQuit);
   menu.addEventListener('click', e => { if (e.target === menu) menu.hidden = true; });
+  // Telefon: przesunięcie palcem w bok zmienia sposób odliczania
+  let touch0 = null;
+  stage.addEventListener('touchstart', e => { touch0 = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null; }, { passive: true });
+  stage.addEventListener('touchend', e => {
+    if (!touch0 || !S) return;
+    const dx = e.changedTouches[0].clientX - touch0.x, dy = e.changedTouches[0].clientY - touch0.y;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - touch0.t < 600) nextMode(dx < 0 ? 1 : -1);
+    touch0 = null;
+  }, { passive: true });
   document.addEventListener('keydown', e => {
     if (!S || ending || A.ui.dialogOpen() || document.body.dataset.screen !== 'scr-run') return;
     if (e.target.closest && e.target.closest('input,select,textarea')) return;

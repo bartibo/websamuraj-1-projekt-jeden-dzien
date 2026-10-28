@@ -31,6 +31,8 @@ A.ui = (() => {
     return close;
   }
 
+  function clearToasts() { toasts.innerHTML = ''; }
+
   // Okno dialogowe. buttons: [{label, cls, fn, keep}]
   const ovl = $('#ovl-dialog'), dlg = $('#dialog');
   let onEsc = null;
@@ -70,8 +72,20 @@ A.ui = (() => {
   let parts = [], running = false;
   const EMO = ['🍅', '🎉', '🐌', '⏰', '🥟', '🏆', '✨', '🐈'];
   const COLS = ['#e5432f', '#e7b33a', '#3c8d4a', '#3a7bd5', '#9b59b6', '#ff8fb1', '#fff'];
+  // Emoji rysowane raz do małych płócien – fillText z kolorowym emoji co klatkę jest bardzo drogie
+  const SPR = {};
+  function sprite(e) {
+    if (SPR[e]) return SPR[e];
+    const c = document.createElement('canvas'); c.width = c.height = 72;
+    const x = c.getContext('2d');
+    x.font = '56px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(e, 36, 40);
+    return (SPR[e] = c);
+  }
   function confetti(n = 160) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const W = innerWidth, H = innerHeight;
+    n = Math.min(n, 250 - parts.length);
     for (let i = 0; i < n; i++) {
       const emo = chance(0.18);
       parts.push({
@@ -84,7 +98,8 @@ A.ui = (() => {
   }
   let last = 0;
   function loop(ts) {
-    const dt = Math.min(0.05, (ts - (last || ts)) / 1000); last = ts;
+    // życie cząstek liczone z prawdziwego czasu: na wolnym sprzęcie konfetti nie trwa dłużej
+    const real = Math.min(0.25, (ts - (last || ts)) / 1000), dt = Math.min(0.05, real); last = ts;
     const dpr = Math.min(2, devicePixelRatio || 1);
     const W = innerWidth, H = innerHeight;
     if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
@@ -92,11 +107,11 @@ A.ui = (() => {
     g.clearRect(0, 0, W, H);
     parts = parts.filter(p => p.life > 0 && p.y < H + 60);
     for (const p of parts) {
-      p.life -= dt; p.vy += 1400 * dt; p.vx *= 0.985; p.vy *= 0.985;
+      p.life -= real; p.vy += 1400 * dt; p.vx *= 0.985; p.vy *= 0.985;
       p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt;
       g.save(); g.translate(p.x, p.y); g.rotate(p.r);
       g.globalAlpha = Math.min(1, p.life);
-      if (p.e) { g.font = `${p.s}px "Segoe UI Emoji","Apple Color Emoji",sans-serif`; g.textAlign = 'center'; g.fillText(p.e, 0, 0); }
+      if (p.e) { const k = p.s * 1.3; g.drawImage(sprite(p.e), -k / 2, -k / 2, k, k); }
       else { g.fillStyle = p.c; g.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); }
       g.restore();
     }
@@ -115,5 +130,5 @@ A.ui = (() => {
     requestAnimationFrame(step);
   }
 
-  return { toast, dialog, closeDialog, dialogOpen, screen, confetti, countUp };
+  return { toast, clearToasts, dialog, closeDialog, dialogOpen, screen, confetti, countUp };
 })();

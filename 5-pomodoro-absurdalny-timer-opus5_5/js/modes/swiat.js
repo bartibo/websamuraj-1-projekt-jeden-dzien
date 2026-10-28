@@ -34,10 +34,10 @@ A.defineMode({
           $('.mw-ic', li).textContent = shown[i].icon;
           li.classList.remove('swap'); void li.offsetWidth; li.classList.add('swap');
         }
-        elT.textContent = mmss(s.elapsed);
-        shown.forEach((w, i) => { $('.mw-tx', lis[i]).innerHTML = w.txt(s.elapsed * w.rate); });
+        setText(elT, mmss(s.elapsed));
+        shown.forEach((w, i) => { setHTML($('.mw-tx', lis[i]), w.txt(s.elapsed * w.rate)); });
         const births = s.remaining * 4.3;
-        foot.innerHTML = `Do końca zostało <b>${mmss(s.remaining)}</b>. W tym czasie urodzi się jeszcze ok. <b>${fmtInt(births)}</b> ${plural(Math.round(births), 'osoba', 'osoby', 'osób')}, a światło przeleci <b>${fmt(s.remaining * 0.299792, 1)} mln km</b>.`;
+        setHTML(foot, `Do końca zostało <b>${mmss(s.remaining)}</b>. W tym czasie urodzi się jeszcze ok. <b>${fmtInt(births)}</b> ${plural(Math.round(births), 'osoba', 'osoby', 'osób')}, a światło przeleci <b>${fmt(s.remaining * 0.299792, 1)} mln km</b>.`);
       },
       destroy() {},
     };

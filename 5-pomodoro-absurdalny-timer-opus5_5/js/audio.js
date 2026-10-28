@@ -18,8 +18,12 @@ A.audio = (() => {
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
     if (ctx.state === 'suspended') ctx.resume();
+    // Uśpienie dźwięku po 20 s ciszy – oszczędza baterię przy wielogodzinnym timerze
+    clearTimeout(idleT);
+    idleT = setTimeout(() => { if (ctx && ctx.state === 'running') ctx.suspend(); }, 20000);
     return ctx;
   }
+  let idleT = 0;
 
   function tone(freq, dur, opt = {}) {
     if (!cfg.sfx || !ensure()) return;

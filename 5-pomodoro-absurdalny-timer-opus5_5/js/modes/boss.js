@@ -25,7 +25,8 @@ A.defineMode({
           const crit = chance(0.12);
           pops.push({ x: rand(-0.12, 0.12), y: 0, vy: -rand(60, 100), life: 1.3, txt: `−${n}${crit ? ' ' + pick(CRITS) : ''}`, crit });
           shake = crit ? 0.35 : 0.15; attack = 0.3;
-          crit ? A.audio.sfx.crit() : A.audio.sfx.hit();
+          // zwykłe trafienie tylko przy włączonym tykaniu, żeby nie stukać co sekundę
+          if (crit) A.audio.sfx.crit(); else if (A.audio.cfg.tick) A.audio.sfx.hit();
         }
         if (s.paused) combo = 0;
         lastSec = sec;
@@ -154,7 +155,7 @@ A.defineMode({
           g.globalAlpha = 1;
         }
         g.textBaseline = 'alphabetic';
-        cap.innerHTML = `Każda sekunda zadaje <b>1 punkt obrażeń</b>. Krytyczne też. · Bossowi zostało <b>${mmss(s.remaining)}</b>`;
+        setHTML(cap, `Każda sekunda zadaje <b>1 punkt obrażeń</b>. Krytyczne też. · Bossowi zostało <b>${mmss(s.remaining)}</b>`);
       },
       destroy() {},
     };

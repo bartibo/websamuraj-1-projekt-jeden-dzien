@@ -4,12 +4,12 @@
 A.defineMode({
   id: 'slimak', name: 'Wielki Wyścig Ślimaka', icon: '🐌', breakOk: true,
   tagline: 'Ślimak Zbigniew dotrze do mety dokładnie wtedy, gdy skończysz. Ani sekundy wcześniej.',
-  create(host) {
+  create(host, s0) {
     const C = makeCanvas(host);
     const cap = el('div', 'mode-caption');
     host.appendChild(cap);
     const talk = bag(A.SNAIL_TALK);
-    let line = 'Panie i Panowie, wyścig stulecia rozpoczęty!', lineT = 0, t = 0;
+    let line = s0.p < 0.05 ? 'Panie i Panowie, wyścig stulecia rozpoczęty!' : s0.p < 0.9 ? `Wracamy na tor! Zbigniew ma za sobą ${fmt(s0.p * 100, 0)}% trasy.` : 'Ostatnia prosta! Publiczność wstaje z miejsc. Powoli.', lineT = 0, t = 0;
     const fans = Array.from({ length: 26 }, (_, i) => ({ x: i / 25, c: pick(['#e5432f', '#3a7bd5', '#e7b33a', '#3c8d4a', '#9b59b6', '#f39c12']), ph: rand(0, TAU), skin: pick(['#f1c9a5', '#d7a27c', '#8d5a3b', '#f6dcc2']) }));
     let slothX = 0, slothDir = 1, slothSleep = 0;
 
@@ -142,8 +142,15 @@ A.defineMode({
         snail(g, sx, lanes[0], S, t, !s.paused);
         sloth(g, lerp(x0, x1, slothX), lanes[1], S * 1.1, t, slothDir, slothSleep > 0);
         // kamień
-        g.fillStyle = '#8d8d8d'; g.strokeStyle = '#555'; g.lineWidth = 2;
-        g.beginPath(); g.ellipse(x0 + S * 0.8, lanes[2] - S * 0.35, S * 0.7, S * 0.45, 0, 0, TAU); g.fill(); g.stroke();
+        // kamień: faworyt bukmacherów, z mchem i spokojnym spojrzeniem
+        const kx = x0 + S * 0.8, ky = lanes[2] - S * 0.35;
+        g.fillStyle = '#8d8d8d'; g.strokeStyle = '#2a1d17'; g.lineWidth = 2.5;
+        g.beginPath(); g.moveTo(kx - S * 0.72, ky + S * 0.3); g.quadraticCurveTo(kx - S * 0.8, ky - S * 0.3, kx - S * 0.2, ky - S * 0.48);
+        g.quadraticCurveTo(kx + S * 0.55, ky - S * 0.55, kx + S * 0.72, ky + S * 0.1); g.quadraticCurveTo(kx + S * 0.7, ky + S * 0.42, kx, ky + S * 0.42); g.closePath(); g.fill(); g.stroke();
+        g.fillStyle = '#6f9d3c'; g.beginPath(); g.ellipse(kx - S * 0.25, ky - S * 0.38, S * 0.3, S * 0.1, -0.2, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(0,0,0,.18)'; for (const [dx, dy] of [[0.35, 0.1], [-0.4, 0.15], [0.1, 0.25]]) { g.beginPath(); g.arc(kx + dx * S, ky + dy * S, S * 0.05, 0, TAU); g.fill(); }
+        g.strokeStyle = '#2a1d17'; g.lineWidth = 2;
+        for (const dx of [-0.18, 0.12]) { g.beginPath(); g.moveTo(kx + dx * S - S * 0.07, ky - S * 0.08); g.lineTo(kx + dx * S + S * 0.07, ky - S * 0.08); g.stroke(); }
         g.fillStyle = '#fff'; g.font = `600 ${Math.max(11, S * 0.28)}px system-ui`; g.textAlign = 'left';
         const labels = [['Zbigniew', 'ślimak, faworyt publiczności'], ['Bogdan', 'leniwiec, ma swój plan'], ['Kamień', 'faworyt bukmacherów']];
         labels.forEach(([n, d], i) => {
@@ -164,7 +171,7 @@ A.defineMode({
         g.textBaseline = 'alphabetic';
 
         const dist = s.total * 0.001, done = dist * s.p;
-        cap.innerHTML = `Dystans: <b>${fmt(dist, 2)} m</b> · Zbigniew przebył <b>${fmt(done * 100, 1)} cm</b> · prędkość <b>${fmt(dist / s.total * 3.6, 4)} km/h</b> · meta za ${mmss(s.remaining)}`;
+        setHTML(cap, `Dystans: <b>${fmt(dist, 2)} m</b> · Zbigniew przebył <b>${fmt(done * 100, 1)} cm</b> · prędkość <b>${fmt(dist / s.total * 3.6, 4)} km/h</b> · meta za ${mmss(s.remaining)}`);
       },
       destroy() {},
     };

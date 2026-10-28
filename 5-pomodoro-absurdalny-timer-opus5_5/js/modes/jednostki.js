@@ -47,7 +47,7 @@ A.defineMode({
           const r = parseFloat(str.replace(/ /g, '').replace(',', '.'));
           unitEl.textContent = unitForm(r, unit.forms);
         }
-        also.textContent = `czyli po ludzku ${mmss(s.remaining)}, ale kto by tak liczył`;
+        setText(also, `czyli po ludzku ${mmss(s.remaining)}, ale kto by tak liczył`);
       },
       destroy() {},
     };

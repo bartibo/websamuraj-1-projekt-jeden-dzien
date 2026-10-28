@@ -1,6 +1,6 @@
 # Absurdoro
 
-Timer pomodoro z Ministerstwa Czasu Nadmiernie Mierzonego. Odlicza czas na 12 absurdalnych sposobów, które same się zmieniają w trakcie zadania. Gąsienica zjada pomidora, kot zrzuca rzeczy ze stołu, a ślimak ściga się z leniwcem i kamieniem. Zegar Dalego topi się z każdą minutą, a foton leci przez Układ Słoneczny. Na koniec przychodzi raport z faktami, w które trudno uwierzyć.
+Timer pomodoro z Ministerstwa Czasu Nadmiernie Mierzonego. Odlicza czas na 13 absurdalnych sposobów, które same się zmieniają w trakcie zadania. Gąsienica zjada pomidora, kot zrzuca rzeczy ze stołu, babcia lepi pierogi, a ślimak ściga się z leniwcem i kamieniem. Zegar Dalego topi się z każdą minutą, a foton leci przez Układ Słoneczny. Na koniec przychodzi raport z faktami, w które trudno uwierzyć. Ministerstwo prowadzi Twoją teczkę: pamięta poprzednie zadania i odpowiedzi z kontroli, awansuje Cię i przysyła oceny pocztą.
 
 ## Jak powstał
 
@@ -31,7 +31,7 @@ Nie trzeba niczego instalować ani budować.
 - **Powód**, **przerwa po zadaniu** i **poziom absurdu** (od „Łagodny” do „Kosmiczny horror”).
 - Po złożeniu wniosek przechodzi przez urząd: synchronizacja z zegarem atomowym, konsultacja z kapibarą i kolejka do okienka nr 3 (można ją pominąć za pieroga). Na końcu dostajesz **decyzję administracyjną** z pieczątką i patronem zadania.
 
-### 2. Zadanie w toku: 12 sposobów odliczania
+### 2. Zadanie w toku: 13 sposobów odliczania
 
 | Sposób | Co się dzieje |
 |---|---|
@@ -47,6 +47,7 @@ Nie trzeba niczego instalować ani budować.
 | 🌍 Tymczasem na Świecie | Liczniki od startu: urodziny, wymienione komórki, pioruny, e-maile, wzrost włosów, ucieczka Księżyca |
 | ☄️ Wyścig Fotonu | Foton wystrzelony ze Słońca na starcie zadania leci obok kolejnych planet |
 | 📈 Giełda Produktywności | Indeks WIG-POMIDOR z nagłówkami i paskiem notowań; sesja zamyka się z końcem zadania |
+| 🥟 Babcia Lepi Pierogi | Babcia Halina lepi jednego pieroga na każdy kawałek czasu i pyta, czy jadłeś. Ostatni pieróg jest gotowy z końcem zadania |
 
 Do tego:
 
@@ -89,6 +90,35 @@ Osobne raporty dostają zadania zakończone przed czasem („Zaoszczędzono 7 mi
 
 Liczniki świata to średnie orientacyjne (np. 4,3 narodzin na sekundę, 3,8 mln wymienianych komórek ciała na sekundę). Pierogi liczone są metodą „na babcię”.
 
+## Rozwój po eksperymencie
+
+27.10.2026 aplikację oceniło czterech agentów z [`.claude/agents/`](../.claude/agents/): design, UX, wydajność i rozwój produktu. Główny wniosek: pierwsza sesja bawi, ale od drugiej teksty zaczynają się powtarzać, bo Ministerstwo niczego nie pamięta. Do tego domyślny poziom zmieniał sposób odliczania co 28 s i stukał co sekundę, a Zegar Dalego i konfetti mocno obciążały komputer. Wdrożone poprawki:
+
+- **Teczka Petenta (Ministerstwo pamięta):**
+  - w decyzji jest wiersz „Kartoteka”, np. „«Odpisać na maile» po raz 3. Zadanie ma już własną szafkę w archiwum” albo „Wniosek złożony w nocy. Babcia Halina pyta, czemu nie śpisz”,
+  - raz na zadanie przychodzi komunikat „Z akt sprawy”, który cytuje Twoje odpowiedzi z dawnych kontroli („W protokole z 24.10 zapisano odpowiedź «W lodówce». Kazimierz westchnął”),
+  - ocena Ministerstwa, obiecana „pocztą”, naprawdę przychodzi przy następnej wizycie („📬 PRZYSZŁA POCZTA: 6/10. Uzasadnienie: za równe marginesy”),
+  - w „Twoim dorobku” widać, o ile od pierwszego wniosku oddalił się Księżyc.
+- **Ranga urzędowa:** od Petenta przez Referenta ds. Pomidorów i Kierownika Okienka nr 3 aż do „Czasu we własnej osobie”. Awans ma „Akt nominacji” z pieczątką i przywilejem (np. kolejka VIP do okienka).
+- **Decyzja z niespodzianką:** mniej więcej co druga decyzja nie jest zwykłym „przyznać”. Bywa odmowa („wniosek wypełniono długopisem w niewłaściwym odcieniu niebieskiego”), a po niej odwołanie rozpatrzone w 0,4 s. Bywa przyznanie warunkowe („nie wolno myśleć o słoniu”), sprawdzane w raporcie. Zdarza się pomyłka urzędnika („~~25 dni roboczych~~ 25 minut”) albo sprawa przekazana Kotu Prezesowi, który podpisuje łapą.
+- **Pierogi jako waluta:** za pracę trafiają do spiżarni (1 za 5 minut). Pominięcie kolejki naprawdę kosztuje pieroga, a gdy spiżarnia jest pusta, można wziąć pieroga na kredyt u babci. Babcia pamięta.
+- **Nowy sposób odliczania „Babcia Lepi Pierogi”.**
+- **Raport:**
+  - kronika zadania: co zrzucił kot, którą planetę minął foton, kiedy była pauza i co odpowiedziałeś inspektorowi,
+  - jury ocenia przebieg: Kot Prezes daje tyle punktów, ile zrzucił przedmiotów, Babcia reaguje na porę dnia, Ślimak na długość zadania,
+  - fakty i porównania są losowane z większej puli, pasek z przyciskami zostaje na dole ekranu.
+- **Kontrole:** 16 pytań zamiast 4, każda odpowiedź ma własną reakcję inspektora i trafia do akt. Kontrola nie przychodzi w ostatnich 40 sekundach.
+- **Więcej tekstów:** komunikaty, nagrody, kwestie jury i warianty ostatnich 10 sekund. Teksty losują się bez powtórek także między sesjami.
+- **Przerwa:** bez kontroli i bez psucia ekranu, z łagodnymi komunikatami. Co czwarte pomodoro dnia daje długą przerwę (15 min). Po przerwie przycisk „Następne pomodoro” od razu pokazuje decyzję, bez kolejki w urzędzie. Licznik „🍅 dziś” jest na górze ekranu.
+- **Mniej hałasu:** sposoby zmieniają się co 30–90 s zamiast 18–75 s, boss nie stuka co sekundę, tablica odjazdów nie terkocze, a lektor dworcowy zdąży się odezwać.
+- **Wygląd:** poprawiony telefon (długie nazwy zadań, przewijane menu sposobów, układ poziomy, przesuwanie palcem między sposobami), pieczątki nie zasłaniają tekstu, pomidor pod koniec ma szypułkę na talerzu, a jego dymek łamie tekst. Kot ma portret w złotej ramie, kamień w wyścigu ma oczy, foton większe planety, kontrast kolorów spełnia WCAG.
+- **Wydajność:**
+  - Zegar Dalego 56 kl/s zamiast 28, a konfetti 57 kl/s zamiast 5,5,
+  - przeliczenia układu strony spadły z ok. 120 do 1–2 na sekundę,
+  - w pauzie i pod menu scena rysuje się raz na sekundę, a opcja „Oszczędzanie energii” (domyślnie włączona) ogranicza animacje do 30 kl/s,
+  - dźwięk usypia się po 20 s ciszy.
+- **Poprawki błędów:** komunikaty z zadania nie przechodzą na raport, zadanie kończy się punktualnie także w karcie w tle, a kot po powrocie z tła nie tłucze wszystkiego naraz z hukiem.
+
 ## Struktura
 
 ```
@@ -97,8 +127,9 @@ css/style.css         – wygląd
 js/util.js            – losowanie, liczby i odmiana po polsku, liczby słownie, rzymskie, Morse, zapis
 js/data.js            – jednostki, liczniki świata, reakcje analizatora, komunikaty, nagrody, jury
 js/audio.js           – efekty dźwiękowe (Web Audio) i lektor
-js/modes/*.js         – 12 sposobów odliczania (każdy w osobnym pliku)
+js/modes/*.js         – 13 sposobów odliczania (każdy w osobnym pliku)
 js/fx.js              – komunikaty, okna, konfetti, przełączanie ekranów
+js/dossier.js         – Teczka Petenta: kartoteka, poczta z oceną, ranga, spiżarnia pierogów
 js/creator.js         – Formularz A-38, analizator, rozpatrywanie wniosku i decyzja
 js/session.js         – odliczanie, zmiana sposobów, kontrole, pauza, ostatnie 10 sekund
 js/finale.js          – raport końcowy i koniec przerwy

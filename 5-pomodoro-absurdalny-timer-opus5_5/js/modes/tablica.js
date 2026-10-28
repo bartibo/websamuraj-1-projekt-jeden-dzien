@@ -1,6 +1,7 @@
 'use strict';
 /* Tryb: Tablica Odjazdów – zadanie odjeżdża jak pociąg, a dworzec ogłasza komunikaty. */
 
+const FLAP_ANIM = [{ transform: 'scaleY(.2)', filter: 'brightness(1.8)' }, { transform: 'none', filter: 'none' }];
 const FLAP_CHARS = ' ABCDEFGHIJKLMNOPRSTUWXYZĄĆĘŁŃÓŚŹŻ0123456789:+-∞.';
 
 // Tekst z klapek: zmieniona litera „przelatuje” przez kilka losowych znaków
@@ -16,11 +17,12 @@ function FlapRow(host, len, cls) {
   host.appendChild(row);
   return {
     row,
-    set(text) {
+    // quick – bez przelatywania znaków (przewijanie nazwy)
+    set(text, quick) {
       text = String(text).toUpperCase().padEnd(len, ' ').slice(0, len);
       for (let i = 0; i < len; i++) {
         const c = cells[i];
-        if (c.target !== text[i]) { c.target = text[i]; c.spin = 4 + ((Math.random() * 5) | 0) + (i % 4); }
+        if (c.target !== text[i]) { c.target = text[i]; c.spin = quick ? 1 : 4 + ((Math.random() * 5) | 0) + (i % 4); }
       }
     },
     step() {
@@ -29,7 +31,8 @@ function FlapRow(host, len, cls) {
         if (c.spin > 0) {
           c.spin--;
           const ch = c.spin === 0 ? c.target : FLAP_CHARS[(Math.random() * FLAP_CHARS.length) | 0];
-          if (ch !== c.cur) { c.cur = ch; c.el.textContent = ch; c.el.classList.remove('flip'); void c.el.offsetWidth; c.el.classList.add('flip'); }
+          // animacja przez Web Animations – bez wymuszania przeliczenia układu dla każdej klapki
+          if (ch !== c.cur) { c.cur = ch; c.el.textContent = ch; if (c.el.animate) c.el.animate(FLAP_ANIM, 90); }
           any = true;
         }
       }
@@ -75,49 +78,51 @@ A.defineMode({
     rows[0][0].set(hhmm(end)); rows[0][2].set('KONIEC ZADANIA'); rows[0][3].set(peron);
 
     // przewijany komunikat
-    let annT = 0;
+    let annT = 26; // pierwszy komunikat lektora po ok. 12 s, zanim tryb się zmieni
     const ann = bag(A.ANNOUNCEMENTS);
+    let alive = true;
     function announce(first) {
       const txt = ann().replace(/\{task\}/g, s0.task.name || 'Zadanie');
       marq.textContent = '🔊 ' + txt + '   ·   ' + txt;
       marq.style.animation = 'none'; void marq.offsetWidth; marq.style.animation = '';
       if (!first) {
         A.audio.sfx.gong();
-        setTimeout(() => A.audio.say(txt, { rate: 0.95 }), 1300);
+        setTimeout(() => { if (alive) A.audio.say(txt, { rate: 0.95 }); }, 1300);
       }
     }
     announce(true);
 
-    let stepT = 0, nameScroll = 0, nameT = 0;
+    let stepT = 0, nameScroll = -1, nameT = 1, flapT = 0;
     return {
       frame(s, dt) {
         const now = new Date();
-        clock.textContent = now.toLocaleTimeString('pl-PL');
+        setText(clock, now.toLocaleTimeString('pl-PL'));
         const endNow = new Date(Date.now() + s.remaining * 1000);
         rows[0][0].set(hhmm(endNow));
         // długie nazwy przewijają się w polu pociągu
         nameT += dt;
-        if (nameT > 0.6) {
+        if (nameT > 0.9) {
           nameT = 0;
           const full = `EX ${taskName}`;
-          if (full.length > 16) { nameScroll = (nameScroll + 1) % (full.length + 4); rows[0][1].set((full + '    ' + full).slice(nameScroll, nameScroll + 16)); }
+          if (full.length > 16) { nameScroll = (nameScroll + 1) % (full.length + 4); rows[0][1].set((full + '    ' + full).slice(nameScroll, nameScroll + 16), nameScroll > 0); }
           else rows[0][1].set(full);
         }
         const r = s.remaining;
         rows[0][4].set(s.paused ? 'POSTÓJ (PAUZA)' : r > 60 ? `ODJAZD ZA ${mmss(r)}` : r > 10 ? `WSIADAĆ! ${Math.ceil(r)} S` : 'DRZWI ZAMYKAJĄ SIĘ');
-        stepT += dt;
+        stepT += dt; flapT -= dt;
         if (stepT > 0.045) {
           stepT = 0;
           let any = false;
           for (const row of rows) for (const f of row) any = f.step() || any;
-          if (any && Math.random() < 0.5) A.audio.sfx.flap();
+          // jedno klapnięcie na serię, nie terkot
+          if (any && flapT <= 0) { A.audio.sfx.flap(); flapT = 0.4; }
         }
         if (!s.paused) {
           annT += dt;
           if (annT > 38) { annT = 0; announce(false); }
         }
       },
-      destroy() { if ('speechSynthesis' in window) speechSynthesis.cancel(); },
+      destroy() { alive = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); },
     };
   },
 });
