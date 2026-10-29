@@ -16,10 +16,12 @@
   /* -------------------------------- stan -------------------------------- */
   const S = {
     mode: 'speed', view: 'side', paused: false, ts: 1, pulses: true, sound: LS.get('gc-sound') !== '0',
-    speedX: P.sliderFromSpeed(0.8),
-    massT: 1, hU: 0,
-    b: { massT: 1, hU: P.sliderFromH(20200e3 / RE), orbit: true, speedX: 0 },
-    flags: { sun: false, wd: false },
+    speedX: 0,                       // rakieta stoi: dziecko samo ją rozpędza
+    // grawitacja i „Razem” zaczynają od gwiazdy neutronowej: lejek i różnica zegarów widać od razu
+    massT: P.sliderOfBody('ns'), hU: 0,
+    b: { massT: P.sliderOfBody('ns'), hU: P.sliderFromH(1), orbit: true, speedX: 0 },
+    flags: { sun: false, wd: false, twins: 0, gulp: false },
+    touched: {},                     // czy w danym trybie ktoś już coś zmienił (zadania nie zaliczają się same)
     done: {}
   };
   try { S.done = JSON.parse(LS.get('gc-zadania') || '{}') || {}; } catch (e) { S.done = {}; }
@@ -96,16 +98,22 @@
   }
   let dirty = true;
   const markDirty = () => { dirty = true; };
+  // reakcje Tika czekają, aż suwak się zatrzyma, żeby nie gadał przy każdym ruchu
+  const react = { at: 0, pending: false };
+  function touch() {
+    S.touched[S.mode] = true; react.at = performance.now(); react.pending = true;
+    document.body.classList.add('touched-' + S.mode);
+  }
 
   function bindRange(el, onInput) {
-    el.addEventListener('input', () => { const v = parseFloat(el.value); el.style.setProperty('--p', ((v - el.min) / (el.max - el.min) * 100).toFixed(2) + '%'); onInput(v); markDirty(); });
+    el.addEventListener('input', () => { const v = parseFloat(el.value); el.style.setProperty('--p', ((v - el.min) / (el.max - el.min) * 100).toFixed(2) + '%'); onInput(v); markDirty(); touch(); });
     el.addEventListener('keydown', e => {
       const keys = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 8, PageDown: -8 };
       if (!(e.key in keys)) return;
       e.preventDefault();
       const min = +el.min, max = +el.max;
       const v = P.clamp(parseFloat(el.value) + (max - min) * (e.shiftKey ? 0.03 : 0.004) * keys[e.key], min, max);
-      setRange(el, v); onInput(v); markDirty();
+      setRange(el, v); onInput(v); markDirty(); touch();
     });
   }
 
@@ -132,7 +140,7 @@
     b.className = 'chip'; b.type = 'button'; b.innerHTML = label;
     if (title) b.title = title;
     // gotowe ustawienie = nowy pomiar: zegary startują od zera, żeby różnica dotyczyła tylko tego ustawienia
-    b.addEventListener('click', () => { onClick(); syncControls(); syncNow(); });
+    b.addEventListener('click', () => { onClick(); syncControls(); syncNow(); touch(); });
     parent.appendChild(b);
     return b;
   }
@@ -167,6 +175,8 @@
       if (sc.beta !== undefined) S.b.speedX = P.sliderFromSpeed(sc.beta);
       syncNow('both');
       toast('Scenariusz: ' + sc.label.replace(/^\S+\s/, '') + '. Zegary wystartowały od nowa.');
+      const line = { gps: 'ra_gps', iss: 'ra_iss', ns: 'ra_dziura', isco: 'ra_dziura', miller: 'ra_interstellar' }[sc.id];
+      if (line) R.guide.say(line, { mood: sc.id === 'iss' ? 'mowi' : 'wow', force: true });
     });
     c._sc = sc; return c;
   });
@@ -193,11 +203,18 @@
     document.body.dataset.mode = m;
     mountClocks();
     $('#explain-why').innerHTML = K.WHY[m];
+    $('#big-idea').textContent = K.BIG_IDEA[m];
+    react.pending = false;            // reakcja na ruch z poprzedniego trybu nie przerwie powitania nowego
+    if (twins.isOpen()) twins.close();
     renderTasks();
     markDirty();
   }
+  const START_LINE = { speed: 'sp_start', gravity: 'gr_start', both: 'ra_start' };
+  const START_IDS = new Set(Object.values(START_LINE));
+  const greet = m => R.guide.say(START_LINE[m], { mood: 'tik' });
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     setMode(t.dataset.mode);
+    greet(t.dataset.mode);
     // na telefonie scena bywa daleko nad kontrolkami
     const r = $('#stage').getBoundingClientRect();
     if (r.bottom < 80 || r.top > window.innerHeight) $('#stage').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -225,6 +242,7 @@
   function setView(v) {
     S.view = v;
     document.querySelectorAll('#view-switch button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+    if (v === 'cockpit') R.guide.say('sp_kokpit', { mood: 'wow' });
     markDirty();
   }
 
@@ -263,11 +281,72 @@
   const speed = R.SpeedScene();
   const sheet = R.SheetScene();
 
-  // kamera płachty: przeciąganie i kółko
-  let dragging = null;
+  /* ------------------------- przewodnik Tik ------------------------- */
+  const G = R.guide;
+  G.build($('#stage'));
+  G.onStart = () => R.audio.duck(true);      // tykanie cichnie, gdy Tik mówi
+  G.onEnd = () => {
+    R.audio.duck(false);
+    // gdy dziecko już coś ruszyło, a stan przekroczył kolejny próg, Tik mówi dalej bez czekania na nowy ruch
+    if (S.touched[S.mode]) { react.pending = true; react.at = 0; }
+  };
+  function setVoice(on) {
+    G.setVoice(on);
+    $('#btn-voice').classList.toggle('off', !on);
+    $('#w-voice').setAttribute('aria-pressed', on);
+    $('#w-voice').classList.toggle('muted', !on);
+  }
+  $('#btn-voice').addEventListener('click', () => setVoice(!G.voice));
+
+  // kulki na płachcie
+  sheet.onEvent = ev => {
+    if (ev === 'throw') {
+      G.play('kulka', 0.45);
+      G.say('gr_kulka', { mood: 'mowi', then: 'gr_czas' });
+    } else if (ev === 'swallow') {
+      G.play('am', 0.8);
+      S.flags.gulp = true;
+      G.say('gr_polknieta', { mood: 'wow' });
+    } else if (ev === 'hit') G.play('kulka', 0.25);
+  };
+
+  /* ------------------------ podróż bliźniaczek ------------------------ */
+  let twinsUsed = false, twinsGo = 0;
+  const twins = R.Twins($('#stage'), {
+    speed: () => derive().sp,
+    sfx: n => G.play(n, 0.7),
+    onStart(run, again) {
+      document.body.classList.add('twins-open');
+      clearTimeout(twinsGo);
+      if (again || !G.voice) { twinsGo = setTimeout(twins.go, again ? 500 : 1400); return; }
+      G.say('bl_start', { mood: 'tik', force: true, then: twins.go });
+      twinsGo = setTimeout(twins.go, 11000);   // gdyby coś przerwało Tika
+    },
+    onDone(run) {
+      twinsUsed = true;
+      S.flags.twins = Math.max(S.flags.twins, run.diff);
+      S.touched.speed = true;
+      const id = run.diff >= 5 ? 'bl_duza' : run.diff >= 0.5 ? 'bl_mala' : 'bl_zero';
+      G.say(id, { mood: run.diff >= 5 ? 'wow' : 'mowi', force: true });
+    },
+    onClose() { clearTimeout(twinsGo); document.body.classList.remove('twins-open'); }
+  });
+  $('#btn-twins').addEventListener('click', () => {
+    const sp = derive().sp;
+    if (sp.beta === 0) { toast('Najpierw rozpędź rakietę suwakiem prędkości.'); el.spSlider.focus(); return; }
+    $('#btn-twins').classList.remove('nudge');
+    twins.open(sp);
+    // na węższych ekranach scena bywa nad kontrolkami
+    const r = $('#stage').getBoundingClientRect();
+    if (r.top < 60 || r.bottom > window.innerHeight) $('#stage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  // kamera płachty: przeciąganie i kółko; krótkie dotknięcie rzuca kulkę
+  let dragging = null, tap = null;
   cv.addEventListener('pointerdown', e => {
     if (S.mode === 'speed') return;
     dragging = { x: e.clientX, y: e.clientY };
+    tap = { x: e.clientX, y: e.clientY, t: performance.now() };
     cv.setPointerCapture(e.pointerId);
     cv.classList.add('grabbing');
   });
@@ -277,8 +356,15 @@
     dragging = { x: e.clientX, y: e.clientY };
   });
   const endDrag = () => { dragging = null; cv.classList.remove('grabbing'); };
-  cv.addEventListener('pointerup', endDrag);
-  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('pointerup', e => {
+    if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 8 && performance.now() - tap.t < 450) {
+      const r = cv.getBoundingClientRect();
+      if (sheet.throwAt(e.clientX - r.left, e.clientY - r.top)) touch();
+    }
+    tap = null;
+    endDrag();
+  });
+  cv.addEventListener('pointercancel', () => { tap = null; endDrag(); });
   cv.addEventListener('wheel', e => { if (S.mode === 'speed') return; e.preventDefault(); sheet.zoom(e.deltaY); }, { passive: false });
   cv.addEventListener('dblclick', () => { if (S.mode !== 'speed') sheet.resetView(); });
 
@@ -290,6 +376,9 @@
     $('#sp-pct').textContent = F.pct(d.sp);
     $('#sp-abs').textContent = d.sp.beta === 0 ? 'statek stoi' : F.speed(d.sp) + ' · gamma γ = ' + fmtGamma(d.sp);
     chipsSpeed.forEach(c => c.classList.toggle('on', Math.abs(c._x - S.speedX) < 1e-4));
+    $('#btn-twins').classList.toggle('idle', d.sp.beta === 0);
+    $('#twins-sub').textContent = d.sp.beta === 0 ? 'Najpierw rozpędź rakietę suwakiem.'
+      : 'Ala leci z prędkością ' + F.pct(d.sp) + ' c, Ola zostaje. Która wróci starsza?';
     setHTML($('#sp-tiles'), tiles([
       ['Długość statku dla ciebie', F.len(100 * d.sp.rate), 'zamiast 100 m'],
       ['1 godzina u ciebie', F.dur(3600 * d.sp.rate), 'mija na statku'],
@@ -335,7 +424,7 @@
     if (S.mode === 'speed') {
       h = '<div class="hud-big">' + F.pct(d.sp) + ' <small>prędkości światła</small></div>' +
           '<div>' + (d.sp.beta === 0 ? 'statek stoi' : F.speed(d.sp)) + '</div>' +
-          '<div>γ = ' + fmtGamma(d.sp) + '</div>';
+          (d.sp.beta === 0 ? '' : '<div>czas w rakiecie: ' + F.slower(d.sp.rate) + '</div>');
       if (S.view === 'cockpit') h += '<div class="hud-note">Widok z kokpitu: 240° nieba w jednym kole</div>';
     } else if (S.mode === 'gravity') {
       h = '<div class="hud-big">' + bodyName(d.body) + '</div>' +
@@ -504,12 +593,32 @@
       ol.appendChild(li);
     });
     $('#task-progress').textContent = n + '/' + K.TASKS.length;
+    renderTaskNow();
+  }
+
+  // najbliższe niezrobione zadanie z tego trybu, w panelu sterowania pod pierwszym suwakiem (lista jest daleko pod sceną)
+  const taskNow = document.createElement('div');
+  taskNow.className = 'task-now';
+  taskNow.addEventListener('click', () => taskNow.classList.toggle('open'));
+  function renderTaskNow() {
+    const card = $('#controls-' + S.mode);
+    if (taskNow.parentNode !== card) card.insertBefore(taskNow, card.querySelector('.chips'));
+    const t = K.TASKS.find(t => t.mode === S.mode && !S.done[t.id]);
+    const left = K.TASKS.filter(t => t.mode === S.mode && !S.done[t.id]).length;
+    taskNow.classList.remove('open');
+    taskNow.classList.toggle('all', !t);
+    taskNow.innerHTML = t
+      ? '<span class="tn-ico" aria-hidden="true">🎯</span><span class="tn-txt"><small>Zadanie' + (left > 1 ? ' (zostało ' + left + ')' : '') + '</small>' + t.text +
+        '<em>💡 ' + t.hint + '</em></span><span class="tn-more" aria-hidden="true">podpowiedź</span>'
+      : '<span class="tn-ico" aria-hidden="true">🏆</span><span class="tn-txt">Wszystkie zadania w tym trybie zrobione!</span>';
   }
   function checkTasks(d) {
     if (S.mode === 'gravity' && d.body.exact && d.h < 0.01) {
       if (d.body.near.id === 'sun') S.flags.sun = true;
       if (d.body.near.id === 'wd') S.flags.wd = true;
     }
+    // zadania zaliczają się dopiero po zatrzymaniu suwaka, nie w trakcie przeciągania
+    if (!S.touched[S.mode] || performance.now() - react.at < 700) return;
     let changed = false;
     K.TASKS.forEach(t => {
       if (S.done[t.id] || t.mode !== S.mode) return;
@@ -519,6 +628,9 @@
         S.done[t.id] = true; changed = true;
         toast('✅ Zadanie wykonane: ' + t.text);
         R.audio.chime();
+        // pochwała Tika tylko wtedy, gdy nie przerwie mu ważniejszej kwestii
+        if (!G.speaking) G.say('brawo_' + (1 + Math.floor(Math.random() * 3)), { mood: 'wow', force: true });
+        else G.play('brawo', 0.5);
       }
     });
     if (changed) { LS.set('gc-zadania', JSON.stringify(S.done)); renderTasks(); }
@@ -543,28 +655,96 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), 3400);
   }
   function openModal(id) { $(id).hidden = false; }
-  function closeModal(id) { $(id).hidden = true; }
   $('#glossary-list').innerHTML = K.GLOSSARY.map(([k, v]) => '<div class="gl-item"><dt>' + k + '</dt><dd>' + v + '</dd></div>').join('');
   $('#btn-glossary').addEventListener('click', () => openModal('#glossary'));
-  $('#btn-help').addEventListener('click', () => { $('#intro-sound').checked = S.sound; openModal('#intro'); });
   document.querySelectorAll('.modal').forEach(m => {
     m.addEventListener('click', e => { if (e.target === m || e.target.hasAttribute('data-close')) m.hidden = true; });
   });
-  $('#btn-start').addEventListener('click', () => {
-    closeModal('#intro');
-    LS.set('gc-intro', '1');
-    setSound($('#intro-sound').checked);
-  });
   // przeglądarki pozwalają na dźwięk dopiero po geście użytkownika
   window.addEventListener('pointerdown', () => { if (S.sound) R.audio.init(); }, { once: true });
+
+  /* --------------------------- ekran powitalny --------------------------- */
+  const welcome = $('#welcome');
+  const wOpen = () => !welcome.hidden;
+  let wAudio = null;
+  function placeTik() {
+    // Tik na ilustracji stoi w punkcie (0,83; 0,33); obraz jest kadrowany jak object-fit: cover
+    const img = $('#w-img'), W = welcome.clientWidth, H = welcome.clientHeight, AR = 2752 / 1536;
+    const pos = getComputedStyle(img).objectPosition.split(' ').map(v => parseFloat(v) / 100);
+    const rw = Math.max(W, H * AR), rh = rw / AR;
+    const s = Math.min(0.15 * rw, W * 0.4);
+    const x = P.clamp((W - rw) * pos[0] + 0.83 * rw, s / 2, W - s / 2), y = (H - rh) * pos[1] + 0.33 * rh;
+    const b = $('#w-tik');
+    b.style.left = (x - s / 2) + 'px'; b.style.top = (y - s / 2) + 'px'; b.style.width = b.style.height = s + 'px';
+  }
+  function stopGreeting() { if (wAudio) { wAudio.pause(); wAudio = null; } }
+  $('#w-tik').addEventListener('click', () => {
+    R.audio.init();
+    G.said.add('witaj');
+    welcome.classList.add('greeted');
+    const say = $('#w-say');
+    say.textContent = window.TIK_KWESTIE ? window.TIK_KWESTIE.witaj : '';
+    say.hidden = false;
+    stopGreeting();
+    if (G.voice) { wAudio = new Audio('audio/witaj.mp3'); const p = wAudio.play(); if (p && p.catch) p.catch(() => {}); }
+  });
+  $('#w-voice').addEventListener('click', () => { setVoice(!G.voice); if (!G.voice) stopGreeting(); });
+  function openWelcome() {
+    G.stop(); G.collapse(); stopGreeting();
+    if (twins.isOpen()) twins.close();
+    welcome.hidden = false; welcome.classList.remove('leaving');
+    document.body.classList.add('w-open');
+    placeTik();
+  }
+  function startFrom(mode) {
+    R.audio.init();
+    stopGreeting();
+    welcome.classList.add('leaving');
+    document.body.classList.remove('w-open');
+    setTimeout(() => { welcome.hidden = true; welcome.classList.remove('leaving'); }, 420);
+    setMode(mode);
+    syncNow(mode);
+    window.scrollTo(0, 0);
+    setTimeout(() => greet(mode), 450);
+  }
+  welcome.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => startFrom(b.dataset.go)));
+  $('#btn-help').addEventListener('click', openWelcome);
+  window.addEventListener('resize', () => { if (wOpen()) placeTik(); });
+  $('#w-img').addEventListener('load', placeTik);
+
+  /* ------------------------ reakcje Tika na suwaki ------------------------ */
+  // Kolejność ma znaczenie: najpierw „dlaczego” (zygzak), potem kolejne progi.
+  const BODY_LINE = { earth: 'gr_ziemia', sun: 'gr_slonce', wd: 'gr_karzel', ns: 'gr_neutron', bh: 'gr_dziura', smbh: 'gr_sgr' };
+  function reactions(d) {
+    if (S.mode === 'speed') {
+      const sp = d.sp;
+      if (sp.gamma >= 1.999 && !twinsUsed) $('#btn-twins').classList.add('nudge');
+      if (sp.beta >= 0.3 && G.say('sp_zygzak', { mood: 'mowi' })) return;
+      // „2 razy wolniej, o połowę krótsza” pasuje tylko w okolicy γ = 2; dalej i tak padnie zachęta do bliźniaczek
+      if (sp.gamma >= 1.999 && sp.gamma < 5 && G.say('sp_pol', { mood: 'wow', then: twinsUsed ? null : 'sp_bliznieta' })) return;
+      if (sp.gamma >= 1.999 && !twinsUsed && G.said.has('sp_zygzak') && G.say('sp_bliznieta', { mood: 'mowi' })) return;
+      if (sp.beta >= 0.99 && sp.beta < 0.9995 && G.say('sp_99', { mood: 'wow' })) return;
+      if (sp.beta >= 0.9999 && G.say('sp_limit', { mood: 'mowi' })) return;
+      if (sp.beta > 0 && sp.beta < 1e-3) G.say('sp_wolno', { mood: 'mowi' });
+    } else if (S.mode === 'gravity') {
+      const b = d.body;
+      if (d.gB.rate < 0.01 && G.say('gr_stop', { mood: 'sen' })) return;
+      if (b.exact && BODY_LINE[b.near.id] && G.say(BODY_LINE[b.near.id], { mood: b.bh ? 'wow' : 'mowi' })) return;
+      G.say('gr_czas', { mood: 'mowi' });
+    }
+  }
 
   /* ------------------------------ klawiatura ------------------------------ */
   window.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'select' || tag === 'textarea') return;
-    if (e.key === 'Escape') { document.querySelectorAll('.modal').forEach(m => { m.hidden = true; }); return; }
-    if (!$('#intro').hidden) return;
+    if (wOpen()) return;
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal').forEach(m => { m.hidden = true; });
+      if (twins.isOpen()) twins.close();
+      return;
+    }
     switch (e.key) {
       case '1': setMode('speed'); break;
       case '2': setMode('gravity'); break;
@@ -574,6 +754,7 @@
         e.preventDefault(); setPaused(!S.paused); break;
       case 'r': case 'R': syncNow(); toast('Zegary zsynchronizowane.'); break;
       case 'm': case 'M': setSound(!S.sound); break;
+      case 't': case 'T': setVoice(!G.voice); break;
       case 'v': case 'V': if (S.mode === 'speed') setView(S.view === 'side' ? 'cockpit' : 'side'); break;
       default: return;
     }
@@ -584,6 +765,8 @@
   function frame(now) {
     const dtReal = Math.min(0.1, Math.max(0, (now - last) / 1000));
     last = now;
+    // pod ekranem powitalnym nic nie liczymy: zegary ruszają razem z wyborem przygody
+    if (wOpen()) { requestAnimationFrame(frame); return; }
     const dt = S.paused ? 0 : dtReal;
     const d = derive();
 
@@ -625,6 +808,9 @@
       dirty = false;
     }
     checkTasks(d);
+    // nowy ruch dziecka może przerwać kwestię powitalną trybu, ale nie wyjaśnienie
+    const busy = G.speaking && !(G.cur && START_IDS.has(G.cur.id));
+    if (react.pending && now - react.at > 700 && !busy && !twins.isOpen()) { react.pending = false; if (S.touched[S.mode]) reactions(d); }
     requestAnimationFrame(frame);
   }
 
@@ -632,8 +818,9 @@
   syncControls();
   setMode('speed');
   setSound(S.sound, true);
+  setVoice(G.voice);
   renderFact();
-  if (!LS.get('gc-intro')) openModal('#intro');
+  openWelcome();
   let chartResize = 0;
   window.addEventListener('resize', () => { clearTimeout(chartResize); chartResize = setTimeout(markDirty, 120); });
   requestAnimationFrame(frame);

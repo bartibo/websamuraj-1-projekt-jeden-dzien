@@ -43,6 +43,13 @@
       o.connect(og); og.connect(this.master);
       src.start(t); o.start(t); o.stop(t + 0.07);
     },
+    /** Ściszenie tykania, gdy mówi Tik. */
+    duck(on) {
+      if (!this.master) return;
+      const t = this.ctx.currentTime;
+      this.master.gain.cancelScheduledValues(t);
+      this.master.gain.setTargetAtTime(on ? 0.12 : 0.5, t, 0.12);
+    },
     /** Delikatny „ping” po wykonaniu zadania. */
     chime() {
       if (!this.on || !this.ctx || this.ctx.state !== 'running') return;

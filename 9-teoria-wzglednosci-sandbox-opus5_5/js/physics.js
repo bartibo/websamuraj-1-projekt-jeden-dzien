@@ -74,8 +74,9 @@ window.Rel = window.Rel || {};
   // Suwak x ∈ [0,1]. Odcinkami liniowo w g = log10(β/(1-β)):
   //   [0, XA]   β od 0 do 1e-7 (do ~30 m/s),
   //   [XA, XB]  g od -7 do -1 (codzienne prędkości → 9% c),
-  //   [XB, 1]   g od -1 do 8,3 (9% c → 99,9999995% c, dalej niż protony w LHC).
-  const XA = 0.04, XB = 0.30, GA = -7, GB = -1, GC = 8.3;
+  //   [XB, XC]  g od -1 do 4 (9% c → 99,99% c): tu dzieje się wszystko, co widać (87% c wypada w 44% toru),
+  //   [XC, 1]   g od 4 do 8,3 (→ 99,9999995% c, dalej niż protony w LHC).
+  const XA = 0.03, XB = 0.18, XC = 0.9, GA = -7, GB = -1, GC = 4, GD = 8.3;
 
   function speedState(beta, omb) {
     if (omb === undefined) omb = 1 - beta;
@@ -90,7 +91,8 @@ window.Rel = window.Rel || {};
     if (x <= 0) return speedState(0, 1);
     if (x < XA) return speedState(1e-7 * x / XA);
     if (x < XB) return speedFromG(GA + (GB - GA) * (x - XA) / (XB - XA));
-    return speedFromG(GB + (GC - GB) * (clamp(x, 0, 1) - XB) / (1 - XB));
+    if (x < XC) return speedFromG(GB + (GC - GB) * (x - XB) / (XC - XB));
+    return speedFromG(GC + (GD - GC) * (clamp(x, 0, 1) - XC) / (1 - XC));
   }
   function sliderFromSpeed(beta, omb) {
     if (beta <= 0) return 0;
@@ -98,7 +100,8 @@ window.Rel = window.Rel || {};
     if (beta < 1e-7) return XA * beta / 1e-7;
     const g = Math.log10(beta / omb);
     if (g < GB) return XA + (XB - XA) * (g - GA) / (GB - GA);
-    return clamp(XB + (1 - XB) * (g - GB) / (GC - GB), 0, 1);
+    if (g < GC) return XB + (XC - XB) * (g - GB) / (GC - GB);
+    return clamp(XC + (1 - XC) * (g - GC) / (GD - GC), 0, 1);
   }
 
   /* --------------------------- grawitacja -------------------------- */

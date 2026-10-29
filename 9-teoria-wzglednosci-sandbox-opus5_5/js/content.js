@@ -14,7 +14,7 @@
     { label: '🛰️ ISS', beta: 7660 / C, title: 'Międzynarodowa Stacja Kosmiczna: 7,66 km/s' },
     { label: '☀️ Sonda Parker', beta: 191700 / C, title: 'Najszybszy obiekt zbudowany przez ludzi: ok. 192 km/s' },
     { label: '½ c', beta: 0.5, title: 'Połowa prędkości światła' },
-    { label: '87 % c', beta: 0.8660254, title: 'Tu czas płynie dokładnie 2 razy wolniej' },
+    { label: '87 % c', beta: Math.sqrt(3) / 2, title: 'Tu czas płynie dokładnie 2 razy wolniej' },
     { label: '99 % c', beta: 0.99 },
     { label: '⚛️ Mion', beta: 0.998, title: 'Mion z promieniowania kosmicznego, lecący przez atmosferę' },
     { label: '99,99 % c', beta: 0.9999 },
@@ -51,13 +51,17 @@
   /* ----------------------------- zadania ----------------------------- */
   const TASKS = [
     { id: 'half', mode: 'speed', text: 'Skróć statek o połowę: niech dla ciebie ma tylko 50 m.',
-      hint: 'Potrzeba ok. 87 % prędkości światła.', check: d => d.sp.gamma >= 2 },
+      hint: 'Potrzeba ok. 87 % prędkości światła.', check: d => d.sp.gamma >= 1.999 },
+    { id: 'twins', mode: 'speed', text: 'Wyślij Alę w podróż tak, by wróciła co najmniej 10 lat młodsza od siostry.',
+      hint: 'Przycisk „Podróż bliźniaczek” pod suwakiem. Potrzeba ponad 87 % prędkości światła.', check: (d, flags) => flags.twins >= 9.99 },
     { id: 'ten', mode: 'speed', text: 'Spraw, by zegar na statku szedł 10 razy wolniej niż twój.',
       hint: 'To okolice 99,5 % prędkości światła.', check: d => d.sp.gamma >= 10 },
     { id: 'proxima', mode: 'speed', text: 'Dolećcie do Proximy Centauri tak, by załoga postarzała się o mniej niż rok.',
       hint: 'Patrz na zdanie z rakietą w panelu „Co tu się dzieje?”.', check: d => d.sp.beta * d.sp.gamma >= P.PROXIMA_LY },
     { id: 'iss', mode: 'speed', text: 'Ustaw prędkość stacji ISS i sprawdź, o ile spóźnia się zegar przez dobę.',
       hint: 'Jest na to przycisk pod suwakiem.', check: d => d.sp.beta > 2.4e-5 && d.sp.beta < 2.7e-5 },
+    { id: 'gulp', mode: 'gravity', text: 'Wrzuć kulkę do czarnej dziury.',
+      hint: 'Wybierz czarną dziurę i dotknij siatki blisko środka.', check: (d, flags) => flags.gulp },
     { id: 'half-g', mode: 'gravity', text: 'Znajdź miejsce, w którym czas płynie 2 razy wolniej niż daleko od źródła.',
       hint: 'Gwiazda neutronowa nie wystarczy. Spróbuj czarnej dziury.', check: d => d.gB.rate <= 0.5 },
     { id: 'freeze', mode: 'gravity', text: 'Prawie zatrzymaj czas: niech zegar B idzie 1000 razy wolniej.',
@@ -109,6 +113,13 @@
     ['Orbita swobodna', 'Krążenie bez pracy silników, tylko dzięki grawitacji. Im niżej, tym szybciej trzeba lecieć. Wokół czarnej dziury najniższa stabilna orbita leży 3 promienie horyzontu od środka.']
   ];
 
+  /* ------------------ najważniejsza myśl trybu, prostym językiem ------------------ */
+  const BIG_IDEA = {
+    speed: '⏱️ Im szybciej coś pędzi, tym wolniej płynie dla niego czas. Zwalnia wszystko: zegar, serce, starzenie się.',
+    gravity: '🌍 Masa ugina czasoprzestrzeń jak kula trampolinę. Im głębiej w dołku, tym wolniej płynie czas.',
+    both: '🛰️ Prędkość i grawitacja spowalniają czas naraz. Satelity GPS muszą to uwzględniać każdego dnia.'
+  };
+
   /* ---------------------- stałe objaśnienia „dlaczego” ---------------------- */
   const WHY = {
     speed:
@@ -140,7 +151,7 @@
   };
 
   R.content = {
-    SPEED_PRESETS, SPEED_SCALE, BODY_ICONS, HEIGHT_PRESETS, SCENARIOS, TASKS, FACTS, GLOSSARY, WHY,
+    SPEED_PRESETS, SPEED_SCALE, BODY_ICONS, HEIGHT_PRESETS, SCENARIOS, TASKS, FACTS, GLOSSARY, WHY, BIG_IDEA,
     bindState(s) { stateRef = s; }
   };
 })(window.Rel);

@@ -49,7 +49,63 @@ Tykanie zegarów jest syntezowane na żywo, a każdy zegar ma inny dźwięk, wi�
 - **To dzieje się naprawdę**: 11 prawdziwych doświadczeń i odkryć (GPS, miony, zegary w samolotach z 1971 r., zegary optyczne NIST, Pound–Rebka, LHC, ISS, Eddington 1919, zdjęcia czarnych dziur, LIGO).
 - **Słowniczek** pojęć bez wzorów.
 
-Klawisze: `1` `2` `3` tryby, `spacja` pauza, `R` synchronizacja zegarów, `M` dźwięk, `V` widok z kokpitu, strzałki na suwaku (z `Shift` szybciej).
+Klawisze: `1` `2` `3` tryby, `spacja` pauza, `R` synchronizacja zegarów, `M` tykanie, `T` głos Tika, `V` widok z kokpitu, strzałki na suwaku (z `Shift` szybciej).
+
+## Rozwój po eksperymencie
+
+29.10.2026 projekt przeanalizowano pod kątem dziecka, które ma zrozumieć, czym w teorii Einsteina są czas, grawitacja i prędkość. Wnioski: fizyka i liczby były dokładne, ale strona mówiła językiem dorosłego popularyzatora. Ekran startowy miał trzy kolumny instrukcji, objaśnienia były gęste, a nic nie prowadziło za rękę. Zadania potrafiły zaliczyć się same (np. „Odtwórz GPS” po samym wejściu w tryb „Razem”). Wdrożone zmiany:
+
+- **Ekran powitalny:** pełnoekranowa ilustracja (Nano Banana) z rakietą krążącą w lejku czasoprzestrzeni, tytuł, jedno zdanie („Czas umie się rozciągać jak guma. Sprawdź, jak to zrobić!”) i dwa duże wejścia: **Pędź jak światło** i **Ugnij czas** (plus link „jedno i drugie naraz”). Tik na ilustracji ma dymek „Kliknij mnie!” i wita się głosem. Zegary ruszają dopiero po wyborze przygody. Link „← Projekty” prowadzi do strony z projektami.
+- **Przewodnik Tik:** zegar-maskotka (4 miny z Nano Banana: macha, tłumaczy, dziwi się, zasypia, gdy czas staje). Mówi głosem z ElevenLabs (32 kwestie, głos „Tobiasz – bajki dla dzieci”). Tekst pojawia się w dymku, a słowa podświetlają się w rytm nagrania, więc dziecko może czytać razem z nim. Odzywa się, gdy coś się wydarzy:
+  - na start każdego trybu,
+  - gdy suwak się zatrzyma na progu: najpierw „dlaczego” (błysk leci zygzakiem, dłuższa droga, ta sama prędkość światła), potem „2 razy wolniej i o połowę krótsza”, 99 % c i granica prędkości światła,
+  - przy każdym ciele niebieskim, przy zegarze, który prawie stanął, w widoku z kokpitu i przy scenariuszach (GPS, ISS, czarna dziura, „Interstellar”),
+  - z pochwałą po zadaniu.
+  Tykanie zegarów cichnie, gdy Tik mówi. Głos można wyłączyć (przycisk z dymkiem albo klawisz `T`), wtedy zostaje sam dymek. Na telefonie dymek jest przy dolnej krawędzi ekranu, bo suwaki leżą pod sceną.
+- **Podróż bliźniaczek (paradoks bliźniąt):** bliźniaczka Ala leci rakietą z prędkością z suwaka, a Ola zostaje na Ziemi. Ala wraca, gdy na Ziemi minie 20 lat. Rakieta leci do gwiazdy i z powrotem, a liczniki lat i portrety (po 4 wieki każdej siostry, Nano Banana) zmieniają się na oczach. Przy 87 % c Ola ma 30 lat, a Ala 20. Przy samochodzie różnica to ułamek mikrosekundy.
+- **Kulki na płachcie:** dotknięcie siatki rzuca kulkę, która toczy się po zboczu lejka i krąży wokół środka, a przez lekkie tarcie po spirali opada w dół (jak moneta w lejku na monety). Gdy zmienisz masę, kulki od razu czują nowy kształt. Czarna dziura je połyka. To jest analogia z trampoliną, którą dziecko może samo sprawdzić.
+- **Objaśnienia:** każdy tryb ma na górze najważniejszą myśl w jednym zdaniu (np. „Im szybciej coś pędzi, tym wolniej płynie dla niego czas”). Szczegóły z liczbami zostały dla dociekliwych.
+- **Zadania:** dwa nowe („Wyślij Alę tak, by wróciła co najmniej 10 lat młodsza”, „Wrzuć kulkę do czarnej dziury”). Zadania zaliczają się dopiero po własnym ruchu w danym trybie.
+- **Zachęty:** rakieta startuje z miejsca (wcześniej od razu leciała 80 % c), a gałka suwaka pulsuje, dopóki nikt jej nie ruszy. Po „2 razy wolniej” Tik podsuwa podróż bliźniaczek, a jej przycisk pulsuje.
+- Tagi `og:` z obrazkiem do podglądu linku, efekty dźwiękowe z ElevenLabs (start i lądowanie rakiety, kulka, „am!” czarnej dziury).
+
+Tego samego dnia agent `ocena-ux` przeklikał projekt na komputerze i telefonie oczami dziecka. Ocena: 7/10. Ekran powitalny, Tik, kulki i bliźniaczki naprawdę wciągają, ale najważniejszy moment nauki w zwykłej zabawie prawie nie występował. Poprawki:
+
+- **Suwak prędkości pod dziecko:** 90 % toru prowadzi do 99,99 % c, a 87 % c wypada w 44 % toru. Wcześniej połowa toru to było 97,8 % c i statek szybko robił się kreską. Ostatnie 10 % toru zostało dla skrajnych prędkości (przycisk „Proton w LHC” dalej działa).
+- **„87 % c” to dokładnie γ = 2** (`√3/2`), więc zaliczają się zadania „o połowę” i „10 lat młodsza”. Wcześniej wychodziło 1,99999997.
+- **Tik mówi we właściwym momencie:**
+  - reaguje na przekroczenie progów, nie na wąskie okna;
+  - po skończonej kwestii mówi następną, jeśli stan już na nią zasługuje (zygzak → „2 razy wolniej” → bliźniaczki);
+  - ruch dziecka może przerwać powitanie trybu, ale nie wyjaśnienie;
+  - zaległa reakcja z poprzedniego trybu nie przerywa powitania nowego;
+  - po kwestii dymek zwija się po 3,5 s.
+- **Zadania:**
+  - zaliczają się po zatrzymaniu suwaka, a nie w trakcie przeciągania;
+  - najbliższe niezrobione zadanie trybu wisi w panelu sterowania z podpowiedzią po kliknięciu.
+- **Grawitacja i „Razem” startują od gwiazdy neutronowej.** Lejek i różnica zegarów są widoczne od razu, a nie płaska Ziemia z nanosekundami.
+- **Słowa zamiast notacji naukowej:**
+  - na scenie zamiast „tempo ×(1 − 7 × 10⁻¹⁰)” jest „czas płynie 1,41× wolniej” albo „prawie tak samo”;
+  - w HUD prędkości „czas w rakiecie: 2× wolniej” zamiast γ.
+- **Telefon i tablet:**
+  - suwaki zaraz pod sceną (wcześniej ponad 1000 px niżej);
+  - scena niższa;
+  - dymek Tika u góry ekranu, żeby nie zasłaniał suwaka;
+  - podróż bliźniaczek na cały ekran;
+  - palcem po scenie da się przewijać stronę (płachta obraca się poziomo).
+- **Krótsze kwestie:** powitanie trybu prędkości ma 11 s zamiast 15 s. Powitania grawitacji i „Razem” mówią o gwieździe neutronowej.
+
+Obrazy i nagrania są w plikach (`img/`, `audio/`), więc działają też po otwarciu `index.html` z dysku. Nagrania odtwarza element `<audio>`. Gdy pliku nie ma, Tik po prostu pokazuje dymek.
+
+### Jak zmienić kwestie Tika
+
+Teksty są w [`narzedzia/przepis.mjs`](narzedzia/przepis.mjs) (tam też identyfikator głosu). Potem:
+
+```sh
+node narzedzia/generuj.mjs [--tylko sp_] [--wymus]   # nagrania z ElevenLabs → narzedzia/raw/ (pomija gotowe)
+node narzedzia/paczka.mjs                             # cisza obcięta, głośność wyrównana → audio/*.mp3 i audio/kwestie.js
+```
+
+`audio/kwestie.js` (tekst do dymka) powstaje z tego samego przepisu, więc napis zawsze zgadza się z nagraniem.
 
 ## Fizyka
 
@@ -70,11 +126,12 @@ Animacje nie są w skali: odległości na płachcie są ściśnięte logarytmicz
 - Czysty HTML, CSS i JavaScript, bez bibliotek i bez budowania.
 - Płachta czasoprzestrzeni to własny rzut perspektywiczny 3D na canvasie 2D (siatka 30 × 48 czworokątów sortowanych wg głębokości), z ciałami malowanymi w kodzie (Ziemia z kontynentami, pasy Jowisza, Słońce, pulsar z wiązkami, czarna dziura z dyskiem akrecyjnym i sferą fotonową).
 - Dźwięk tykania syntezowany przez Web Audio.
+- Ilustracje: Nano Banana 2.1 (Google, przez Vertex AI). Głos Tika i efekty: ElevenLabs (`eleven_v4`), każda kwestia sprawdzona Whisperem.
 
 ## Struktura
 
 ```
-index.html          – układ strony, wprowadzenie, słowniczek
+index.html          – układ strony, ekran powitalny, słowniczek
 css/style.css       – wygląd
 js/physics.js       – wzory, ciała niebieskie, mapowanie suwaków, formatowanie liczb po polsku
 js/clocks.js        – zegary analogowe i całkowanie czasu własnego
@@ -83,5 +140,10 @@ js/scene-sheet.js   – płachta czasoprzestrzeni 3D, ciała, błyski, orbita st
 js/chart.js         – wykres „Mapa efektu”
 js/audio.js         – tykanie
 js/content.js       – gotowe ustawienia, scenariusze, zadania, ciekawostki, słowniczek, objaśnienia
-js/app.js           – stan, suwaki, objaśnienia na żywo, zadania, pętla animacji
+js/guide.js         – przewodnik Tik: dymek, głos, podświetlanie słów, efekty dźwiękowe
+js/twins.js         – podróż bliźniaczek (paradoks bliźniąt)
+js/app.js           – stan, suwaki, ekran powitalny, reakcje Tika, objaśnienia, zadania, pętla animacji
+img/                – ilustracja powitalna, Tik (4 miny), portrety bliźniaczek
+audio/              – kwestie Tika i efekty (mp3), kwestie.js (tekst do dymka)
+narzedzia/          – przepis kwestii, generator ElevenLabs i obróbka nagrań
 ```

@@ -46,7 +46,8 @@
     const cam = { yaw: -0.55, pitch: 0.62, dist: 24, idle: 99, W: 0, H: 0, f: 1, cy: 0 };
     const st = {
       t: 0, first: true, pulses: [], pulsePhase: 0, flashA: 0, received: 0,
-      disk: null, shipAng: 0.6, shipTrail: [], bodyKey: ''
+      disk: null, shipAng: 0.6, shipTrail: [], bodyKey: '',
+      marbles: [], bursts: [], nMarble: 0, onEvent: null
     };
     // cząstki dysku akrecyjnego
     st.disk = [];
@@ -118,6 +119,126 @@
         }
       }
       for (const p of st.disk) p.a += dt * 5.5 * Math.pow(p.r, -1.5);
+      updateMarbles(dt, s.body);
+    }
+
+    /* ------------------------------ kulki ------------------------------ */
+    // Kulka toczy się po płachcie: przyspiesza w dół zbocza lejka (jak na trampolinie
+    // z ciężką kulą w środku). Lekkie tarcie sprawia, że krąży po spirali, aż wpadnie.
+    const MARBLE_COL = ['126,224,138', '94,227,255', '255,184,77', '240,140,208', '235,240,255'];
+    const KG = 7, FRICTION = 0.07, MAX_MARBLES = 14;
+    function slopeAt(rho) {
+      const a = Math.max(rings[0], rho - 0.06), b = rho + 0.06;
+      return (depthAtRho(b) - depthAtRho(a)) / (b - a);
+    }
+    function gain() { return KG / Math.sqrt(Math.max(0.25, ringDepth[0])); }
+
+    function throwAt(px, py) {
+      // punkt płachty najbliższy kliknięciu: najpierw węzły siatki, potem doprecyzowanie
+      let best = -1, bd = Infinity;
+      for (let n = 0; n < sx.length; n++) {
+        const dx = sx[n] - px, dy = sy[n] - py, d2 = dx * dx + dy * dy;
+        if (d2 < bd) { bd = d2; best = n; }
+      }
+      if (best < 0 || bd > 45 * 45) return false;
+      let rho = rings[Math.floor(best / NS)], ang = (best % NS) / NS * Math.PI * 2;
+      let dr = 0.5, da = Math.PI / NS;
+      for (let it = 0; it < 3; it++) {
+        let br = rho, ba = ang, bdd = Infinity;
+        for (let u = -3; u <= 3; u++) for (let v = -3; v <= 3; v++) {
+          const r2 = P.clamp(rho + u * dr / 3, rings[0] + 0.15, SD - 0.2), a2 = ang + v * da / 3;
+          project(r2 * Math.cos(a2), r2 * Math.sin(a2), -depthAtRho(r2), tmp);
+          const d2 = (tmp[0] - px) ** 2 + (tmp[1] - py) ** 2;
+          if (d2 < bdd) { bdd = d2; br = r2; ba = a2; }
+        }
+        rho = br; ang = ba; dr /= 2.5; da /= 2.5;
+      }
+      const x = rho * Math.cos(ang), y = rho * Math.sin(ang);
+      const vc = Math.sqrt(Math.max(0, gain() * -slopeAt(rho) * rho));
+      const k = 0.82 + Math.random() * 0.16;
+      st.marbles.push({ x, y, vx: -Math.sin(ang) * vc * k, vy: Math.cos(ang) * vc * k, col: MARBLE_COL[st.nMarble++ % MARBLE_COL.length], trail: [], tt: 0, age: 0 });
+      if (st.marbles.length > MAX_MARBLES) st.marbles.shift();
+      st.bursts.push({ x, y, t: 0, kind: 'drop', col: '255,255,255' });
+      if (st.onEvent) st.onEvent('throw');
+      return true;
+    }
+
+    function updateMarbles(dt, body) {
+      if (dt > 0 && st.marbles.length) {
+        const n = Math.ceil(dt / (1 / 240)), h = dt / n, kg = gain(), damp = Math.exp(-FRICTION * h);
+        for (let k = 0; k < n; k++) {
+          for (const m of st.marbles) {
+            if (m.gone) continue;
+            const r = Math.hypot(m.x, m.y) || 1e-6;
+            const a = kg * slopeAt(r) / r;                      // zbocze opada ku środkowi: slope < 0
+            m.vx = (m.vx + a * m.x * h) * damp; m.vy = (m.vy + a * m.y * h) * damp;
+            const v = Math.hypot(m.vx, m.vy);
+            if (v > 40) { m.vx *= 40 / v; m.vy *= 40 / v; }
+            m.x += m.vx * h; m.y += m.vy * h;
+            const r2 = Math.hypot(m.x, m.y);
+            if (r2 <= rings[0] + 0.05) {
+              m.gone = true;
+              st.bursts.push({ x: m.x, y: m.y, t: 0, kind: body.bh ? 'swallow' : 'hit', col: m.col });
+              if (st.onEvent) st.onEvent(body.bh ? 'swallow' : 'hit');
+            } else if (r2 > SD + 0.4) m.gone = true;
+          }
+        }
+        for (const m of st.marbles) {
+          m.age += dt; m.tt += dt;
+          if (m.tt > 0.03) { m.tt = 0; m.trail.push(m.x, m.y); if (m.trail.length > 70) m.trail.splice(0, 2); }
+        }
+        st.marbles = st.marbles.filter(m => !m.gone);
+      }
+      for (const b of st.bursts) b.t += dt;
+      st.bursts = st.bursts.filter(b => b.t < 1.1);
+    }
+
+    function drawMarbles(ctx) {
+      for (const m of st.marbles) {
+        // smuga
+        ctx.lineCap = 'round';
+        const tr = m.trail, nn = tr.length / 2;
+        for (let k = 1; k < nn; k++) {
+          const r0 = Math.hypot(tr[2 * k - 2], tr[2 * k - 1]), r1 = Math.hypot(tr[2 * k], tr[2 * k + 1]);
+          project(tr[2 * k - 2], tr[2 * k - 1], -depthAtRho(r0) + 0.06, tmp);
+          project(tr[2 * k], tr[2 * k + 1], -depthAtRho(r1) + 0.06, tmp2);
+          ctx.strokeStyle = 'rgba(' + m.col + ',' + (k / nn * 0.55).toFixed(3) + ')';
+          ctx.lineWidth = 2.4 * k / nn;
+          ctx.beginPath(); ctx.moveTo(tmp[0], tmp[1]); ctx.lineTo(tmp2[0], tmp2[1]); ctx.stroke();
+        }
+        // kulka
+        const r = Math.hypot(m.x, m.y);
+        project(m.x, m.y, -depthAtRho(r) + 0.2, tmp);
+        const rad = Math.max(3, 0.24 * cam.f / tmp[2]) * Math.min(1, m.age * 6);
+        const g = ctx.createRadialGradient(tmp[0], tmp[1], 0, tmp[0], tmp[1], rad * 2.6);
+        g.addColorStop(0, 'rgba(' + m.col + ',0.45)'); g.addColorStop(1, 'rgba(' + m.col + ',0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tmp[0], tmp[1], rad * 2.6, 0, Math.PI * 2); ctx.fill();
+        const s = ctx.createRadialGradient(tmp[0] - rad * 0.35, tmp[1] - rad * 0.4, rad * 0.1, tmp[0], tmp[1], rad);
+        s.addColorStop(0, '#ffffff'); s.addColorStop(0.35, 'rgb(' + m.col + ')'); s.addColorStop(1, 'rgba(10,14,30,0.95)');
+        ctx.fillStyle = s; ctx.beginPath(); ctx.arc(tmp[0], tmp[1], rad, 0, Math.PI * 2); ctx.fill();
+      }
+      for (const b of st.bursts) {
+        const r = Math.hypot(b.x, b.y), k = b.t / 1.1;
+        if (b.kind === 'drop') {
+          // kółko na płachcie w miejscu rzutu
+          ctx.strokeStyle = 'rgba(255,255,255,' + (0.6 * (1 - k)).toFixed(3) + ')'; ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (let j = 0; j <= 24; j++) {
+            const a = j / 24 * Math.PI * 2, rr = 0.15 + k * 1.1;
+            const x = b.x + Math.cos(a) * rr, y = b.y + Math.sin(a) * rr, r2 = Math.hypot(x, y);
+            project(x, y, -depthAtRho(r2) + 0.03, tmp);
+            if (j === 0) ctx.moveTo(tmp[0], tmp[1]); else ctx.lineTo(tmp[0], tmp[1]);
+          }
+          ctx.stroke();
+        } else {
+          project(b.x, b.y, -depthAtRho(r) + 0.1, tmp);
+          const big = b.kind === 'swallow' ? 34 : 18;
+          const g = ctx.createRadialGradient(tmp[0], tmp[1], 0, tmp[0], tmp[1], big * (0.4 + k));
+          const c = b.kind === 'swallow' ? '255,190,110' : b.col;
+          g.addColorStop(0, 'rgba(' + c + ',' + (0.9 * (1 - k)).toFixed(3) + ')'); g.addColorStop(1, 'rgba(' + c + ',0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tmp[0], tmp[1], big * (0.4 + k), 0, Math.PI * 2); ctx.fill();
+        }
+      }
     }
 
     /* -------------------------------- draw -------------------------------- */
@@ -182,6 +303,7 @@
       if (!bodyDrawn) drawBody(ctx, body, bodyScreen, s);
 
       if (body.bh) drawDisk(ctx, body);
+      drawMarbles(ctx);
       if (s.mode === 'gravity') drawGravityMarkers(ctx, s);
       else drawBothMarkers(ctx, s, bodyScreen);
     }
@@ -409,7 +531,7 @@
       const col = P.shiftColor(s.gB.rate);
       const txt = col.map(v => Math.round(v + (255 - v) * 0.35));   // napis musi być czytelny także w głębokiej czerwieni
       dot(ctx, tmp[0], tmp[1], 6, col.join(','), s.clockPulse || 0);
-      stemLabel(ctx, tmp[0], tmp[1], 46, 'rgb(' + txt.join(',') + ')', 'B · zegar przy źródle', 'tempo ' + F.rate(s.gB.rate, s.gB.delta));
+      stemLabel(ctx, tmp[0], tmp[1], 46, 'rgb(' + txt.join(',') + ')', 'B · zegar przy źródle', 'czas płynie ' + F.slower(s.gB.rate));
     }
 
     function drawBothMarkers(ctx, s, bs) {
@@ -461,7 +583,7 @@
       ctx.fillStyle = '#ff9a3d';
       ctx.beginPath(); ctx.moveTo(len / 2, 0); ctx.lineTo(len / 2 - Math.min(len * 0.4, 6), -wid / 2); ctx.lineTo(len / 2 - Math.min(len * 0.4, 6), wid / 2); ctx.closePath(); ctx.fill();
       ctx.restore();
-      pill(ctx, tmp[0], tmp[1] - 14, 'statek', '#ffb84d', 'tempo ' + F.rate(s.tot.rate, s.tot.delta));
+      pill(ctx, tmp[0], tmp[1] - 14, 'statek', '#ffb84d', 'czas płynie ' + F.slower(s.tot.rate));
     }
 
     /* ------------------------------ kamera ------------------------------ */
@@ -474,7 +596,13 @@
     function resetView() { cam.yaw = -0.55; cam.pitch = 0.62; cam.dist = 24; cam.idle = 99; }
     function resetPulses() { st.pulses = []; st.received = 0; st.pulsePhase = 0; }
 
-    return { update, draw, drag, zoom, resetView, resetPulses, get received() { return st.received; } };
+    return {
+      update, draw, drag, zoom, resetView, resetPulses, throwAt,
+      clearMarbles() { st.marbles = []; },
+      set onEvent(f) { st.onEvent = f; },
+      get marbles() { return st.marbles.length; },
+      get received() { return st.received; }
+    };
   }
 
   R.SheetScene = SheetScene;
