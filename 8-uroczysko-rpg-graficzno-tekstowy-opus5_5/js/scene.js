@@ -909,6 +909,25 @@ const Scene = (() => {
       c.beginPath(); c.ellipse(x - h * 0.3, y - h * 0.012, h * 0.05, h * 0.017, 0, 0, TAU); c.fill();
       humanoid(c, { x, y: sy, h: h * 0.74, t, col: o.col, hunch: 0.7, wide: 1.4, beard: 1.6, beardCol: '#4d4a44' });
     },
+    // Sulisław pod kożuchem w kącie chaty
+    lezacy: (c, x, y, s, t, o) => {
+      const br = Math.sin(t * 1.1) * 1.5;
+      const g = c.createRadialGradient(x - 20, y - 30, 0, x - 20, y - 30, 160); g.addColorStop(0, 'rgba(176,106,50,.28)'); g.addColorStop(1, 'rgba(176,106,50,0)');
+      c.fillStyle = g; c.fillRect(x - 180, y - 190, 360, 200);
+      c.fillStyle = '#4a3624'; c.beginPath(); c.ellipse(x, y - 16 - br, 95, 22 + br, -0.03, Math.PI, TAU); c.fill();
+      c.fillStyle = 'rgba(160,120,80,.45)'; for (let k = 0; k < 14; k++) c.fillRect(x - 85 + k * 12, y - 30 - Math.sin(k) * 4 - br, 2, 6);
+      c.fillStyle = '#0c0806'; c.beginPath(); c.ellipse(x - 104, y - 16, 15, 13, 0.2, 0, TAU); c.fill();
+      c.fillStyle = '#5a3a20'; c.beginPath(); c.ellipse(x - 108, y - 26, 14, 7, 0.1, Math.PI, TAU); c.fill();
+      c.fillStyle = '#1a120c'; c.fillRect(x - 130, y - 4, 260, 6);
+    },
+    // cień wilczycy na ścianie chaty Dobrawy
+    cien_wilczycy: (c, x, y, s, t, o) => {
+      c.save(); c.globalAlpha = 0.42 + Math.sin(t * 0.7) * 0.06; c.filter = 'none';
+      quad(c, WOLF, x, y, s * 0.75, '#000000', false, Math.sin(t * 1.2) * 0.012);
+      const k = s * 0.75, ex = x - 0.9 * k, ey = y - 0.7 * k;
+      c.globalAlpha = 0.85; c.fillStyle = 'rgba(235,235,225,.9)'; c.beginPath(); c.ellipse(ex, ey, k * 0.02, k * 0.015, -0.2, 0, TAU); c.fill();
+      c.restore();
+    },
     dziecko_dziupla: (c, x, y, s, t, o) => {
       // twarz w dziupli: piegowata, z rudymi włosami i dłońmi przy ustach
       const dx = 165, dy = 378 + Math.sin(t * 0.9) * 1.2;
@@ -947,7 +966,7 @@ const Scene = (() => {
   };
 
   // postacie rysowane w stałym miejscu albo na cały kadr – bez poświaty
-  const FIG_FULL = new Set(['wilki_spokojne', 'szkielet', 'nici', 'dziecko_cien', 'zerca', 'kruki', 'dziecko_dziupla']);
+  const FIG_FULL = new Set(['wilki_spokojne', 'szkielet', 'nici', 'dziecko_cien', 'zerca', 'kruki', 'dziecko_dziupla', 'cien_wilczycy', 'lezacy']);
 
   /* =====================================================================
      WIDOK: płótno + stan + pętla
@@ -1096,13 +1115,9 @@ const Scene = (() => {
       if (d.wisps && s.tod >= 2) for (let i = 0; i < 7; i++) { const wx = 120 + i * 120 + Math.sin(t * 0.5 + i * 2) * 40, wy = 350 + Math.sin(t * 0.8 + i) * 20 + (i % 3) * 30; const a = 0.5 + Math.sin(t * 2 + i * 3) * 0.4; const g = c.createRadialGradient(wx, wy, 0, wx, wy, 18); g.addColorStop(0, `rgba(180,255,190,${a})`); g.addColorStop(1, 'rgba(120,255,160,0)'); c.fillStyle = g; c.fillRect(wx - 18, wy - 18, 36, 36); }
       if (d.water && Math.random() < dt * 1.2) v.smoke.push({ x: Math.random() * W, y: d.water + 30, a: 0.08, r: 20, vx: 0 });
 
-      // postać
-      const fig = s.enemy || s.fig;
-      if (fig && FIG[fig]) {
-        const col = s.k === 'chata' ? '#0c0806' : mix(P.near, '#000000', 0.4);
-        const big = !!s.enemy;
-        const sz = big ? (fig === 'pasterz' ? 380 : 320) : (s.k === 'chata' ? 300 : fig === 'pasterz' ? 360 : 230);
-        const fx = s.figX || (big ? 520 : (s.k === 'chata' ? 660 : (d.fx || 620))), fy = big ? Math.min(d.gy || 480, 500) : (d.gy || 470);
+      // postacie: główna i (poza walką) dodatkowe, np. Mira z Wiszką albo żerca obok Pasterza
+      const col = s.k === 'chata' ? '#0c0806' : mix(P.near, '#000000', 0.4);
+      const drawFig = (fig, fx, fy, sz, big) => {
         // poświata za sylwetką: mgła rozjaśniona tam, gdzie stoi postać, żeby kształt odcinał się od tła
         const rim = !FIG_FULL.has(fig);
         const hc = s.k === 'chata' ? '#b06a32' : d.interior || s.dark ? '#7a5a40' : P.fog;
@@ -1117,7 +1132,17 @@ const Scene = (() => {
         if (rimBlur) { c.save(); c.shadowColor = rgba(hc, s.tod === 3 || d.interior ? 0.75 : 0.55); c.shadowBlur = big ? 16 : 11; }
         FIG[fig](c, fx, fy, sz, t, { col, look: s.look });
         if (rimBlur) c.restore();
+      };
+      const fig = s.enemy || s.fig, big = !!s.enemy;
+      const extras = !big && s.figs ? s.figs.filter(e => e && FIG[e.id]) : [];
+      const extra = e => drawFig(e.id, e.x, e.y || d.gy || 470, e.s || (s.k === 'chata' ? 300 : 230), false);
+      extras.filter(e => e.back).forEach(extra);
+      if (fig && FIG[fig]) {
+        const sz = big ? (fig === 'pasterz' ? 380 : 320) : (s.k === 'chata' ? 300 : fig === 'pasterz' ? 360 : 230);
+        const fx = s.figX || (big ? 520 : (s.k === 'chata' ? 660 : (d.fx || 620))), fy = big ? Math.min(d.gy || 480, 500) : (d.gy || 470);
+        drawFig(fig, fx, fy, sz, big);
       }
+      extras.filter(e => !e.back).forEach(extra);
 
       // mgła
       const fogA = clamp((s.fogAmt ?? 0.6) + (d.fogBoost || 0) + (d.interior ? -0.35 : 0) + mad * 0.25, 0, s.tod === 1 && !s.dark ? 0.62 : 1.3);

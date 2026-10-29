@@ -217,6 +217,7 @@ starosta_zgoda: {
 },
 
 starosta: {
+  figs: () => F('sulislaw_uratowany') ? [{ id: 'lezacy', x: 330, y: 486, back: true }] : null,
   loc: 'mszaniec', sc: 'chata', fig: 'starzec_siedzi', title: 'Chata starosty',
   text: () => P(
     `Bogumił siedzi tam, gdzie go zostawiłeś. Chyba w ogóle się nie rusza.`,
@@ -253,6 +254,7 @@ starosta_runy: {
 },
 
 starosta_syn: {
+  figs: () => F('sulislaw_uratowany') ? [{ id: 'lezacy', x: 330, y: 486, back: true }] : null,
   loc: 'mszaniec', sc: 'chata', fig: 'starzec_siedzi',
   text: P(
     `– Wiem – mówi Bogumił. – Przybiegł przedwczoraj. To znaczy… przybiegł dziś w nocy. Nie wiem już, które dni są które.`,
@@ -394,6 +396,7 @@ dobrawa_handel: {
 },
 
 dobrawa_prawda: {
+  figs: [{ id: 'cien_wilczycy', x: 470, y: 380, s: 300, back: true }],
   loc: 'mszaniec', sc: 'chata', fig: 'starucha', title: 'Chata Dobrawy',
   text: () => P(
     has('kiel') ? `Kładziesz kieł na stole, między pękami ziół. Dobrawa długo na niego patrzy. Potem sięga pod kaftan i wyciąga rzemień. Pusty, z małym węzełkiem na końcu, w sam raz na kieł z dziurką.` :
@@ -410,6 +413,7 @@ dobrawa_prawda: {
 },
 
 dobrawa_prawda_gniew: {
+  figs: [{ id: 'cien_wilczycy', x: 470, y: 380, s: 300, back: true }],
   loc: 'mszaniec', sc: 'chata', fig: 'starucha',
   text: () => P(
     `– Jak owcę – zgadza się Dobrawa. – Ale owca nie wie, dokąd idzie. Ty wiesz. To już coś.`,
@@ -418,6 +422,7 @@ dobrawa_prawda_gniew: {
 },
 
 dobrawa_prawda_idzie: {
+  figs: [{ id: 'cien_wilczycy', x: 470, y: 380, s: 300, back: true }],
   loc: 'mszaniec', sc: 'chata', fig: 'starucha',
   text: P(
     `Dobrawa patrzy na ciebie tak, jakby pierwszy raz zobaczyła cię naprawdę.`,
@@ -464,6 +469,7 @@ mira1: {
 },
 
 mira: {
+  figs: () => F('wiszka_w_domu') ? [{ id: 'dziecko', x: 560 }] : null,
   loc: 'mszaniec', sc: 'chata', fig: 'kobieta', title: 'Chata Miry',
   on: () => { if (F('wiszka_zabita') && !F('mira_wina')) { setF('mira_wina'); rozum(-6); } },
   text: () => F('zabrana_wiszka') ? P(
@@ -487,6 +493,7 @@ mira: {
 },
 
 mira_kaptorga: {
+  figs: [{ id: 'dziecko', x: 560 }],
   loc: 'mszaniec', sc: 'chata', fig: 'kobieta', title: 'Chata Miry',
   text: P(
     `Zdejmujesz kaptorgę i wieszasz ją Wiszce na szyi. Rzemień jest za długi, srebrna puszeczka sięga jej do pasa.`,
@@ -498,6 +505,7 @@ mira_kaptorga: {
 },
 
 mira_powrot: {
+  figs: [{ id: 'dziecko', x: 545 }],
   loc: 'mszaniec', sc: 'chata', fig: 'kobieta', title: 'Chata Miry',
   text: P(
     `Wiszka puszcza twoją rękę dziesięć kroków przed chatą i biegnie.`,
@@ -2234,3 +2242,7 @@ function nightNews(d) {
   return (d === 2 ? `Rano, przy studni, ludzie mówią szeptem, że w nocy zniknął kowal Ostoja. Drzwi kuźni stały otworem, a na progu, w popiele, który sam sypał, zostały ślady bosych stóp. Za dużych. I ze zbyt wieloma palcami.`
     : `Tej nocy zniknęło dwoje: stara Wierzchosława i jej wnuk. Ludzie stoją w grupkach i milkną, kiedy przechodzisz. Ktoś spluwa przez ramię.`) + saved + last;
 }
+
+// w sercu kurhanu obok Pasterza stoją ci, którzy zeszli z tobą
+for (const k in NODES) if (NODES[k].sc === 'serce' && NODES[k].fig === 'pasterz' && !NODES[k].figs)
+  NODES[k].figs = () => [F('radogost') && { id: 'zerca_wolny', x: 230 }, F('dobrawa_idzie') && { id: 'starucha', x: 760 }].filter(Boolean);

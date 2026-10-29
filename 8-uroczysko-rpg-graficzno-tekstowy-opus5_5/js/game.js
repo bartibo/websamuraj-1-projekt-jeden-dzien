@@ -756,7 +756,7 @@ function sceneSpec(n) {
   const flagsKey = k === 'gaj' ? `${F('idol')}${F('wstazka_wzieta')}` : k === 'bagno' ? `${F('topielec_done')}${F('sul_done')}` : k === 'serce' ? `${F('peta_polozone')}` : k === 'kurhan' ? `${has('grzechotka')}` : '';
   return {
     k, variant: n.variant || ((k === 'puszcza' || k === 'mgla') ? S.node.split('_').slice(0, 2).join('_') : k === 'chata' ? (/^starosta/.test(S.node) ? 'starosta' : /^mira/.test(S.node) ? 'mira' : 'dobrawa') : undefined), depth: n.depth, dark: !!n.dark, tod: phaseIdx(), lit: !!n.dark && S.litNow,
-    fig: resolveId(n.fig) || null, rozum: S.rozum, znamie: S.znamie, fogAmt, flagsKey, enemy: null,
+    fig: resolveId(n.fig) || null, figs: resolveId(n.figs) || null, rozum: S.rozum, znamie: S.znamie, fogAmt, flagsKey, enemy: null,
   };
 }
 function updateScene(n) {
@@ -825,7 +825,8 @@ function showEnding(id) {
   $('#end-list').innerHTML = `<h4>Odkryte zakończenia: ${got.length}/${ENDING_ORDER.length}</h4>` + ENDING_ORDER.map(k => `<span class="${got.includes(k) ? 'got' : ''}${k === id ? ' cur' : ''}">${got.includes(k) ? ENDINGS[k].t : '???'}</span>`).join('');
   show('ending');
   const tone = E.tone;
-  endView.set({ k: E.sc, tod: tone === 'dawn' ? 0 : tone === 'mist' ? 1 : tone === 'red' ? 2 : 3, fig: id === 'zak_wilk' ? 'wilczyca' : (id === 'zak_pasterz' || id === 'zak_czwarte') ? 'pasterz' : id === 'zak_goraczka' ? 'starucha' : null, rozum: id === 'zak_obled' ? 10 : 100, znamie: tone === 'red' ? 70 : 0, fogAmt: tone === 'dawn' ? 0.35 : 0.8, dark: false });
+  const home = (F('wiszka_w_domu') || F('zabrana_wiszka')) && ['zak_peta', 'zak_niedomkniete', 'zak_bogobojca', 'zak_czwarte'].includes(id);
+  endView.set({ figs: home ? [{ id: 'kobieta', x: 250, y: 520, s: 200 }, { id: 'dziecko', x: 300, y: 520, s: 200 }] : null, k: E.sc, tod: tone === 'dawn' ? 0 : tone === 'mist' ? 1 : tone === 'red' ? 2 : 3, fig: id === 'zak_wilk' ? 'wilczyca' : (id === 'zak_pasterz' || id === 'zak_czwarte') ? 'pasterz' : id === 'zak_goraczka' ? 'starucha' : null, rozum: id === 'zak_obled' ? 10 : 100, znamie: tone === 'red' ? 70 : 0, fogAmt: tone === 'dawn' ? 0.35 : 0.8, dark: false });
   Snd.setMood({ wind: 0.4, drone: tone === 'dawn' ? 0.1 : 0.5, fire: id === 'zak_goraczka' ? 0.8 : 0, drip: 0, birds: tone === 'dawn' ? 1 : 0, owls: 0, village: tone === 'dawn' ? 0.6 : 0, deep: tone === 'red' || tone === 'dark' ? 0.6 : 0, whisper: id === 'zak_obled' ? 0.8 : 0, heart: 0, red: tone === 'red' ? 0.6 : 0 });
   renderTitleEndings();
 }
