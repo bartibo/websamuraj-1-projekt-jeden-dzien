@@ -90,7 +90,7 @@ Gra porusza tematy śmierci, obłędu, przemocy i zaginięcia dziecka (bez drast
   - na telefonie nowe miejsce zaczyna się od obrazu i początku tekstu, pasek górny jest przypięty, a wskaźniki na scenie mają liczby.
 - **Interfejs:** w pasku górnym trzy znaczniki dni i pora dnia, wybory mieszczą się bez przewijania na typowych ekranach, czytelna mapa ze znacznikiem „tu jesteś”, poprawione podmiany słów w obłędzie, obsługa klawiatury i kontrast. Karty postaci mają portrety, a na telefonie są zwinięte.
 - **Grafika:**
-  - nowe sylwetki ludzi (tunika, zwężone kończyny, dłonie), upiór z żebrami, wilk z długim pyskiem i grzywą, topielec z rozwartą paszczą zamiast uśmiechu,
+  - nowe sylwetki ludzi (tunika, zwężone kończyny, dłonie), płaszcze z fałdami i stopami, kaptur Dobrawy, twarze o ton jaśniejsze od sylwetki, portrety trzech postaci o wspólnej anatomii (łowca w kapturze, z łukiem i kołczanem), upiór z żebrami, wilk z długim pyskiem i grzywą, topielec z rozwartą paszczą zamiast uśmiechu,
   - obwiednia światła i poświata za postaciami, więc nie giną w ciemności,
   - trzy różne chaty: starosta przy wygasłym palenisku, Dobrawa z kotłem, Mira z krosnem i czerwoną wstążką,
   - kilka postaci w jednej scenie: Mira z Wiszką, Sulisław pod kożuchem u starosty, cień wilczycy na ścianie przy wyznaniu Dobrawy, żerca i Dobrawa obok Pasterza w sercu kurhanu, matka z córką w zakończeniu,

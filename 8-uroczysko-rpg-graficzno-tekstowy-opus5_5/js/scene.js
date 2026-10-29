@@ -781,17 +781,37 @@ const Scene = (() => {
         c.strokeStyle = col;
       }
     } else {
-    c.beginPath();
-    c.moveTo(x - sw + hunch * h * 0.08, sy + hunch * h * 0.06);
-    c.quadraticCurveTo(x - cw * 1.05, y - h * 0.35, x - cw, y);
-    c.lineTo(x - h * 0.03, y); c.lineTo(x, y - h * 0.14); c.lineTo(x + h * 0.03, y);
-    c.lineTo(x + cw, y);
-    c.quadraticCurveTo(x + cw * 1.05, y - h * 0.35, x + sw + hunch * h * 0.08, sy + hunch * h * 0.06);
-    c.quadraticCurveTo(hx, sy - h * 0.04, x - sw + hunch * h * 0.08, sy + hunch * h * 0.06);
-    c.fill();
+      // płaszcz: ramiona, fałdy i brzeg uniesiony pośrodku, spod którego widać stopy
+      const lx = hunch * h * 0.08, ly = hunch * h * 0.06, hemY = y - h * 0.04, sway2 = Math.sin(o.t * 1.1 + x) * h * 0.004;
+      c.beginPath();
+      c.moveTo(x - sw * 1.08 + lx, sy + ly);
+      c.quadraticCurveTo(x - cw * 1.02, y - h * 0.4, x - cw * 1.05 + sway2, hemY);
+      c.quadraticCurveTo(x - cw * 0.5, hemY + h * 0.014, x, hemY - h * 0.03);
+      c.quadraticCurveTo(x + cw * 0.5, hemY + h * 0.016, x + cw * 1.05 + sway2, hemY);
+      c.quadraticCurveTo(x + cw * 1.02, y - h * 0.4, x + sw * 1.08 + lx, sy + ly);
+      c.quadraticCurveTo(hx, sy - h * 0.05, x - sw * 1.08 + lx, sy + ly);
+      c.fill();
+      c.beginPath(); c.ellipse(x - h * 0.045, y - h * 0.013, h * 0.042, h * 0.017, 0, 0, TAU); c.ellipse(x + h * 0.05, y - h * 0.013, h * 0.042, h * 0.017, 0, 0, TAU); c.fill();
+      c.lineWidth = Math.max(1, h * 0.006);
+      for (const k of [-2, -1, 1, 2]) {
+        const f0 = x + k * sw * 0.36 + lx * 0.6, f1 = x + k * cw * 0.46 + sway2;
+        c.strokeStyle = k < 0 ? 'rgba(255,236,210,.06)' : 'rgba(0,0,0,.45)';
+        c.beginPath(); c.moveTo(f0, sy + ly + h * 0.07); c.quadraticCurveTo(f0 + k * h * 0.012, y - h * 0.42, f1, hemY - h * 0.012); c.stroke();
+      }
+      c.strokeStyle = col;
     }
     const hr = h * 0.064 * (o.head || 1);
     c.beginPath(); c.ellipse(hx, hy, hr * 0.9, hr * 1.1, 0, 0, TAU); c.fill();
+    const light = typeof col === 'string' && /^#[0-9a-f]{6}$/i.test(col);
+    if (o.hood) {
+      // kaptur zsunięty na czoło, z otworem na twarz
+      c.beginPath(); c.moveTo(hx - hr * 1.25, hy + hr * 1.5); c.quadraticCurveTo(hx - hr * 1.5, hy - hr * 1.2, hx + hr * 0.2, hy - hr * 1.7);
+      c.quadraticCurveTo(hx + hr * 1.6, hy - hr * 0.9, hx + hr * 1.25, hy + hr * 1.5); c.closePath(); c.fill();
+      if (light) { c.fillStyle = mix(col, '#000000', 0.6); c.beginPath(); c.ellipse(hx - hr * 0.1, hy + hr * 0.15, hr * 0.62, hr * 0.85, 0, 0, TAU); c.fill(); c.fillStyle = col; }
+    } else if (light && !o.noFace) {
+      // twarz o ton jaśniejsza: głowa przestaje być płaską kulą
+      c.fillStyle = mix(col, '#8a7a68', 0.17); c.beginPath(); c.ellipse(hx - hr * 0.18, hy + hr * 0.12, hr * 0.55, hr * 0.78, 0, 0, TAU); c.fill(); c.fillStyle = col;
+    }
     c.lineCap = 'round';
     if (o.arms === 'out') {
       c.lineWidth = h * 0.035;
@@ -806,7 +826,7 @@ const Scene = (() => {
       for (let s = -1; s <= 1; s += 2) for (let k = 0; k < 4; k++) { const fx = x + s * h * 0.22 + (s < 0 ? sw2 : -sw2); c.beginPath(); c.moveTo(fx, y - h * 0.05); c.lineTo(fx + s * (k - 1.5) * h * 0.012, y + h * 0.03); c.stroke(); }
     }
     if (o.spear) { c.lineWidth = h * 0.012; c.beginPath(); c.moveTo(x + cw * 0.9, y + 4); c.lineTo(x + cw * 0.9, y - h * 1.25); c.stroke(); c.beginPath(); c.moveTo(x + cw * 0.9, y - h * 1.36); c.lineTo(x + cw * 0.9 - h * 0.02, y - h * 1.24); c.lineTo(x + cw * 0.9 + h * 0.02, y - h * 1.24); c.fill(); }
-    if (o.staff) { c.lineWidth = h * 0.015; c.beginPath(); c.moveTo(x - cw * 0.8, y + 2); c.lineTo(x - cw * 0.6, y - h * 0.95); c.stroke(); }
+    if (o.staff) { c.lineWidth = h * 0.015; c.beginPath(); c.moveTo(x - cw * 0.8, y + 2); c.lineTo(x - cw * 0.6, y - h * 0.95); c.stroke(); if (light) { c.fillStyle = mix(col, '#9a8a74', 0.4); c.beginPath(); c.ellipse(x - cw * 0.65, y - h * 0.6, h * 0.024, h * 0.03, 0, 0, TAU); c.fill(); c.fillStyle = col; } }
     if (o.axe) {
       c.lineWidth = h * 0.02; c.beginPath(); c.moveTo(x + cw * 0.7, y - h * 0.2); c.lineTo(x + cw * 1.1, y - h * 0.85); c.stroke();
       c.beginPath(); c.moveTo(x + cw * 1.05, y - h * 0.82); c.quadraticCurveTo(x + cw * 1.7, y - h * 0.9, x + cw * 1.55, y - h * 0.68); c.lineTo(x + cw * 1.0, y - h * 0.74); c.fill();
@@ -873,7 +893,7 @@ const Scene = (() => {
     dzik: (c, x, y, s, t, o) => { quad(c, BOAR, x, y, s * 0.6, o.col, false, Math.sin(t * 3) * 0.01); c.strokeStyle = '#d8ccb0'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x - 0.9 * s * 0.6, y - 0.32 * s * 0.6); c.quadraticCurveTo(x - 1.0 * s * 0.6, y - 0.5 * s * 0.6, x - 0.86 * s * 0.6, y - 0.55 * s * 0.6); c.stroke(); eyesAt(c, [[x - 0.68 * s * 0.6, y - 0.56 * s * 0.6]], '#ff5a2a', s * 0.012, t); },
     straznik: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s, t, col: o.col, spear: true, wide: 0.85, cloak: false }),
     starzec: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.92, t, col: o.col, hunch: 0.5, wide: 1.25, beard: 1.6, beardCol: '#4d4a44' }),
-    starucha: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.85, t, col: o.col, hunch: 0.9, wide: 1.15, staff: true, eyes: '#d9e2e6', eyeOne: true, eyeSize: 0.09 }),
+    starucha: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.85, t, col: o.col, hunch: 0.9, wide: 1.15, staff: true, hood: true, eyes: '#d9e2e6', eyeOne: true, eyeSize: 0.09 }),
     kobieta: (c, x, y, s, t, o) => humanoid(c, { x, y, h: s * 0.9, t, col: o.col, wide: 0.85, braids: true, hunch: 0.25 }),
     sulislaw: (c, x, y, s, t, o) => { c.fillStyle = o.col; c.beginPath(); c.ellipse(x, y - s * 0.1, s * 0.07, s * 0.08, 0, 0, TAU); c.fill(); c.beginPath(); c.ellipse(x, y - s * 0.02, s * 0.16, s * 0.05, 0, Math.PI, TAU); c.fill(); c.lineWidth = s * 0.02; c.strokeStyle = o.col; c.beginPath(); c.moveTo(x - s * 0.12, y - s * 0.03); c.lineTo(x - s * 0.25, y - s * 0.18 + Math.sin(t * 2) * 4); c.stroke(); eyesAt(c, [[x - s * 0.022, y - s * 0.11], [x + s * 0.022, y - s * 0.11]], '#e6e2d4', s * 0.006, t); },
     topielec: (c, x, y, s, t, o) => { const bob = Math.sin(t * 1.3) * 4; c.save(); c.beginPath(); c.rect(0, 0, W, y + bob * 0.2 + 2); c.clip(); humanoid(c, { x, y: y + s * 0.35 + bob, h: s, t, col: '#202622', wide: 1.3, head: 1.35, arms: 'long', eyes: '#cfe3d0', eyeSize: 0.16, gape: true, hair: true, hairCol: '#2a3530', hairLen: 0.55 }); c.restore(); c.fillStyle = 'rgba(20,30,34,.85)'; c.fillRect(0, y + bob * 0.2, W, H - y); },
@@ -1239,12 +1259,27 @@ const Scene = (() => {
     c.fillStyle = f; c.fillRect(0, 0, w, h);
     c.save(); c.shadowColor = 'rgba(200,170,130,.6)'; c.shadowBlur = 10;
     const o = { x: w / 2, y: h - 6, h: h * 0.92, t, col: '#0b0b0d' };
+    const cx = w / 2, by = h - 6, hh = h * 0.92;
+    if (kind === 'lowca') {
+      // kołczan na plecach, pod sylwetką
+      c.fillStyle = '#0b0b0d'; c.save(); c.translate(cx + hh * 0.13, by - hh * 0.62); c.rotate(0.35); c.fillRect(-hh * 0.035, -hh * 0.2, hh * 0.07, hh * 0.32);
+      c.strokeStyle = '#0b0b0d'; c.lineWidth = 1.5; for (let k = 0; k < 4; k++) { c.beginPath(); c.moveTo(-hh * 0.025 + k * hh * 0.017, -hh * 0.2); c.lineTo(-hh * 0.03 + k * hh * 0.02, -hh * 0.27); c.stroke(); }
+      c.restore();
+    }
     if (kind === 'wareg') humanoid(c, { ...o, cloak: false, wide: 1.15, sword: true, braids: true, beard: 1.6 });
-    else if (kind === 'moraw') humanoid(c, { ...o, wide: 1.05, axe: true, beard: 0.9 });
-    else humanoid(c, { ...o, wide: 0.9, hunch: 0.15, spear: false, staff: false });
+    else if (kind === 'moraw') humanoid(c, { ...o, cloak: false, wide: 1.05, axe: true, beard: 0.9 });
+    else humanoid(c, { ...o, cloak: false, wide: 0.9, hood: true, arms: 'none' });
     c.restore();
-    if (kind === 'moraw') { c.fillStyle = '#c9a45a'; c.fillRect(w / 2 - 1.5, h * 0.3, 3, 14); c.fillRect(w / 2 - 5, h * 0.33, 10, 3); }
-    if (kind === 'lowca') { c.strokeStyle = '#0b0b0d'; c.lineWidth = 3; c.beginPath(); c.arc(w / 2 - h * 0.28, h * 0.5, h * 0.3, -1.1, 1.1); c.stroke(); c.strokeStyle = 'rgba(200,190,170,.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(w / 2 - h * 0.28 + Math.cos(-1.1) * h * 0.3, h * 0.5 + Math.sin(-1.1) * h * 0.3); c.lineTo(w / 2 - h * 0.28 + Math.cos(1.1) * h * 0.3, h * 0.5 + Math.sin(1.1) * h * 0.3); c.stroke(); }
+    if (kind === 'moraw') { c.fillStyle = '#c9a45a'; c.fillRect(cx - 1.5, h * 0.3, 3, 14); c.fillRect(cx - 5, h * 0.33, 10, 3); }
+    if (kind === 'lowca') {
+      // łuk trzymany w lewej ręce, z cięciwą
+      const bx = cx - hh * 0.2, bcy = by - hh * 0.5, br = hh * 0.34;
+      c.strokeStyle = '#0b0b0d'; c.lineWidth = 3.5; c.beginPath(); c.arc(bx + br * 0.75, bcy, br, Math.PI - 1.0, Math.PI + 1.0); c.stroke();
+      c.strokeStyle = 'rgba(210,195,170,.55)'; c.lineWidth = 1; c.beginPath(); c.moveTo(bx + br * 0.75 + Math.cos(Math.PI - 1.0) * br, bcy + Math.sin(Math.PI - 1.0) * br); c.lineTo(bx + br * 0.75 + Math.cos(Math.PI + 1.0) * br, bcy + Math.sin(Math.PI + 1.0) * br); c.stroke();
+      c.fillStyle = '#0b0b0d'; c.lineCap = 'round'; c.lineWidth = hh * 0.045; c.strokeStyle = '#0b0b0d';
+      c.beginPath(); c.moveTo(cx - hh * 0.1, by - hh * 0.74); c.quadraticCurveTo(cx - hh * 0.18, by - hh * 0.62, bx - br * 0.2, bcy); c.stroke();
+      c.beginPath(); c.moveTo(cx + hh * 0.1, by - hh * 0.74); c.quadraticCurveTo(cx + hh * 0.15, by - hh * 0.6, cx + hh * 0.13, by - hh * 0.44); c.stroke();
+    }
   }
 
   return {
