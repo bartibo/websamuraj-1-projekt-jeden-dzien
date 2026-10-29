@@ -70,10 +70,10 @@ msz: {
       `W południe Mszaniec wygląda prawie zwyczajnie: ktoś rąbie drwa, ktoś niesie wodę, ktoś łata dach. Tylko nikt nie śpiewa i nikt nie patrzy w stronę puszczy.`,
       `O zmierzchu ludzie zamykają się w chatach. Na progach sypią sól i popiół, a na drzwiach rysują węglem znaki, których sens zna już tylko Dobrawa.`,
       `Nocą Mszaniec to tylko kilka żarzących się szpar w okiennicach. Mgła wchodzi między chaty i nie wychodzi. Przy chramie płonie ognisko, a przy nim siedzi chłopak z bramy i nie śpi.`]),
-    S.day === 2 && `Rano, przy studni, ludzie mówią szeptem, że w nocy zniknął kowal Ostoja. Drzwi kuźni stały otworem, a na progu, w popiele, który sam sypał, zostały ślady bosych stóp. Za dużych. I ze zbyt wieloma palcami.`,
-    S.day === 3 && `Tej nocy zniknęło dwoje: stara Wierzchosława i jej wnuk. Ludzie stoją w grupkach i milkną, kiedy przechodzisz. Ktoś spluwa przez ramię. Rana na przedramieniu mówi ci, że została jedna noc. Nie wiesz, skąd to wiesz.`,
+    S.day >= 2 && nightNews(S.day),
     S.znamie >= 45 && `Psy we wsi szczekają, kiedy przechodzisz. Potem nagle milkną, kładą uszy po sobie i odwracają łby.`,
     F('wiszka_w_domu') && `Spod chaty Miry dobiega cienki głos, nucący piosenkę o trzech.`,
+    F('zabrana_wiszka') && `Spod chaty Miry nie dobiega żaden głos. Na progu leży czerwona wstążka.`,
     !F('zlecenie') && `Chłopak z bramy pokazuje ci włócznią największą chatę. – Starosta – mówi tylko.`),
   ch: [
     { t: () => F('zlecenie') ? 'Chata starosty Bogumiła' : 'Idź do starosty Bogumiła', go: () => F('zlecenie') ? 'starosta' : 'starosta1' },
@@ -81,6 +81,7 @@ msz: {
     { t: 'Mira, matka zaginionej dziewczynki', if: () => F('o_wiszce'), go: () => S.seen.mira1 ? 'mira' : 'mira1' },
     { t: 'Odprowadź Wiszkę do matki', if: () => F('wiszka_z_toba'), go: 'mira_powrot' },
     { if: () => F('zlecenie'), t: () => S.day >= 3 ? 'Ognisko przy chramie – to ostatnia noc' : 'Ognisko przy chramie – prześpij się do świtu', go: () => S.day >= 3 ? 'msz_sen_ostatni' : 'msz_sen' },
+    { t: () => F('wiszka_w_domu') ? 'Czuwaj do świtu pod chatą Miry, z bronią na kolanach' : 'Czuwaj do świtu pod chatą starosty, z bronią na kolanach', if: () => F('zlecenie') && S.day < 3 && (F('wiszka_w_domu') || F('sulislaw_uratowany')), go: 'msz_czuwanie' },
     { t: 'Odejdź z Mszańca na dobre', if: () => F('zlecenie'), go: 'odejscie' },
   ],
 },
@@ -116,6 +117,18 @@ msz_sen_ostatni: {
     { t: 'Zaśnij. Niech się dzieje, co ma się dziać. (koniec wędrówki)', go: 'msz_sen' },
     { t: 'Wstań. Póki jest noc, jest jeszcze czas.', go: 'msz' },
   ],
+},
+
+msz_czuwanie: {
+  loc: 'mszaniec', sc: 'ognisko', title: 'Czuwanie',
+  on: () => { setF('czuwanie_' + (S.day + 1)); restUntilDawn(false); rozum(-4); },
+  text: () => P(
+    F('wiszka_w_domu') ? `Siadasz pod chatą Miry, plecami do ściany, z bronią na kolanach. Za ścianą słychać oddechy: szybki i płytki, matki, i wolny, dziecięcy.` :
+      `Siadasz pod chatą starosty, plecami do ściany, z bronią na kolanach. Za ścianą Sulisław mamrocze przez sen, a Bogumił chodzi w tę i z powrotem, do świtu.`,
+    `Mgła przychodzi koło północy. Wchodzi między chaty jak woda i zatrzymuje się trzy kroki przed tobą. Długo stoi. Oddycha. Czujesz, że na ciebie patrzy, i patrzysz na nią.`,
+    `Potem odchodzi. Nie wiesz, czy dlatego, że czuwałeś, czy dlatego, że tej nocy nie była głodna.`,
+    `Świt zastaje cię z otwartymi oczami. Nie spałeś ani chwili.`),
+  ch: [{ t: 'Wstań', go: 'msz' }],
 },
 
 odejscie: {
@@ -207,6 +220,7 @@ starosta: {
   loc: 'mszaniec', sc: 'chata', fig: 'starzec_siedzi', title: 'Chata starosty',
   text: () => P(
     `Bogumił siedzi tam, gdzie go zostawiłeś. Chyba w ogóle się nie rusza.`,
+    F('zabrany_sulislaw') && `Kąt, w którym leżał Sulisław, jest pusty. Kożuch leży na ziemi, odrzucony. Bogumił patrzy na niego, nie na ciebie.`,
     F('sulislaw_uratowany') && !F('sulislaw_zgloszony') && `Zza zasłony w kącie słychać czyjś płytki, nierówny oddech.`,
     F('sulislaw_zgloszony') && F('sulislaw_uratowany') && `Sulisław leży w kącie, pod kożuchem, i patrzy w sufit. Od czasu do czasu coś mamrocze. Bogumił nie spuszcza z niego oczu.`),
   ch: [
@@ -452,14 +466,34 @@ mira1: {
 mira: {
   loc: 'mszaniec', sc: 'chata', fig: 'kobieta', title: 'Chata Miry',
   on: () => { if (F('wiszka_zabita') && !F('mira_wina')) { setF('mira_wina'); rozum(-6); } },
-  text: () => F('wiszka_w_domu') ? P(
-    `Mira siedzi na progu z Wiszką na kolanach i czesze jej rude włosy. Obie mają we włosach czerwone wstążki. Kiedy cię widzą, Wiszka macha do ciebie. Mira tylko się uśmiecha. Nie musi nic mówić.`
+  text: () => F('zabrana_wiszka') ? P(
+    `Mira siedzi na progu i plecie wstążkę od nowa. Pierwszy węzeł, drugi, trzeci. Nie podnosi głowy.`,
+    `– Spała przy mnie – mówi. – Trzymałam ją za rękę. Rano trzymałam tylko wstążkę.`,
+    `Patrzy w stronę lasu.`,
+    `– Ty ją raz przyprowadziłeś. Przyprowadź drugi raz.`
+  ) : F('wiszka_w_domu') ? P(
+    `Mira siedzi na progu z Wiszką na kolanach i czesze jej rude włosy. Obie mają we włosach czerwone wstążki. Kiedy cię widzą, Wiszka macha do ciebie. Mira tylko się uśmiecha. Nie musi nic mówić.`,
+    F('kaptorga_oddana') ? `Na szyi Wiszki, na rzemieniu za długim dla dziecka, wisi srebrna kaptorga.` : `Mgła stoi za płotem i patrzy na chatę. Na Wiszkę. Wiesz to tak, jak wie się, że ktoś stoi za plecami.`
   ) : F('wiszka_zabita') ? P(
     `Mira wciąż plecie wstążkę. Pyta cię, czy coś wiesz. Odpowiadasz, że szukasz.`,
     `Nie możesz spojrzeć jej w oczy.`
   ) : P(
     `Mira plecie wstążkę. Wstążka jest już tak długa, że zwija się u jej stóp jak czerwony wąż.`,
     `– Szukasz jej? – pyta. Nie czeka na odpowiedź.`),
+  ch: [
+    { t: 'Zdejmij kaptorgę i zawieś ją Wiszce na szyi na noc', if: () => F('wiszka_w_domu') && has('kaptorga') && !F('kaptorga_oddana'), go: 'mira_kaptorga' },
+    { t: 'Odejdź', go: 'msz' },
+  ],
+},
+
+mira_kaptorga: {
+  loc: 'mszaniec', sc: 'chata', fig: 'kobieta', title: 'Chata Miry',
+  text: P(
+    `Zdejmujesz kaptorgę i wieszasz ją Wiszce na szyi. Rzemień jest za długi, srebrna puszeczka sięga jej do pasa.`,
+    `Mira patrzy na ciebie długo. – To po mężu – mówi. – Dałam ją tobie.`,
+    `– Wiem – mówisz.`,
+    `Wiszka obejmuje kaptorgę obiema rękami, jakby to był ptak, który może odlecieć. Bez niej szepty w twojej głowie są odrobinę głośniejsze. Nie żałujesz.`),
+  first: () => { take('kaptorga'); setF('kaptorga_oddana'); },
   ch: [{ t: 'Odejdź', go: 'msz' }],
 },
 
@@ -1589,8 +1623,10 @@ g2: { loc: 'kurhany', sc: 'gardziel', depth: 2, wk: true, title: 'Gardziel · kr
 g3: { loc: 'kurhany', sc: 'gardziel', depth: 3, wk: true, title: 'Gardziel · krok trzeci',
   on: () => stepDown(),
   text: () => P(
-    `Trzeci krok. Mijasz ludzi. Stoją przy ścianach, w niszach, z zamkniętymi oczami: pastuch Dziwisz, ${S.day >= 2 ? 'kowal Ostoja, ' : ''}Bjorn z twarzą bez oczu i inni, starsi, w strojach, jakich nikt nie nosi od stu lat. Oddychają razem ze ścianami.`,
-    S.day >= 3 && `Jest wśród nich stara kobieta i chłopiec, trzymający ją za rękę.`,
+    `Trzeci krok. Mijasz ludzi. Stoją przy ścianach, w niszach, z zamkniętymi oczami: pastuch Dziwisz, ${(S.nights || {})[2] === 'obcy' ? 'kowal Ostoja, ' : ''}Bjorn z twarzą bez oczu i inni, starsi, w strojach, jakich nikt nie nosi od stu lat. Oddychają razem ze ścianami.`,
+    (S.nights || {})[3] === 'obcy' && `Jest wśród nich stara kobieta i chłopiec, trzymający ją za rękę.`,
+    F('zabrana_wiszka') && `Jest wśród nich Wiszka. Ma zamknięte oczy i czerwoną wstążkę we włosach. Uśmiecha się przez sen.`,
+    F('zabrany_sulislaw') && `I Sulisław, w samej koszuli, z czarnym błotem bagna wciąż na rękach. Porusza ustami. Liczy kroki razem z tobą.`,
     F('dziecko_idzie') && `Za tobą drepczą małe stopy. Nie odwracasz się.`),
   ch: [{ t: 'Krok w dół', go: 'g4' }, { t: 'Zawróć', go: 'wk_kosci', do: () => rozum(-4) }] },
 
@@ -2041,9 +2077,11 @@ const ENDING_TEXT = {
 function villageEpilogue(short) {
   const p = [];
   if (!short) p.push(`W Mszańcu ludzie wychodzą z chat i patrzą w niebo, jakby nigdy go nie widzieli.`);
+  if (F('zabrana_wiszka')) p.push(`O świcie Wiszka wychodzi z mgły na skraju osady. Boso, z wstążką we włosach. Nie pamięta, gdzie była. Pamięta tylko, że ktoś liczył kroki i że było ciepło. Mira biegnie do niej przez całą wieś.`);
+  if (F('zabrany_sulislaw')) p.push(`Sulisław wraca o świcie tą samą drogą, którą odszedł. Siada na progu ojcowskiej chaty i pyta, czemu wszyscy płaczą.`);
   if (F('wiszka_w_domu')) p.push(`Wiszka siedzi Mirze na kolanach i śpiewa piosenkę o trzech. Teraz, mówi, trzeba będzie dopisać zwrotkę ${F('zostaje_radogost') ? 'o żercy' : F('zostaje_dobrawa') ? 'o starej zielarce' : 'o najemniku'}.`);
   else if (F('wiszka_zabita')) p.push(`Mira wciąż plecie czerwoną wstążkę. Nie patrzysz jej w oczy. Nikt w Mszańcu nie wie, co się stało w dziupli pod dębem. Ty też nie. To znaczy – nie chcesz wiedzieć.`);
-  else p.push(`Mira wciąż czeka przy progu z czerwoną wstążką. Może Wiszka jeszcze wróci, teraz, kiedy mgła odeszła. Może.`);
+  else if (!F('zabrana_wiszka')) p.push(`Mira wciąż czeka przy progu z czerwoną wstążką. Może Wiszka jeszcze wróci, teraz, kiedy mgła odeszła. Może.`);
   if (F('obietnica') && !F('wiszka_w_domu')) p.push(`Obiecałeś jej. Pamiętasz to przy każdej czerwonej wstążce, którą zobaczysz do końca życia.`);
   if (F('sulislaw_uratowany')) p.push(`Bogumił obejmuje cię jak syna, choć swojego syna znowu ma przy sobie.`);
   else if (F('sulislaw_martwy')) p.push(`Bogumił siedzi przy wygasłym palenisku, tak jak wtedy, gdy go poznałeś. Nie pyta o nic. Bagno zawsze bierze najmłodszych.`);
@@ -2065,6 +2103,8 @@ const DEEDS = [
   { if: () => F('sok'), t: 'Piłeś z pnia. Pamiętasz ten smak? Ja pamiętam twój.' },
   { if: () => F('krag_krew'), t: 'Dałeś kamieniom krwi. Jesteśmy krewnymi. Krewni nie zamykają przed sobą drzwi.' },
   { if: () => F('dziecko_idzie'), t: 'Wziąłeś grzechotkę za darmo. Dziecko idzie za tobą. Zawsze chciało mieć ojca.' },
+  { if: () => F('zabrana_wiszka'), t: 'Oddałeś dziecko matce, a ja wziąłem je z posłania. Ciepłe było. Zaraz je zobaczysz.' },
+  { if: () => F('zabrany_sulislaw'), t: 'Wyciągnąłeś chłopaka z bagna. Przyszedł do mnie sam, boso, śmiejąc się. Dziękuję.' },
   { if: () => F('wiszka_w_domu'), t: 'Oddałeś dziecko matce. Myślisz, że to cię wybieli? Ona też kiedyś zejdzie. Wszystkie schodzą.' },
   { if: () => F('sulislaw_uratowany'), t: 'Wyciągnąłeś chłopaka z bagna. Śmieje się teraz przez sen. Wiesz, z czego? Ze mnie. Ja też się śmieję.' },
   { if: () => F('obietnica') && !F('wiszka_w_domu'), t: 'Obiecałeś matce, że jej poszukasz. Ja też jej coś obiecałem.' },
@@ -2117,7 +2157,9 @@ function deedAt(k) { return (S.deeds || [])[k] || ''; }
    Pieśń o tobie: zwrotka dopisana do piosenki o trzech i losy ludzi
    ===================================================================== */
 const SONG_DEEDS = [
+  ['zabrana_wiszka', 'co dziecko z dziupli wyniósł, lecz mgła je wzięła z posłania,'],
   ['wiszka_w_domu', 'co dziecko z dziupli wyniósł i oddał je matce,'],
+  ['zabrany_sulislaw', 'co syna z bagna wyrwał, lecz mgła go wywiodła nocą,'],
   ['wiszka_zabita', 'co w dziupli zabił strachy, a strach miał rude włosy,'],
   ['sulislaw_uratowany', 'co syna z bagna wyrwał, choć bagno nie chciało,'],
   ['sul_za_pozno', 'co przyszedł na bagno o jeden dzień za późno,'],
@@ -2156,8 +2198,8 @@ function songOf(endId) {
 }
 function fatesOf() {
   const L = [];
-  L.push(['Wiszka', F('wiszka_w_domu') ? 'wróciła do matki' : F('wiszka_zabita') ? 'nie wróciła; w dziupli została wstążka' : F('wiszka_czeka') ? 'czeka w dziupli; nikt po nią nie przyszedł' : null]);
-  L.push(['Sulisław', F('sulislaw_uratowany') ? 'żyje i śmieje się przez sen' : F('sul_za_pozno') ? 'utonął, zanim przyszedłeś' : F('sulislaw_martwy') ? 'został w bagnie' : null]);
+  L.push(['Wiszka', F('zabrana_wiszka') ? 'wróciła do matki, a potem mgła zabrała ją z posłania' : F('wiszka_w_domu') ? 'wróciła do matki' : F('wiszka_zabita') ? 'nie wróciła; w dziupli została wstążka' : F('wiszka_czeka') ? 'czeka w dziupli; nikt po nią nie przyszedł' : null]);
+  L.push(['Sulisław', F('zabrany_sulislaw') ? 'wrócił z bagna, a potem mgła wywiodła go z domu' : F('sulislaw_uratowany') ? 'żyje i śmieje się przez sen' : F('sul_za_pozno') ? 'utonął, zanim przyszedłeś' : F('sulislaw_martwy') ? 'został w bagnie' : null]);
   L.push(['Dobrawa', F('wilczyca_martwa') ? (has('kiel') ? 'nie żyje; nosisz jej kieł' : 'nie żyje; jej kieł został w kurhanie Dziecka') : F('dobrawa_idzie') ? 'zeszła za tobą do serca' : know('dobrawa_wilk') ? 'przyznała się do ugryzienia' : null]);
   L.push(['Radogost', F('radogost') ? 'zszedł z tobą do serca' : F('radogost_martwy') ? 'umarł w korzeniach i podziękował' : null]);
   L.push(['Hrodgar', F('hrodgar_ominiety') ? 'wciąż stoi przy wrotach' : F('hrodgar_done') ? 'nie żyje' : null]);
@@ -2167,3 +2209,28 @@ function fatesOf() {
 
 // węzły serca bez własnego tytułu pokazują w pasku nazwę miejsca, a nie „Pole Kurhanów”
 for (const k in NODES) if (/^serce_/.test(k) && !NODES[k].title && NODES[k].sc === 'serce') NODES[k].title = 'Serce Wielkiego Kurhanu';
+
+/* =====================================================================
+   Noce: o świcie mgła zabiera pierwszą osobę, którą uratowałeś i która
+   nie była chroniona. Gdy nie ma nikogo takiego, znika ktoś obcy.
+   ===================================================================== */
+const NIGHTS = [
+  { who: 'wiszka', if: () => F('wiszka_w_domu'), guard: d => F('kaptorga_oddana') || F('czuwanie_' + d), take: () => { unF('wiszka_w_domu'); setF('zabrana_wiszka'); } },
+  { who: 'sulislaw', if: () => F('sulislaw_uratowany'), guard: d => F('idol') || F('czuwanie_' + d), take: () => { unF('sulislaw_uratowany'); setF('zabrany_sulislaw'); } },
+];
+function nightFalls(d) {
+  S.nights = S.nights || {};
+  if (S.nights[d]) return S.nights[d];
+  const v = NIGHTS.find(x => x.if() && !x.guard(d));
+  if (v) v.take();
+  return (S.nights[d] = v ? v.who : 'obcy');
+}
+function nightNews(d) {
+  const who = (S.nights || {})[d] || 'obcy';
+  const last = d >= 3 ? ` Rana na przedramieniu mówi ci, że została jedna noc. Nie wiesz, skąd to wiesz.` : '';
+  if (who === 'wiszka') return `Rano pod chatą Miry stoją ludzie. Posłanie Wiszki jest puste i jeszcze ciepłe. Na progu, w popiele, który Mira sypała przez całą noc, są ślady małych bosych stóp. Prowadzą do lasu. Obok nich, krok w krok, idą inne. Za duże. Ze zbyt wieloma palcami.${last}`;
+  if (who === 'sulislaw') return `Rano Bogumił chodzi od chaty do chaty i pyta o syna. Sulisław wstał w nocy, boso, w samej koszuli, i poszedł w stronę lasu. Śmiał się przez sen. Kto go widział, nie odważył się podejść.${last}`;
+  const saved = (F('wiszka_w_domu') && (F('kaptorga_oddana') || F('czuwanie_' + d))) ? ` Wiszka przespała noc spokojnie${F('kaptorga_oddana') ? ', z kaptorgą zaciśniętą w garści' : ''}.` : '';
+  return (d === 2 ? `Rano, przy studni, ludzie mówią szeptem, że w nocy zniknął kowal Ostoja. Drzwi kuźni stały otworem, a na progu, w popiele, który sam sypał, zostały ślady bosych stóp. Za dużych. I ze zbyt wieloma palcami.`
+    : `Tej nocy zniknęło dwoje: stara Wierzchosława i jej wnuk. Ludzie stoją w grupkach i milkną, kiedy przechodzisz. Ktoś spluwa przez ramię.`) + saved + last;
+}

@@ -135,13 +135,18 @@ function st(k) {
 function tick(n = 1) {
   for (let i = 0; i < n; i++) {
     S.t++; S.steps++;
-    if (S.t >= 16) { S.t = 0; S.day++; if (S.day <= 3) fx(`Świta dzień ${S.day}.`, ''); }
+    if (S.t >= 16) { S.t = 0; S.day++; if (S.day <= 3) dawn(); }
   }
 }
 function restUntilDawn(village) {
   S.t = 0; S.day++;
   if (village) { hp(S.hpMax); rozum(15); }
-  if (S.day <= 3) fx(`Świta dzień ${S.day}.`, '');
+  if (S.day <= 3) dawn();
+}
+// świt: noc w Mszańcu kogoś zabrała (wybór ofiary w story.js)
+function dawn() {
+  const who = nightFalls(S.day);
+  fx(`Świta dzień ${S.day}.${who !== 'obcy' ? ' W nocy mgła weszła do Mszańca. Ktoś, kogo znasz, nie obudził się w swoim łóżku.' : ''}`, who !== 'obcy' ? 'mind' : '');
 }
 function whisperHurt(n) {
   let k = 1;
