@@ -324,6 +324,10 @@ p.wizja::before { content: 'Widzenie: '; font-style: normal; font-family: var(--
 .lore-e.new { border-left-color: #9a86ff; }
 .lore-e h4 { margin: 0 0 .25em; font-family: var(--title); font-size: .82rem; letter-spacing: .08em; color: var(--ochre2); }
 .lore-e p { margin: 0; font-size: .9rem; line-height: 1.5; color: #c6bca9; }
+.lore-e.lie { border-left-color: var(--mark); }
+.lore-e.lie h4, .lore-e.lie p { text-decoration: line-through; text-decoration-color: rgba(209, 52, 43, .7); opacity: .6; }
+.lore-e.lie small { display: block; margin-top: .3em; font-style: italic; font-size: .8rem; color: #e2a69e; }
+.lore-check { margin-bottom: 14px; }
 
 /* =====================================================================
    NAKŁADKI

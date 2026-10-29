@@ -106,6 +106,17 @@ function srebro(d) {
   const n = Math.abs(d);
   fx(`${d > 0 ? '+' : '−'}${n} ${plural(n, 'dirham', 'dirhamy', 'dirhamów')}`, d > 0 ? 'loot' : 'lose');
 }
+// Pasterz dopisuje do Wiedzy kłamstwo; komunikat wygląda tak samo jak przy prawdziwej wiedzy
+function addLie() {
+  const free = Object.keys(FALSE_LORE).filter(k => !S.lore.includes(k));
+  if (!free.length) return;
+  const id = pick(free);
+  S.lore.push(id);
+  fx(`Nowa wiedza: ${FALSE_LORE[id].t}`, 'lore');
+  $('#lore-new').hidden = false;
+}
+function loreOf(id) { return LORE[id] || FALSE_LORE[id]; }
+function liesIn() { return S.lore.filter(id => FALSE_LORE[id]); }
 function learn(id, quiet) {
   if (!LORE[id] || S.lore.includes(id)) return;
   S.lore.push(id);
@@ -172,6 +183,7 @@ function go(id) {
   if (!S.seen[id] && n.first) n.first();
   if (n.on) n.on();
   if (n.end) return showEnding(n.end);
+  if (n.hub && S.rozum < 35 && Math.random() < 0.35) addLie();
   const fate = checkFate(n);
   if (fate) return showEnding(fate);
   render(n);
@@ -292,6 +304,7 @@ function choiceList(n) {
     const open = !n.hubIf || n.hubIf();
     if (L && !(S.loc === 'mszaniec' && !F('zlecenie'))) {
       if (open) for (const a of L.adj) out.push({ t: `Idź: ${LOCS[a].n}`, sub: LOCS[a].d, travel: a });
+      if (open && S.rozum < 35 && S.loc !== 'mszaniec' && !F('dom_' + S.day)) out.push({ t: 'Idź: Dom', sub: 'ścieżką, której nie ma na mapie, tam, gdzie pachnie kaszą', go: 'dom1', cost: 1, dom: true, do: () => setF('dom_' + S.day) });
       else if (S.prevLoc && L.adj.includes(S.prevLoc)) out.push({ t: `Wycofaj się powoli: ${LOCS[S.prevLoc].n}`, travel: S.prevLoc });
       else out.push({ t: `Wycofaj się powoli: ${LOCS[L.adj[0]].n}`, travel: L.adj[0] });
     }
@@ -309,7 +322,10 @@ function scrollTopAll() {
   if (matchMedia('(max-width: 900px)').matches) window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
+// gdy obłęd zrówna się ze znamieniem, gra przestaje podawać pewne liczby
+function fogged() { return !!S && S.rozum <= S.znamie; }
 function chanceOf(stat, dc) {
+  if (fogged()) return '?';
   const need = dc - st(stat);
   let ok = 0;
   for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) if (a + b === 12 || (a + b !== 2 && a + b >= need)) ok++;
@@ -325,12 +341,12 @@ function renderChoices(n) {
     let tags = '';
     if (c.test) { const dc = resolveId(c.test.dc); tags += `<span class="tag test">${STATS[c.test.s]} ${dc} · ${chanceOf(c.test.s, dc)}%</span>`; }
     if (c.fight) tags += `<span class="tag fight">walka</span>`;
-    if (c.travel) tags += `<span class="tag go">droga</span>`;
+    if (c.travel || c.dom) tags += `<span class="tag go">droga</span>`;
     if (c.cost) tags += `<span class="tag go">czas</span>`;
     if (c.hunger) tags += `<span class="tag hunger">głód</span>`;
     const flick = S.rozum < 30 && !c.fake && Math.random() < 0.22;
     const inner = flick ? `<span class="lbl">${esc(label)}</span><span class="alt">${esc(pick(FAKE_CHOICES))}</span>` : `<span class="lbl">${label}</span>`;
-    return `<button class="ch${c.fake ? ' fake' : ''}${flick ? ' flick' : ''}${c.travel ? ' travel' : ''}${c.voice && F('ostrzezenie') ? ' echo' : ''}" data-i="${i}"><b class="num">${i + 1}</b><span class="txt">${inner}${c.sub ? `<small>${esc(c.sub)}</small>` : ''}</span>${tags}</button>`;
+    return `<button class="ch${c.fake ? ' fake' : ''}${flick ? ' flick' : ''}${c.travel || c.dom ? ' travel' : ''}${c.voice && F('ostrzezenie') ? ' echo' : ''}" data-i="${i}"><b class="num">${i + 1}</b><span class="txt">${inner}${c.sub ? `<small>${esc(c.sub)}</small>` : ''}</span>${tags}</button>`;
   }).join('');
   $$('#choices .ch').forEach(b => b.addEventListener('click', () => choose(+b.dataset.i)));
 }
@@ -447,6 +463,7 @@ function combatActions() {
 }
 
 function chanceHit(mod, def) {
+  if (fogged()) return '?';
   let ok = 0;
   for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) if (a + b === 12 || (a + b !== 2 && a + b + mod >= def)) ok++;
   return Math.round(ok / 36 * 100);
@@ -651,7 +668,31 @@ function renderLore() {
   const box = $('#lore');
   if (!S.lore.length) { box.innerHTML = '<p class="hint">Jeszcze nic nie wiesz. To się zmieni.</p>'; return; }
   const ids = S.lore.filter(id => !(id === 'piesn1' && S.lore.includes('piesn2')));
-  box.innerHTML = ids.slice().reverse().map(id => `<div class="lore-e${S.loreSeen.includes(id) ? '' : ' new'}"><h4>${LORE[id].t}</h4><p>${LORE[id].x}</p></div>`).join('');
+  const seenLies = S.liesSeen || [];
+  const head = S.rozum < 50 ? `<button class="btn small lore-check" id="lore-check">Przejrzyj wiedzę${has('bylica') ? ' (bylica)' : ' (Wola 10)'}</button>` : '';
+  box.innerHTML = head + ids.slice().reverse().map(id => {
+    const L = loreOf(id), lie = seenLies.includes(id);
+    return `<div class="lore-e${S.loreSeen.includes(id) ? '' : ' new'}${lie ? ' lie' : ''}"><h4>${L.t}</h4><p>${L.x}</p>${lie ? '<small>Tego nikt ci nie powiedział. To jego głos.</small>' : ''}</div>`;
+  }).join('');
+  const b = $('#lore-check');
+  if (b) b.addEventListener('click', checkLore);
+}
+
+// przejrzenie Wiedzy: bylica albo próba Woli; kłamstwa zostają przekreślone
+function checkLore() {
+  if (busy || S.combat) return;
+  Snd.init();
+  let ok;
+  if (has('bylica')) { take('bylica'); ok = true; }
+  else { const a = d6(), b = d6(); ok = a + b === 12 || (a + b !== 2 && a + b + st('wol') >= 10); if (!ok) rozum(-3); }
+  S.fxq = [];
+  if (ok) {
+    const lies = liesIn().filter(id => !(S.liesSeen || []).includes(id));
+    S.liesSeen = [...(S.liesSeen || []), ...lies];
+    toast(lies.length ? `Przekreślasz ${lies.length} ${plural(lies.length, 'wpis', 'wpisy', 'wpisów')}. To nie były twoje myśli.` : 'Wszystko, co wiesz, wydaje się prawdą. Na razie.');
+  } else toast('Litery pływają. Nie umiesz oddzielić tego, co wiesz, od tego, co ci szepnięto.');
+  const fate = checkFate(NODES[S.node]); if (fate) return showEnding(fate);
+  renderSide(); save();
 }
 
 function renderMap() {
@@ -772,7 +813,8 @@ function showEnding(id) {
   const peta = Object.keys(S.petaEver).length;
   $('#end-stats').innerHTML = [
     ['Dzień', Math.min(S.day, 4)], ['Pokonani', S.kills], ['Pęta', `${peta}/3`],
-    ['Wiedza', `${S.lore.filter(l => l !== 'piesn1' || !S.lore.includes('piesn2')).length}/${Object.keys(LORE).length - 1}`],
+    ['Wiedza', `${S.lore.filter(l => LORE[l] && (l !== 'piesn1' || !S.lore.includes('piesn2'))).length}/${Object.keys(LORE).length - 1}`],
+    ...(liesIn().length ? [['Kłamstwa', `${liesIn().filter(id => !(S.liesSeen || []).includes(id)).length} w Wiedzy`]] : []),
     ['Rozum', S.rozum], ['Znamię', S.znamie],
   ].map(([a, b]) => `<div><small>${a}</small><b>${b}</b></div>`).join('');
   $('#end-list').innerHTML = `<h4>Odkryte zakończenia: ${got.length}/${ENDING_ORDER.length}</h4>` + ENDING_ORDER.map(k => `<span class="${got.includes(k) ? 'got' : ''}${k === id ? ' cur' : ''}">${got.includes(k) ? ENDINGS[k].t : '???'}</span>`).join('');

@@ -175,6 +175,17 @@ const LORE = {
   gdzie_imie: { t: 'Gdzie szukać imienia', x: 'Dobrawa nie wypowie imienia, bo „on usłyszy, że ktoś go woła”. Ale ostatni żerca przed Radogostem wydrapał je na ścianie w korytarzu z kości, w wielkim kurhanie. Trzeba światła. Dużo światła.' },
 };
 
+/* Kłamstwa Pasterza: przy słabym rozumie trafiają do Wiedzy i wyglądają jak prawda */
+const FALSE_LORE = {
+  f_peta: { t: 'Trzy pęta', x: 'Pęta wystarczą dwa. Trzecie jest dla ozdoby. Dziecko z zabawką można zostawić w spokoju, niech śpi.' },
+  f_imie: { t: 'Imię', x: 'Imię brzmi Weles. Wystarczy je wypowiedzieć w sercu kurhanu, a on odejdzie tam, skąd przyszedł.' },
+  f_dobrawa: { t: 'Dobrawa', x: 'To Dobrawa zaprowadziła Wiszkę do lasu. Widziałeś to we śnie, a sny przy uroczysku nie kłamią.' },
+  f_rytual: { t: 'Jak zawiązać', x: 'Nikt nie musi zostawać na dole. To bajka dla dzieci. Wystarczy uklęknąć przed nim i poprosić. Jest głodny, ale dobry.' },
+  f_rana: { t: 'Ugryzienie', x: 'Rana się goi. Jeszcze dzień, dwa i szepty ucichną same. Nie trzeba nigdzie schodzić.' },
+  f_droga: { t: 'Droga przez mgłę', x: 'Mgła kończy się za Wilczym Jarem. Kto przejdzie jar o zmierzchu, wyjdzie z puszczy i nigdy już tu nie wróci.' },
+  f_matka: { t: 'Dom', x: 'Za płotem z czaszek jest ścieżka do domu. Twoja matka czeka z obiadem. Zawsze czekała.' },
+};
+
 const ENDINGS = {
   zak_peta:        { t: 'Pęta', sub: 'Ktoś został na dole. Nie ty.', sc: 'kurhany', tone: 'dawn', hint: 'Ktoś inny może zostać na dole.' },
   zak_czwarte:     { t: 'Czwarte pęto', sub: 'Zostałeś, żeby inni mogli odejść.', sc: 'serce', tone: 'dark', hint: 'Czasem czwartym pętem jest ten, kto przyniósł trzy.' },

@@ -475,6 +475,42 @@ mira_powrot: {
   ch: [{ t: 'Dalej', go: 'msz' }],
 },
 
+/* ------------------------- Dom (tylko w obłędzie) ------------------------- */
+
+dom1: {
+  sc: 'chata', variant: 'mira', fig: 'kobieta', title: 'Dom',
+  text: P(
+    `Ścieżka, której nie było na mapie, kończy się przed chatą. Twoją chatą. Tą, w której się urodziłeś, trzy puszcze stąd, choć przecież nie może jej tu być. Z komina leci dym. W środku pachnie kaszą ze skwarkami.`,
+    `Przy stole siedzi twoja matka. Jest młoda, młodsza niż ty teraz. Nakłada ci pełną miskę i nie pyta, gdzie byłeś tyle lat.`,
+    `– Siadaj – mówi. – Wystygnie.`,
+    `~Zostań. Tu nikt nie jest głodny.~`),
+  ch: [
+    { t: 'Usiądź do stołu', go: 'dom_stol' },
+    { t: 'Przejrzyj przez mgłę. Twoja matka nie żyje od dwudziestu zim.', test: { s: 'wol', dc: 10, ok: 'dom_przejrzane', no: 'dom_stol' } },
+    { t: 'Wyjdź, nie oglądając się za siebie', go: '@after', do: () => rozum(-4) },
+  ],
+},
+
+dom_stol: {
+  sc: 'puszcza', title: 'Dom',
+  text: P(
+    `Jesz. Kasza jest gorąca, gęsta, słodka od skwarków. Jesz drugą miskę i trzecią. Matka gładzi cię po głowie i nuci coś, czego nie słyszałeś od dziecka.`,
+    `Kiedy podnosisz wzrok znad miski, klęczysz w błocie, w środku lasu. Ręce masz czerwone po łokcie. Przed tobą leży coś, co jeszcze rano biegało.`,
+    `Jest ci ciepło. Jesteś syty. Pierwszy raz od bardzo dawna.`),
+  first: () => { hp(S.hpMax); znamie(10); rozum(-8); setF('dom_jadl'); },
+  ch: [{ t: 'Wstań', go: '@after' }],
+},
+
+dom_przejrzane: {
+  sc: 'puszcza', title: 'Dom',
+  text: P(
+    `Mrugasz. Nie ma chaty, nie ma matki. Jest spróchniały pień, a na nim, w mchu, misa z kory pełna czegoś czerwonego i jeszcze ciepłego.`,
+    `Odsuwasz ją nogą i odchodzisz. Za plecami słyszysz głos matki, dokładnie taki, jaki pamiętasz:`,
+    `~Wrócisz. Zawsze wracałeś na obiad.~`),
+  first: () => rozum(6),
+  ch: [{ t: 'Idź dalej', go: '@after' }],
+},
+
 /* ============================== SKRAJ ============================== */
 
 skraj: {
@@ -2034,6 +2070,7 @@ const DEEDS = [
   { if: () => F('obietnica') && !F('wiszka_w_domu'), t: 'Obiecałeś matce, że jej poszukasz. Ja też jej coś obiecałem.' },
   { if: () => F('radogost_martwy'), t: 'Starzec dziękował ci, umierając. Nikt ci nie podziękuje, kiedy przyjdzie twoja kolej.' },
   { if: () => F('hrodgar_prosil'), t: 'Hrodgar prosił cię o to samo, o co ty poprosisz mnie. Dałeś mu to. Ja nie dam.' },
+  { if: () => F('dom_jadl'), t: 'Jadłeś u mnie. Smakowało? Twoja matka gotowała gorzej.' },
   { if: () => F('krzyzyk_bogu'), t: 'Oddałeś swojego boga drewnianemu. Żaden z nich cię tu nie słyszy.' },
   { if: () => F('bjorn_piesn'), t: 'Odprowadziłeś Bjorna słowami do domu. Jego dom jest teraz tutaj. Twój też.' },
   { if: () => F('lowca_slad'), t: 'Czytasz ślady, łowco. Przeczytaj moje. Prowadzą prosto do ciebie.' },
@@ -2093,6 +2130,7 @@ const SONG_DEEDS = [
   ['krzyzyk_bogu', 'co krzyżyk z własnej szyi powiesił staremu bogu,'],
   ['lowca_slad', 'co z wilczych śladów wyczytał imię starej,'],
   ['idol', 'co boga z błota podniósł na własnym ramieniu,'],
+  ['dom_jadl', 'co zjadł obiad u matki, a matki tam nie było,'],
   ['kiel', 'co wilczy kieł nosi, bo stado go przyjęło,'],
 ];
 const END_LINE = {
