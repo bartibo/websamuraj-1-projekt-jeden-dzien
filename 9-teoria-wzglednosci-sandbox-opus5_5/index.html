@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#060913">
+  <title>Gumowy czas – piaskownica teorii względności</title>
+  <meta name="description" content="Interaktywna piaskownica szczególnej i ogólnej teorii względności. Przesuwaj suwaki prędkości statku (aż do prędkości światła) i masy źródła grawitacji (od Księżyca po czarną dziurę) i patrz, jak rozjeżdżają się zsynchronizowane zegary, jak statek się skraca i jak ugina się czasoprzestrzeń.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23060913'/%3E%3Cpath d='M6 20 Q32 62 58 20' fill='none' stroke='%23b98cff' stroke-width='3'/%3E%3Cpath d='M10 30 Q32 58 54 30' fill='none' stroke='%23b98cff' stroke-opacity='.5' stroke-width='2'/%3E%3Ccircle cx='32' cy='24' r='12' fill='none' stroke='%235ee3ff' stroke-width='3'/%3E%3Cpath d='M32 24V16M32 24l6 4' stroke='%23ffb84d' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M6 20 Q32 62 58 20" fill="none" stroke="#b98cff" stroke-width="3"/><path d="M10 30 Q32 58 54 30" fill="none" stroke="#b98cff" stroke-opacity=".5" stroke-width="2"/><circle cx="32" cy="24" r="12" fill="none" stroke="#5ee3ff" stroke-width="3"/><path d="M32 24V16M32 24l6 4" stroke="#ffb84d" stroke-width="3" stroke-linecap="round"/></svg>
+    <div>
+      <b>Gumowy czas</b>
+      <span>piaskownica teorii względności</span>
+    </div>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Tryby">
+    <button class="tab active" role="tab" data-mode="speed"><span class="num">1</span><span class="tab-txt">Prędkość<small>szczególna teoria</small></span></button>
+    <button class="tab" role="tab" data-mode="gravity"><span class="num">2</span><span class="tab-txt">Grawitacja<small>ogólna teoria</small></span></button>
+    <button class="tab" role="tab" data-mode="both"><span class="num">3</span><span class="tab-txt">Razem<small>prędkość + grawitacja</small></span></button>
+  </nav>
+
+  <div class="top-tools">
+    <label class="ts" title="Jak szybko płynie czas na zegarach">
+      <span>1 s pokazu =</span>
+      <select id="timescale">
+        <option value="1">1 sekunda</option>
+        <option value="60">1 minuta</option>
+        <option value="3600">1 godzina</option>
+        <option value="86400">1 doba</option>
+        <option value="31557600">1 rok</option>
+      </select>
+    </label>
+    <button class="icon-btn" id="btn-pause" title="Pauza (spacja)" aria-label="Pauza">
+      <svg viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-sound" title="Tykanie zegarów (M)" aria-label="Dźwięk">
+      <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-glossary" title="Słowniczek pojęć" aria-label="Słowniczek">
+      <svg viewBox="0 0 24 24"><path d="M5 4h9a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 9h5M9 13h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-help" title="Jak to działa?" aria-label="Pomoc">?</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage-col">
+    <div class="stage" id="stage">
+      <canvas id="scene" aria-label="Animacja"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="view-switch" id="view-switch">
+        <button data-view="side" class="on">Z boku <small>widzisz ty</small></button>
+        <button data-view="cockpit">Z kokpitu <small>widzi pilot</small></button>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="stage-hint" id="stage-hint">przeciągnij, by obrócić · kółko myszy: przybliż · dwuklik: widok domyślny</div>
+      <div class="paused-badge" id="paused-badge" hidden>PAUZA</div>
+    </div>
+
+    <div class="card clocks-card">
+      <div class="clocks-head">
+        <h2><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>Zsynchronizowane zegary</h2>
+        <span class="clocks-since" id="clocks-since"></span>
+        <button class="btn small" id="btn-sync" title="Wyzeruj wszystkie zegary (R)">⟲ Synchronizuj od nowa</button>
+      </div>
+      <div class="clock-row" id="clock-row"></div>
+      <div class="clock-diff" id="clock-diff"></div>
+    </div>
+    <div class="card chart-card">
+      <h3 id="chart-title">Mapa efektu</h3>
+      <canvas id="chart" aria-label="Wykres"></canvas>
+      <p class="note" id="chart-note"></p>
+    </div>
+  </section>
+
+  <aside class="side-col">
+    <!-- ======== PRĘDKOŚĆ ======== -->
+    <div class="card controls" id="controls-speed">
+      <h2 class="ctl-title"><i class="dot ship"></i>Prędkość statku</h2>
+      <div class="readout">
+        <b id="sp-pct">0 %</b><span>prędkości światła</span>
+      </div>
+      <div class="readout-sub" id="sp-abs"></div>
+      <div class="slider-wrap">
+        <input type="range" id="sp-slider" class="slider ship" min="0" max="1" step="0.0005" value="0" aria-label="Prędkość statku">
+        <div class="slider-scale" id="sp-scale"></div>
+      </div>
+      <div class="chips" id="sp-presets"></div>
+      <div class="tiles" id="sp-tiles"></div>
+    </div>
+
+    <!-- ======== GRAWITACJA ======== -->
+    <div class="card controls" id="controls-gravity" hidden>
+      <h2 class="ctl-title"><i class="dot grav"></i>Masa źródła grawitacji</h2>
+      <div class="readout"><b id="gr-name">Ziemia</b></div>
+      <div class="readout-sub" id="gr-mass"></div>
+      <div class="slider-wrap">
+        <input type="range" id="gr-mass-slider" class="slider grav" min="0" max="7" step="0.005" value="1" aria-label="Masa źródła grawitacji">
+      </div>
+      <div class="chips bodies" id="gr-presets"></div>
+
+      <h2 class="ctl-title second"><i class="dot clockb"></i>Wysokość zegara B</h2>
+      <div class="readout small"><b id="gr-h">na powierzchni</b></div>
+      <div class="slider-wrap">
+        <input type="range" id="gr-h-slider" class="slider clockb" min="0" max="1" step="0.0005" value="0" aria-label="Wysokość zegara B">
+        <div class="slider-scale ends"><span>tuż przy</span><span>daleko</span></div>
+      </div>
+      <div class="chips" id="gr-h-presets"></div>
+      <label class="switch"><input type="checkbox" id="gr-pulses" checked><span></span>Błyski z zegara B do ciebie</label>
+      <div class="tiles" id="gr-tiles"></div>
+    </div>
+
+    <!-- ======== RAZEM ======== -->
+    <div class="card controls" id="controls-both" hidden>
+      <h2 class="ctl-title"><i class="dot ship"></i>Gotowe scenariusze</h2>
+      <div class="chips scen" id="b-scen"></div>
+
+      <h2 class="ctl-title second"><i class="dot grav"></i>Źródło grawitacji: <b id="b-name">Ziemia</b></h2>
+      <div class="slider-wrap">
+        <input type="range" id="b-mass-slider" class="slider grav" min="0" max="7" step="0.005" value="1" aria-label="Masa źródła grawitacji">
+      </div>
+      <div class="chips bodies mini" id="b-presets"></div>
+
+      <h2 class="ctl-title second"><i class="dot clockb"></i>Wysokość orbity: <b id="b-h"></b></h2>
+      <div class="slider-wrap">
+        <input type="range" id="b-h-slider" class="slider clockb" min="0" max="1" step="0.0005" value="0.5" aria-label="Wysokość orbity">
+      </div>
+
+      <h2 class="ctl-title second"><i class="dot ship"></i>Prędkość statku: <b id="b-speed"></b></h2>
+      <label class="switch"><input type="checkbox" id="b-orbit" checked><span></span>Swobodna orbita (prędkość wynika z grawitacji)</label>
+      <div class="slider-wrap" id="b-speed-wrap">
+        <input type="range" id="b-speed-slider" class="slider ship" min="0" max="1" step="0.0005" value="0" aria-label="Prędkość statku">
+      </div>
+      <div class="tiles" id="b-tiles"></div>
+    </div>
+
+    <div class="card explain">
+      <h2 class="ctl-title"><i class="dot info"></i>Co tu się dzieje?</h2>
+      <div id="explain-live" aria-live="polite"></div>
+      <div id="explain-why"></div>
+    </div>
+  </aside>
+</main>
+
+<section class="lower">
+  <div class="card tasks-card">
+    <h3>Zadania <span class="badge" id="task-progress">0/0</span></h3>
+    <ol id="tasks"></ol>
+  </div>
+  <div class="card facts-card">
+    <h3>To dzieje się naprawdę</h3>
+    <div class="fact" id="fact"></div>
+    <div class="fact-nav">
+      <button class="icon-btn small" id="fact-prev" aria-label="Poprzednia ciekawostka">‹</button>
+      <div class="fact-dots" id="fact-dots"></div>
+      <button class="icon-btn small" id="fact-next" aria-label="Następna ciekawostka">›</button>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <p>Liczby na zegarach liczone są dokładnie ze wzorów Einsteina: szczególnej teorii względności (ruch) i rozwiązania Schwarzschilda (grawitacja nieobracającej się kuli).
+  Animacje nie są w skali: odległości są ściśnięte, a lejek czasoprzestrzeni pogłębiony, żeby było widać i Księżyc, i czarną dziurę.</p>
+  <p class="keys">Klawisze: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> tryby · <kbd>spacja</kbd> pauza · <kbd>R</kbd> synchronizacja · <kbd>M</kbd> dźwięk · <kbd>V</kbd> widok z kokpitu · strzałki na suwaku (z <kbd>Shift</kbd> szybciej)</p>
+</footer>
+
+<!-- ======== WPROWADZENIE ======== -->
+<div class="modal" id="intro" hidden>
+  <div class="modal-box intro-box" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+    <div class="intro-kicker">Teoria względności bez wzorów</div>
+    <h1 id="intro-title">Gumowy czas</h1>
+    <p class="lead">Einstein odkrył, że czas nie płynie wszędzie tak samo. <b>Zwalnia, gdy coś pędzi</b> bardzo szybko, i <b>zwalnia w pobliżu dużych mas</b>. Tutaj sprawdzisz to sam. Nie musisz znać fizyki.</p>
+    <div class="steps">
+      <div class="step"><div class="step-ico">
+        <svg viewBox="0 0 48 48"><rect x="6" y="21" width="36" height="6" rx="3" fill="#1b2442"/><rect x="6" y="21" width="26" height="6" rx="3" fill="#ffb84d"/><circle cx="32" cy="24" r="7" fill="#fff"/></svg>
+      </div><b>Przesuwaj suwaki</b><span>prędkość statku aż do prędkości światła i masę źródła: od Księżyca po czarną dziurę</span></div>
+      <div class="step"><div class="step-ico">
+        <svg viewBox="0 0 48 48"><circle cx="16" cy="24" r="11" fill="none" stroke="#5ee3ff" stroke-width="3"/><path d="M16 24V17" stroke="#5ee3ff" stroke-width="3" stroke-linecap="round"/><circle cx="34" cy="24" r="9" fill="none" stroke="#ffb84d" stroke-width="3"/><path d="M34 24l4 -3" stroke="#ffb84d" stroke-width="3" stroke-linecap="round"/></svg>
+      </div><b>Patrz na zegary</b><span>startują razem, a potem się rozjeżdżają. Ty jesteś nieruchomym obserwatorem</span></div>
+      <div class="step"><div class="step-ico">
+        <svg viewBox="0 0 48 48"><path d="M4 16 Q24 52 44 16" fill="none" stroke="#b98cff" stroke-width="3"/><path d="M8 26 Q24 50 40 26" fill="none" stroke="#b98cff" stroke-opacity=".5" stroke-width="2"/><circle cx="24" cy="26" r="6" fill="#ffb84d"/></svg>
+      </div><b>Obserwuj animacje</b><span>statek się skraca, światło leci zygzakiem, a czasoprzestrzeń ugina się jak guma</span></div>
+    </div>
+    <p class="tip">Na dobry początek: w zakładce <b>Prędkość</b> przesuń suwak prawie do końca i zobacz, co dzieje się z zegarem statku.</p>
+    <div class="intro-actions">
+      <label class="switch"><input type="checkbox" id="intro-sound" checked><span></span>Tykanie zegarów (każdy zegar ma inny dźwięk)</label>
+      <button class="btn primary big" id="btn-start">Zaczynamy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== SŁOWNICZEK ======== -->
+<div class="modal" id="glossary" hidden>
+  <div class="modal-box glossary-box" role="dialog" aria-modal="true" aria-labelledby="gl-title">
+    <button class="modal-close" data-close aria-label="Zamknij">×</button>
+    <h2 id="gl-title">Słowniczek</h2>
+    <dl id="glossary-list"></dl>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="js/physics.js"></script>
+<script src="js/clocks.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/scene-speed.js"></script>
+<script src="js/scene-sheet.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/content.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
