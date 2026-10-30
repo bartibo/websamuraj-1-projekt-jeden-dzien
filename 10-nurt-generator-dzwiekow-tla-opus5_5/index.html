@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07080d">
+  <title>Nurt – jeden suwak, właściwe tło do pracy</title>
+  <meta name="description" content="Minimalistyczny generator dźwięków tła do pracy. Zamiast miksować odgłosy, ustawiasz jednym suwakiem, ile energii potrzebujesz, a Nurt sam płynnie dobiera proporcje brązowego i różowego szumu, deszczu, ambientu, lo-fi i gwaru kawiarni. Wszystko powstaje na żywo w przeglądarce, bez konta.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307080d'/%3E%3Cpath d='M8 26c8-8 16 8 24 0s16 8 24 0' fill='none' stroke='%236c6cf0' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M8 36c8-8 16 8 24 0s16 8 24 0' fill='none' stroke='%233fd1b0' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M8 46c8-8 16 8 24 0s16 8 24 0' fill='none' stroke='%23f59a4f' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas id="flow" aria-hidden="true"></canvas>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 26c8-8 16 8 24 0s16 8 24 0" fill="none" stroke="#6c6cf0" stroke-width="4" stroke-linecap="round"/><path d="M8 36c8-8 16 8 24 0s16 8 24 0" fill="none" stroke="#3fd1b0" stroke-width="4" stroke-linecap="round"/><path d="M8 46c8-8 16 8 24 0s16 8 24 0" fill="none" stroke="#f59a4f" stroke-width="4" stroke-linecap="round"/></svg>
+      <b>Nurt</b>
+      <span>tło do pracy</span>
+    </div>
+    <div class="tools">
+      <button class="chip" id="btn-timer" title="Sesja z łagodnym wyciszeniem na końcu (T)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2.5 2M9.5 2.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span id="timer-label">bez limitu</span>
+      </button>
+      <button class="icon-btn" id="btn-info" title="Jak to działa (?)" aria-label="Jak to działa">?</button>
+    </div>
+  </header>
+
+  <main class="center">
+    <p class="eyebrow">Ile energii potrzebujesz?</p>
+    <h1 class="zone" id="zone-name">Przepływ</h1>
+    <p class="zone-hint" id="zone-hint">praca w równym rytmie, projektowanie, analiza</p>
+
+    <div class="dial">
+      <div class="dial-ends" aria-hidden="true"><span>spokój</span><span>energia</span></div>
+      <input type="range" class="energy" id="energy" min="0" max="100" step="0.1" value="50" aria-label="Poziom energii umysłowej">
+      <div class="ticks" id="ticks"></div>
+    </div>
+
+    <button class="play" id="btn-play" aria-label="Odtwarzaj">
+      <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+      <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>
+      <span class="spinner" aria-hidden="true"></span>
+    </button>
+    <p class="status" id="status">Kliknij, żeby zacząć. Słuchawki mile widziane.</p>
+  </main>
+
+  <footer class="bottom">
+    <div class="now">
+      <span class="now-label">Teraz słychać</span>
+      <div class="mixview" id="mixview"></div>
+    </div>
+    <label class="vol" title="Głośność (↑ ↓)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input type="range" id="volume" min="0" max="100" step="1" value="70" aria-label="Głośność">
+    </label>
+  </footer>
+</div>
+
+<dialog class="info" id="info">
+  <button class="close" id="info-close" aria-label="Zamknij">×</button>
+  <h2>Jeden suwak zamiast miksera</h2>
+  <p>Nie musisz wiedzieć, czy dziś lepszy jest deszcz, czy szum. Mówisz tylko, ile energii potrzebujesz, a&nbsp;Nurt sam dobiera i płynnie przenika warstwy:</p>
+  <ul class="zones-list">
+    <li><b>Wyciszenie</b> – głęboki brązowy szum, deszcz za oknem, ambientowe plamy akordów i pojedyncze dźwięki pianina.</li>
+    <li><b>Głębokie skupienie</b> – szum jaśnieje, deszcz gęstnieje, akordy lo-fi i miękki bas, bez bitu.</li>
+    <li><b>Przepływ</b> – lo-fi w spokojnym tempie, delikatny bit na rimie, krótkie frazy melodii, daleki gwar.</li>
+    <li><b>Rozpęd</b> – pełny bit, żywszy akompaniament, kawiarnia się zapełnia.</li>
+    <li><b>Pełna moc</b> – 90 uderzeń na minutę, jasne brzmienie, pełna sala, ekspres syczy, łyżeczki dzwonią.</li>
+  </ul>
+  <p>Każde położenie pomiędzy brzmi inaczej. Tempo, jasność, gęstość akompaniamentu i liczba gości w kawiarni zmieniają się razem z suwakiem.</p>
+  <h3>Nic tu nie jest nagrane</h3>
+  <p>Wszystko powstaje na żywo w przeglądarce: szumy, krople, akordy, bit i rozmowy (słów nie da się zrozumieć, więc nie przyciągają uwagi). Muzyka komponuje się takt po takcie, więc nic się nie zapętla. Działa od razu, bez konta, bez reklam i bez internetu. Na tym urządzeniu zapamiętywane jest tylko położenie suwaka, głośność i długość sesji.</p>
+  <h3>Skróty</h3>
+  <dl class="keys">
+    <dt><kbd>spacja</kbd></dt><dd>graj / pauza</dd>
+    <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>mniej / więcej energii (z <kbd>Shift</kbd> szybciej)</dd>
+    <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>skok do strefy</dd>
+    <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>głośność</dd>
+    <dt><kbd>T</kbd></dt><dd>sesja: bez limitu, 25, 50 albo 90 minut, na końcu łagodne wyciszenie i dzwonek</dd>
+  </dl>
+</dialog>
+
+<script src="js/util.js"></script>
+<script src="js/buffers.js"></script>
+<script src="js/mix.js"></script>
+<script src="js/noise.js"></script>
+<script src="js/lofi.js"></script>
+<script src="js/cafe.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/visual.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
