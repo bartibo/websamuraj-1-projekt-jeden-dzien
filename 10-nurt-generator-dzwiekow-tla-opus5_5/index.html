@@ -24,6 +24,14 @@
       <span>tło do pracy</span>
     </div>
     <div class="tools">
+      <button class="chip" id="btn-mixer" title="Mikser: każda warstwa na osobnym suwaku (M)" aria-expanded="false" aria-controls="mixer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="15" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span>Mikser</span><b class="badge" id="mixer-badge" hidden></b>
+      </button>
+      <button class="chip" id="btn-export" title="Nagraj utwór do pliku MP3 (N)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>MP3</span>
+      </button>
       <button class="chip" id="btn-timer" title="Sesja z łagodnym wyciszeniem na końcu (T)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2.5 2M9.5 2.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         <span id="timer-label">bez limitu</span>
@@ -63,6 +71,42 @@
   </footer>
 </div>
 
+<aside class="mixer" id="mixer" aria-label="Mikser" hidden>
+  <div class="mixer-head">
+    <h2>Mikser</h2>
+    <button class="close" id="mixer-close" aria-label="Zamknij mikser">×</button>
+  </div>
+  <p class="mixer-note">Suwak energii dalej ustawia wszystko naraz. Przesuń tu dowolną warstwę, a zostanie tam, gdzie ją zostawisz (świeci kropka). Reszta płynie za energią.</p>
+  <div class="mixer-body" id="mixer-body"></div>
+  <div class="mixer-foot">
+    <button class="btn-text" id="mixer-auto" disabled>Wszystko z energii</button>
+    <button class="btn-text" id="mixer-random" title="Wylosuj własny miks">Losuj miks</button>
+  </div>
+</aside>
+
+<dialog class="info export" id="export">
+  <button class="close" id="export-close" aria-label="Zamknij">×</button>
+  <h2>Nagraj utwór MP3</h2>
+  <p>Nurt skomponuje i nagra utwór z tym, co jest teraz ustawione: <b id="ex-what">Przepływ</b>. Muzyka powstaje od nowa, więc każde nagranie jest inne. Wszystko dzieje się na tym komputerze, nic nie jest wysyłane.</p>
+  <div class="ex-row">
+    <span class="ex-label">Długość</span>
+    <div class="seg" id="ex-len" role="radiogroup" aria-label="Długość utworu"></div>
+  </div>
+  <div class="ex-row">
+    <span class="ex-label">Wejście i wyjście</span>
+    <div class="seg" id="ex-fade" role="radiogroup" aria-label="Wejście i wyjście"></div>
+  </div>
+  <p class="ex-meta" id="ex-meta"></p>
+  <div class="ex-progress" id="ex-progress" hidden>
+    <div class="ex-bar"><i id="ex-bar"></i></div>
+    <p id="ex-status"></p>
+  </div>
+  <div class="ex-actions">
+    <button class="btn-main" id="ex-go">Nagraj MP3</button>
+    <a class="btn-main ghost" id="ex-save" hidden>Pobierz ponownie</a>
+  </div>
+</dialog>
+
 <dialog class="info" id="info">
   <button class="close" id="info-close" aria-label="Zamknij">×</button>
   <h2>Jeden suwak zamiast miksera</h2>
@@ -75,8 +119,12 @@
     <li><b>Pełna moc</b> – 90 uderzeń na minutę, jasne brzmienie, pełna sala, ekspres syczy, łyżeczki dzwonią.</li>
   </ul>
   <p>Każde położenie pomiędzy brzmi inaczej. Tempo, jasność, gęstość akompaniamentu i liczba gości w kawiarni zmieniają się razem z suwakiem.</p>
+  <h3>Mikser</h3>
+  <p>Wolisz sam? W <b>mikserze</b> każda z czternastu warstw ma swój suwak: szumy, deszcz, wiatr, fale morza, kominek, ptaki, kawiarnia, ambient, pianino, bas, melodia, bit i winyl. Do tego tempo, jasność, gęstość gry i przestrzeń (pogłos). Przesunięty suwak zostaje na swoim miejscu, a resztą dalej rządzi energia. Kliknięcie paska w „Teraz słychać” otwiera mikser na tej warstwie.</p>
+  <h3>Nagraj MP3</h3>
+  <p>Przycisk <b>MP3</b> nagrywa utwór od 3 do 30 minut z tym, co jest ustawione, z łagodnym wejściem i wyjściem. Nagranie powstaje szybciej niż w czasie rzeczywistym (10 minut to zwykle 2–4 minuty czekania), a muzyka komponuje się od nowa, więc każdy plik jest inny.</p>
   <h3>Nic tu nie jest nagrane</h3>
-  <p>Wszystko powstaje na żywo w przeglądarce: szumy, krople, akordy, bit i rozmowy (słów nie da się zrozumieć, więc nie przyciągają uwagi). Muzyka komponuje się takt po takcie, więc nic się nie zapętla. Działa od razu, bez konta, bez reklam i bez internetu. Na tym urządzeniu zapamiętywane jest tylko położenie suwaka, głośność i długość sesji.</p>
+  <p>Wszystko powstaje na żywo w przeglądarce: szumy, krople, akordy, bit, ptaki i rozmowy (słów nie da się zrozumieć, więc nie przyciągają uwagi). Muzyka komponuje się takt po takcie, więc nic się nie zapętla. Działa od razu, bez konta, bez reklam i bez internetu. Na tym urządzeniu zapamiętywane są tylko ustawienia suwaków, głośność i długość sesji.</p>
   <h3>Skróty</h3>
   <dl class="keys">
     <dt><kbd>spacja</kbd></dt><dd>graj / pauza</dd>
@@ -84,6 +132,8 @@
     <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>skok do strefy</dd>
     <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>głośność</dd>
     <dt><kbd>T</kbd></dt><dd>sesja: bez limitu, 25, 50 albo 90 minut, na końcu łagodne wyciszenie i dzwonek</dd>
+    <dt><kbd>M</kbd></dt><dd>mikser</dd>
+    <dt><kbd>N</kbd></dt><dd>nagraj utwór MP3</dd>
   </dl>
 </dialog>
 
@@ -93,7 +143,9 @@
 <script src="js/noise.js"></script>
 <script src="js/lofi.js"></script>
 <script src="js/cafe.js"></script>
+<script src="js/nature.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/export.js"></script>
 <script src="js/visual.js"></script>
 <script src="js/app.js"></script>
 </body>

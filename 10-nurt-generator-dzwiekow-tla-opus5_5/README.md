@@ -45,12 +45,40 @@ Wszystkie zmiany płyną ze stałą czasową ok. 0,7 s, więc nawet szarpnięcie
 ## Co jeszcze
 
 - **Sesja z wyciszeniem**: bez limitu, 25, 50 albo 90 minut. Pod koniec dźwięk przez 12 s łagodnie cichnie i odzywa się miękki dzwonek.
-- **Pamięć**: położenie suwaka, głośność i długość sesji zostają w przeglądarce (localStorage), więc po powrocie wszystko jest tak, jak było. Nic nie wychodzi poza komputer.
+- **Pamięć**: położenie suwaka, ręczny miks, głośność, długość sesji i ustawienia nagrywania zostają w przeglądarce (localStorage), więc po powrocie wszystko jest tak, jak było. Nic nie wychodzi poza komputer.
 - **Tło**: wstęga płynących linii. Przy niskiej energii płynie wolno, szeroko i w chłodnych barwach, przy wysokiej przyspiesza, faluje drobniej i robi się ciepła. Oddycha razem z głośnością muzyki.
 - Tytuł karty pokazuje strefę (`▶ Przepływ · Nurt`). Dźwięk gra też w karcie w tle, bo zegar planowania nut działa w Web Workerze.
 - Szanuje ustawienie „ogranicz ruch” w systemie.
 
-Klawisze: `spacja` graj/pauza, `←` `→` energia (z `Shift` szybciej), `1`–`5` skok do strefy, `↑` `↓` głośność, `T` sesja, `?` pomoc.
+Klawisze: `spacja` graj/pauza, `←` `→` energia (z `Shift` szybciej), `1`–`5` skok do strefy, `↑` `↓` głośność, `T` sesja, `M` mikser, `N` nagraj MP3, `?` pomoc.
+
+## Rozwój po eksperymencie
+
+31.10.2026 autor poprosił o dwie rzeczy: żeby dało się sterować wieloma suwakami, a nie tylko jednym, i żeby można było zapisać utwór do MP3, np. 10-minutowy, z łagodnym wejściem i wyjściem. Wdrożone zmiany:
+
+- **Mikser** (przycisk „Mikser” albo `M`). Wysuwany panel: z prawej na komputerze, od dołu na telefonie. Ma 18 suwaków w trzech grupach:
+  - *Otoczenie*: brązowy szum, różowy szum, deszcz, wiatr, fale morza, kominek, ptaki, kawiarnia,
+  - *Muzyka*: ambient, pianino, bas, melodia, bit, winyl (wcześniej pianino, bas i melodia były widoczne tylko razem jako „Lo-fi”),
+  - *Charakter*: tempo (56–100 BPM), jasność (filtr „taśmy” 1,5–5,6 kHz), gęstość gry (od rozłożonych dźwięków po synkopy i szesnastki hi-hatów) i przestrzeń (ilość pogłosu).
+
+  Suwak energii dalej ustawia wszystko naraz, a suwaki w mikserze jadą razem z nim. Przesunięty ręcznie suwak zostaje tam, gdzie go zostawiono (świeci przy nim kropka, `↺` oddaje go energii). Przycisk na górze pokazuje, ile warstw jest ustawionych ręcznie. „Wszystko z energii” czyści ręczne ustawienia, a „Losuj miks” losuje 1–3 dźwięki otoczenia, muzykę z losowej energii, jasność i przestrzeń. Paski „Teraz słychać” są teraz przyciskami: kliknięcie otwiera mikser na tej warstwie. Ręczny miks zapamiętuje się razem z resztą ustawień.
+- **Cztery nowe warstwy**, też syntezowane na żywo. Energia ich nie włącza, dokłada się je w mikserze:
+  - *wiatr*: dwa pasma różowego szumu po bokach, których filtr, dobroć i głośność wędrują po losowych celach, plus rzadki świst,
+  - *fale morza*: dwie fale na zmianę. Szum narasta, w chwili załamania błyska jasnością i syczy, cofając się. Pod spodem ciemny szum morza w oddali,
+  - *kominek*: bufor serii drobnych trzasków pękającego drewna, strzałów żywicy z krótkim dźwięcznym ogonem i syku gazu, nad pomrukiem płomieni, który faluje,
+  - *ptaki*: na sesję losują się 3–4 „gatunki” (ćwierkanie, gwizd z vibrato, trel), każdy z własną wysokością i miejscem w panoramie, więc te same ptaki wracają ze swoim śpiewem.
+
+  Ich poziomy zmierzono tak jak resztę (RMS w `OfflineAudioContext`) i wyrównano do deszczu, a ptaki ustawiono ok. 6 dB ciszej. Warstwa powstaje dopiero przy pierwszym podgłośnieniu, więc wyciszona nie zużywa procesora.
+- **Pilnowanie głośności ręcznego miksu.** Silnik zna zmierzoną głośność każdej warstwy. Jeśli ręczny miks jest głośniejszy niż miks z samej energii, całość jest ściszana do tego samego poziomu, więc podkręcenie kilku suwaków do końca nie przesterowuje dźwięku.
+- **Nagraj MP3** (przycisk „MP3” albo `N`). Do wyboru długość (3, 5, 10, 20 lub 30 minut) i wejście z wyjściem: krótkie (4 s / 6 s), łagodne (15 s / 25 s) albo bardzo długie (40 s / 60 s). Nagrywany jest dokładnie ten miks, który jest ustawiony, łącznie z ręcznymi suwakami. Jak to działa:
+  - ten sam silnik gra w `OfflineAudioContext`, czyli tak szybko, jak pozwala procesor. Co sekundę nagrania renderowanie staje na chwilę (`suspend`), żeby dopisać kolejne takty, rozmowy i fale,
+  - wejście i wyjście to krzywa S podniesiona do potęgi 1,6, więc dźwięk wyłania się miękko i długo wybrzmiewa,
+  - gotowe nagranie jest wyrównywane do −17 dB RMS (liczonego bez wejścia i wyjścia), a szczyty do najwyżej −1 dBFS,
+  - koder [lamejs](https://github.com/zhuker/lamejs) (LGPL, plik w `js/vendor/`) ładuje się dopiero przy pierwszym nagraniu i koduje do MP3 192 kb/s stereo z lekkim ditherem, w kawałkach, więc strona nie zamiera,
+  - plik dostaje znacznik ID3 z tytułem (np. „Nurt · Przepływ · 10 min”) i nazwę `nurt-przeplyw-10-min.mp3`,
+  - postęp widać w okienku i na przycisku „MP3”, nagrywanie można przerwać, a w tym czasie Nurt dalej gra na żywo.
+
+  Pomiar w Chrome: 3 minuty z falami, ptakami, kominkiem i wiatrem nagrały się w 79 s. Plik ma 3:00, 4,1 MB, równe −17,8 dB RMS w środku i −16,6 LUFS całości. Synteza idzie ok. 3,3–4× szybciej niż czas rzeczywisty przy średniej i pełnej energii, a ok. 6× przy niskiej, więc 10 minut to zwykle 2,5–4 minuty czekania. Nagranie 30-minutowe potrzebuje ok. 650 MB pamięci, więc na telefonie lepiej wybrać krótsze.
 
 ## Nic tu nie jest nagrane
 
@@ -91,12 +119,15 @@ Wynik: cały zakres suwaka mieści się w ok. −16 … −19 dB RMS, a szczyty 
 index.html        – układ strony i okno „Jak to działa”
 css/style.css     – wygląd
 js/util.js        – drobne narzędzia (losowanie, filtry, wzmacniacze)
-js/buffers.js     – szumy, krople deszczu, trzaski winylu, odpowiedź impulsowa pogłosu
-js/mix.js         – tabela energia → proporcje warstw, strefy, kolory
+js/buffers.js     – szumy, krople deszczu, trzaski winylu i kominka, odpowiedź impulsowa pogłosu
+js/mix.js         – tabela energia → proporcje warstw, ręczne wartości z miksera, suwaki miksera, strefy, kolory
 js/noise.js       – warstwy: brązowy szum, różowy szum, deszcz
 js/lofi.js        – generatywne lo-fi: harmonia, instrumenty, sekwencer, taśma, winyl
 js/cafe.js        – gwar kawiarni: rozmowy, naczynia, ekspres, młynek
-js/engine.js      – tor sygnału, poziomy warstw, kompresja, dzwonek końca sesji
+js/nature.js      – wiatr, fale morza, kominek, ptaki
+js/engine.js      – tor sygnału, poziomy warstw, pilnowanie głośności, kompresja, dzwonek końca sesji
+js/export.js      – nagrywanie utworu offline, wejście i wyjście, wyrównanie głośności, MP3 z ID3
+js/vendor/        – lamejs (koder MP3, LGPL) i jego licencja
 js/visual.js      – tło z płynącą wstęgą linii
-js/app.js         – suwak, odtwarzanie, sesje, skróty, pamięć ustawień
+js/app.js         – suwak, mikser, odtwarzanie, sesje, nagrywanie, skróty, pamięć ustawień
 ```

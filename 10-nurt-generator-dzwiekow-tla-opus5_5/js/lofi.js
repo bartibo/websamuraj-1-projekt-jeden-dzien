@@ -5,7 +5,8 @@
    frazy melodii i ambientowy pad są komponowane takt po takcie.
    Całość przechodzi przez „taśmę” (wow i flutter), lekkie nasycenie
    i filtr, a obok kręci się płyta z trzaskami.
-   Energia zmienia tempo, gęstość akompaniamentu, wejście bitu i jasność.
+   Energia zmienia tempo, gęstość akompaniamentu, wejście bitu i jasność
+   (w mikserze każdą z tych rzeczy można ustawić osobno).
    ===================================================================== */
 'use strict';
 (function (N) {
@@ -305,7 +306,7 @@
     let running = false;
 
     function playBar(t0, barDur) {
-      const m = mix, e = m.energy;
+      const m = mix, e = m.busy; // gęstość gry: z energii albo z miksera
       const sd = barDur / 16;
       const swing = 0.2;
       const at = s => t0 + s * sd + (s % 2 ? sd * swing : 0) + U.rand(-0.004, 0.004);
@@ -408,7 +409,7 @@
       setParams(m, immediate) {
         mix = m;
         const t = ctx.currentTime;
-        const pf = 480 + 820 * m.energy;
+        const pf = 480 + 820 * m.bright;
         if (immediate) {
           tone.frequency.setValueAtTime(m.cutoff, t);
           padTone.frequency.setValueAtTime(pf, t);

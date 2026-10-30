@@ -10,8 +10,15 @@
   // Poziom każdej warstwy przy wartości 1 w tabeli miksu (zmierzony, patrz README)
   const LEVEL = {
     brown: 0.31, pink: 0.18, rain: 0.36, pad: 0.52, keys: 0.46,
-    bass: 0.09, drums: 0.38, melody: 0.5, vinyl: 0.64, cafe: 0.7
+    bass: 0.09, drums: 0.38, melody: 0.5, vinyl: 0.64, cafe: 0.7,
+    wind: 1.5, waves: 0.34, fire: 0.48, birds: 1.4
   };
+  // Głośność (RMS) każdej warstwy przy wartości 1, względem deszczu – do pilnowania poziomu ręcznego miksu
+  const LOUD = {
+    brown: 1.23, pink: 0.56, rain: 1, pad: 0.99, keys: 1.12, bass: 1.32, drums: 1.43, melody: 0.55,
+    vinyl: 0.09, cafe: 1.15, wind: 0.9, waves: 1.13, fire: 0.92, birds: 0.4
+  };
+  const power = mix => N.mix.LAYERS.reduce((p, k) => p + Math.pow(LOUD[k] * mix[k], 2), 0);
 
   N.createEngine = function (ctx) {
     const U = N.util, B = N.buffers;
@@ -21,7 +28,8 @@
       pink: B.noise(ctx, 'pink', 10),
       brown: B.noise(ctx, 'brown', 10),
       drops: B.rainDrops(ctx, 12),
-      crackle: B.crackle(ctx, 9)
+      crackle: B.crackle(ctx, 9),
+      fire: B.fire(ctx, 14)
     };
 
     E.bus = U.gain(ctx, 1);
@@ -41,21 +49,32 @@
     E.reverbIn = U.gain(ctx, 1);
     const conv = ctx.createConvolver();
     conv.buffer = B.impulse(ctx, 2.6, 2.6);
-    E.reverbIn.connect(conv).connect(U.gain(ctx, 0.5)).connect(E.bus);
+    E.reverbOut = U.gain(ctx, 0.5);
+    E.reverbIn.connect(conv).connect(E.reverbOut).connect(E.bus);
 
     E.noise = N.createNoiseLayers(E);
     E.lofi = N.createLofi(E);
     E.cafe = N.createCafe(E);
-    E.layerGains = Object.assign({}, E.noise.gains, E.lofi.gains, E.cafe.gains);
+    E.nature = N.createNature(E);
+    E.layerGains = Object.assign({}, E.noise.gains, E.lofi.gains, E.cafe.gains, E.nature.gains);
     E.mix = null;
 
     /** Ustaw proporcje warstw. Bez `immediate` wszystko płynie z ok. 0,7 s stałej czasowej. */
     E.apply = function (mix, immediate) {
       const t = ctx.currentTime;
       // przy wysokiej energii warstw jest więcej, więc lekko ściszamy całość (do -2 dB)
-      const trim = Math.pow(10, -2 * mix.energy / 20);
-      if (immediate) E.bus.gain.setValueAtTime(trim, t);
-      else E.bus.gain.setTargetAtTime(trim, t, 0.7);
+      let trim = Math.pow(10, -2 * mix.energy / 20);
+      // ręczny miks głośniejszy niż ten z energii też jest ściszany, żeby całość nie przesterowała
+      const p = power(mix), ref = power(N.mix.at(mix.energy));
+      if (p > ref) trim *= Math.sqrt(ref / p);
+      const rv = mix.space;
+      if (immediate) {
+        E.bus.gain.setValueAtTime(trim, t);
+        E.reverbOut.gain.setValueAtTime(rv, t);
+      } else {
+        E.bus.gain.setTargetAtTime(trim, t, 0.7);
+        E.reverbOut.gain.setTargetAtTime(rv, t, 0.7);
+      }
       for (const k of N.mix.LAYERS) {
         const g = E.layerGains[k].gain, v = LEVEL[k] * mix[k];
         if (immediate) { g.cancelScheduledValues(t); g.setValueAtTime(v, t); }
@@ -63,6 +82,7 @@
       }
       E.lofi.setParams(mix, immediate);
       E.cafe.setParams(mix, immediate);
+      E.nature.setParams(mix, immediate);
       E.mix = mix;
     };
 
@@ -71,11 +91,13 @@
       E.noise.start(t);
       E.lofi.start(t);
       E.cafe.start(t);
+      E.nature.start(t);
     };
 
     E.schedule = function (until) {
       E.lofi.schedule(until);
       E.cafe.schedule(until);
+      E.nature.schedule(until);
     };
 
     E.setVolume = function (v, immediate) {

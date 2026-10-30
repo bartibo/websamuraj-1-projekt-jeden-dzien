@@ -1,7 +1,7 @@
 /* =====================================================================
    Nurt – surowce dźwiękowe liczone w przeglądarce
    Szumy (biały, różowy, brązowy), krople deszczu, trzaski winylu
-   i odpowiedź impulsowa pogłosu. Zero plików, zero nagrań.
+   i kominka oraz odpowiedź impulsowa pogłosu. Zero plików, zero nagrań.
    ===================================================================== */
 'use strict';
 (function (N) {
@@ -112,6 +112,62 @@
     }
     return buf;
   };
+
+  /** Kominek: serie drobnych trzasków (pękające drewno), rzadkie strzały żywicy i syk gazu. */
+  B.fire = function (ctx, seconds) {
+    const sr = ctx.sampleRate, len = Math.floor(sr * seconds);
+    const buf = ctx.createBuffer(2, len, sr);
+    const L = buf.getChannelData(0), R = buf.getChannelData(1);
+    // syk: wysoki szum, który powoli faluje
+    let hp = 0, prev = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      hp = 0.6 * (hp + w - prev);
+      prev = w;
+      const v = hp * 0.012 * (0.6 + 0.4 * Math.sin(i / sr * 0.9) * Math.sin(i / sr * 0.37 + 1));
+      L[i] += v;
+      R[i] += v * 0.9;
+    }
+    function click(start, amp, width, p) {
+      const gl = Math.cos(p * Math.PI / 2), gr = Math.sin(p * Math.PI / 2);
+      const m = Math.floor(width * 7);
+      let lp = 0;
+      for (let j = 0; j < m; j++) {
+        lp += 0.55 * ((Math.random() * 2 - 1) - lp);
+        const v = (Math.random() * 2 - 1 - lp) * amp * Math.exp(-j / width);
+        const idx = (start + j) % len;
+        L[idx] += v * gl;
+        R[idx] += v * gr;
+      }
+    }
+    // serie: drewno pęka po kilka razy w krótkich odstępach
+    const bursts = Math.floor(seconds * 2.2);
+    for (let k = 0; k < bursts; k++) {
+      let t = Math.floor(Math.random() * len);
+      const n = 2 + Math.floor(Math.pow(Math.random(), 2) * 14);
+      const p = Math.random(), base = 0.05 + Math.pow(Math.random(), 2) * 0.3;
+      for (let c = 0; c < n; c++) {
+        click(t, base * (0.4 + Math.random() * 0.8), 2 + Math.random() * 10, U01(p + (Math.random() - 0.5) * 0.15));
+        t += Math.floor(sr * (0.004 + Math.pow(Math.random(), 2) * 0.09));
+      }
+    }
+    // strzały żywicy: głośniejsze, z krótkim dźwięcznym ogonem
+    const pops = Math.floor(seconds * 0.35);
+    for (let k = 0; k < pops; k++) {
+      const start = Math.floor(Math.random() * len), p = Math.random();
+      click(start, 0.5 + Math.random() * 0.3, 18 + Math.random() * 20, p);
+      const f = 900 + Math.random() * 1600, tau = 0.006 + Math.random() * 0.01;
+      const gl = Math.cos(p * Math.PI / 2), gr = Math.sin(p * Math.PI / 2);
+      for (let j = 0, n = Math.floor(tau * 6 * sr); j < n; j++) {
+        const v = Math.sin(2 * Math.PI * f * j / sr) * Math.exp(-j / sr / tau) * 0.25;
+        const idx = (start + j) % len;
+        L[idx] += v * gl;
+        R[idx] += v * gr;
+      }
+    }
+    return buf;
+  };
+  const U01 = v => Math.min(1, Math.max(0, v));
 
   /** Pogłos „średniego pokoju”: ciemniejący z czasem, wykładniczo gasnący szum. */
   B.impulse = function (ctx, seconds, decay) {

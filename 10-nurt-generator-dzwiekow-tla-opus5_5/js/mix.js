@@ -1,9 +1,11 @@
 /* =====================================================================
-   Nurt – jeden suwak, dziesięć warstw
+   Nurt – jeden suwak, czternaście warstw
    Tu zapisane jest, jak poziom energii (0–1) przekłada się na proporcje
    szumów, deszczu, ambientu, lo-fi i gwaru kawiarni. Między punktami
    kontrolnymi wartości przechodzą liniowo, a silnik dźwięku dodatkowo
    je wygładza, więc każde położenie suwaka brzmi inaczej i nic nie skacze.
+   W mikserze każdą warstwę i każdy parametr można ustawić ręcznie:
+   ręczne wartości zastępują te z energii, reszta dalej płynie za suwakiem.
    ===================================================================== */
 'use strict';
 (function (N) {
@@ -19,8 +21,14 @@
     drums:  [0.00, 0.00, 0.30, 0.75, 0.90, 1.00],  // miękki bit
     melody: [0.00, 0.08, 0.40, 0.55, 0.60, 0.45],
     vinyl:  [0.10, 0.35, 0.55, 0.50, 0.45, 0.35],  // trzaski płyty
-    cafe:   [0.00, 0.00, 0.08, 0.40, 0.75, 1.00]   // gwar kawiarni
+    cafe:   [0.00, 0.00, 0.08, 0.40, 0.75, 1.00],  // gwar kawiarni
+    // tylko z miksera: energia ich nie włącza
+    wind:   [0, 0, 0, 0, 0, 0],
+    waves:  [0, 0, 0, 0, 0, 0],
+    fire:   [0, 0, 0, 0, 0, 0],
+    birds:  [0, 0, 0, 0, 0, 0]
   };
+  const BPM = [56, 100];
 
   function interp(arr, e) {
     if (e <= 0) return arr[0];
@@ -44,15 +52,48 @@
   N.mix = {
     LAYERS: Object.keys(TABLE),
 
-    /** Pełny przepis miksu dla danej energii. */
-    at(e) {
+    /** Pełny przepis miksu dla danej energii. `manual` – ręczne wartości z miksera (0–1). */
+    at(e, manual) {
       e = N.util.clamp(e, 0, 1);
       const m = { energy: e };
       for (const k in TABLE) m[k] = interp(TABLE[k], e);
-      m.bpm = 64 + 26 * e;                              // 64–90 uderzeń na minutę
-      m.cutoff = 1500 * Math.pow(5600 / 1500, e);       // im wyżej, tym jaśniejsze lo-fi
+      m.tempo = (64 + 26 * e - BPM[0]) / (BPM[1] - BPM[0]);  // 64–90 uderzeń na minutę
+      m.bright = e;                                       // im wyżej, tym jaśniejsze lo-fi
+      m.busy = e;                                         // gęstość akompaniamentu i bitu
+      m.space = 0.5;                                      // ilość pogłosu
+      if (manual) for (const k in manual) if (k in m && k !== 'energy') m[k] = N.util.clamp(+manual[k] || 0, 0, 1);
+      m.bpm = BPM[0] + (BPM[1] - BPM[0]) * m.tempo;
+      m.cutoff = 1500 * Math.pow(5600 / 1500, m.bright);
       return m;
     },
+
+    /** Suwaki miksera: wszystkie warstwy i parametry w trzech grupach. */
+    SECTIONS: [
+      { name: 'Otoczenie', controls: [
+        { id: 'brown', name: 'Brązowy szum' },
+        { id: 'pink', name: 'Różowy szum' },
+        { id: 'rain', name: 'Deszcz' },
+        { id: 'wind', name: 'Wiatr', isNew: true },
+        { id: 'waves', name: 'Fale morza', isNew: true },
+        { id: 'fire', name: 'Kominek', isNew: true },
+        { id: 'birds', name: 'Ptaki', isNew: true },
+        { id: 'cafe', name: 'Kawiarnia' }
+      ] },
+      { name: 'Muzyka', controls: [
+        { id: 'pad', name: 'Ambient' },
+        { id: 'keys', name: 'Pianino' },
+        { id: 'bass', name: 'Bas' },
+        { id: 'melody', name: 'Melodia' },
+        { id: 'drums', name: 'Bit' },
+        { id: 'vinyl', name: 'Winyl' }
+      ] },
+      { name: 'Charakter', controls: [
+        { id: 'tempo', name: 'Tempo', fmt: m => Math.round(m.bpm) + ' BPM' },
+        { id: 'bright', name: 'Jasność', fmt: m => (m.cutoff / 1000).toFixed(1).replace('.', ',') + ' kHz' },
+        { id: 'busy', name: 'Gęstość gry' },
+        { id: 'space', name: 'Przestrzeń' }
+      ] }
+    ],
 
     /** To, co widać w „Teraz słychać” – kilka warstw złożonych w czytelne grupy. */
     GROUPS: [
@@ -62,7 +103,12 @@
       { id: 'pad', name: 'Ambient', phrase: 'ambientowe tło', get: m => m.pad },
       { id: 'lofi', name: 'Lo-fi', phrase: 'lo-fi', get: m => Math.max(m.keys * 0.75, m.bass, m.melody) },
       { id: 'beat', name: 'Bit', phrase: 'miękki bit', get: m => m.drums },
-      { id: 'cafe', name: 'Kawiarnia', phrase: 'gwar kawiarni', get: m => m.cafe }
+      { id: 'cafe', name: 'Kawiarnia', phrase: 'gwar kawiarni', get: m => m.cafe },
+      // widać je tylko, gdy grają (włącza je mikser)
+      { id: 'wind', name: 'Wiatr', phrase: 'wiatr', get: m => m.wind, extra: true },
+      { id: 'waves', name: 'Fale', phrase: 'fale morza', get: m => m.waves, extra: true },
+      { id: 'fire', name: 'Kominek', phrase: 'trzask kominka', get: m => m.fire, extra: true },
+      { id: 'birds', name: 'Ptaki', phrase: 'ptaki', get: m => m.birds, extra: true }
     ],
 
     ZONES: [
