@@ -5,7 +5,7 @@
    koder MP3, więc po pierwszej wizycie Nurt działa w samolocie.
    ===================================================================== */
 'use strict';
-const CACHE = 'nurt-v2';
+const CACHE = 'nurt-v3';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/util.js', 'js/buffers.js', 'js/mix.js', 'js/arc.js', 'js/presets.js', 'js/noise.js', 'js/lofi.js',

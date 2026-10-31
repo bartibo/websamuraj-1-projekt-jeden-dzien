@@ -2,8 +2,8 @@
    Nurt – burza, świerszcze i pociąg
    Jak natura: tylko z miksera, syntezowane na żywo, a każda warstwa
    powstaje dopiero przy pierwszym użyciu.
-   Burza to grzmoty z różnych odległości: bliski zaczyna się trzaskiem,
-   daleki tylko się toczy. Świerszcze to czyste tony cięte na impulsy,
+   Burza to ulewa z porywami wiatru i grzmoty z modelu kanału błyskawicy:
+   bliski zaczyna się trzaskiem, daleki tylko się toczy. Świerszcze to czyste tony cięte na impulsy,
    każdy owad w swoim rytmie. Pociąg to stukot kół na stykach szyn
    (dwa wózki wagonu: „ta-dam… ta-dam”) nad szumem toczenia.
    ===================================================================== */
@@ -26,53 +26,21 @@
     let running = false;
 
     // ---------- burza ----------
-    let sky, nextThunder = 0, nextSky = 0;
+    // Ulewa z porywami wiatru, a nad nią grzmoty liczone z modelu kanału błyskawicy
+    // (B.thunder): każdy jest inny, bliski zaczyna się trzaskiem, daleki tylko się toczy.
+    let downpour, gustBp, gustG, nextThunder = 0, nextGust = 0;
     function thunder(t) {
-      const d = Math.pow(U.random(), 0.7);          // 0 – tuż obok, 1 – daleko
-      const pan = U.rand(-0.7, 0.7);
-      const out = U.panner(ctx, pan);
-      out.connect(gains.storm);
-      const len = U.rand(5, 11) * (0.7 + 0.5 * d);
-      // toczenie: niski szum z kilkoma kolejnymi przetoczeniami
-      const roll = ctx.createBufferSource();
-      roll.buffer = B.brown;
-      roll.loop = true;
-      const lp = U.filter(ctx, 'lowpass', 120 + 260 * (1 - d), 0.6);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      const amp = 0.9 - 0.45 * d;
-      g.gain.setTargetAtTime(amp, t, 0.04 + 0.5 * d);
-      let x = t + 0.3 + 0.6 * d;
-      while (x < t + len * 0.7) {
-        g.gain.setTargetAtTime(amp * U.rand(0.35, 1), x, U.rand(0.15, 0.5));
-        x += U.rand(0.5, 1.6);
-      }
-      g.gain.setTargetAtTime(0, t + len * 0.7, len * 0.15);
-      lp.frequency.setTargetAtTime(70 + 120 * (1 - d), t + 0.8, len * 0.3);
-      roll.connect(lp).connect(g).connect(out);
-      roll.start(t, U.rand(0, B.brown.duration - 1));
-      roll.stop(t + len * 1.3);
-      // bliski grzmot: najpierw ostry trzask rozdzieranego powietrza
-      if (d < 0.4) {
-        const crack = ctx.createBufferSource();
-        crack.buffer = B.white;
-        crack.loop = true;
-        const cg = ctx.createGain();
-        cg.gain.setValueAtTime(0, t);
-        const ca = (0.4 - d) * 1.6;
-        for (let k = 0, y = t; k < U.randi(3, 6); k++) {
-          cg.gain.setTargetAtTime(ca * U.rand(0.5, 1), y, 0.004);
-          cg.gain.setTargetAtTime(ca * 0.12, y + 0.02, 0.05);
-          y += U.rand(0.04, 0.16);
-        }
-        cg.gain.setTargetAtTime(0, t + 0.6, 0.25);
-        crack.connect(U.filter(ctx, 'highpass', 700, 0.5)).connect(U.filter(ctx, 'lowpass', 6000, 0.5)).connect(cg).connect(out);
-        crack.start(t, U.rand(0, B.white.duration - 2));
-        crack.stop(t + 2);
-      }
-      return len;
+      const r = U.random();
+      const D = r < 0.25 ? U.rand(300, 1200) : r < 0.7 ? U.rand(1200, 4000) : U.rand(4000, 11000);
+      const s = ctx.createBufferSource();
+      s.buffer = N.buffers.thunder(ctx, D);
+      // powietrze tłumi wysokie tony tym mocniej, im grzmot dalej
+      const lp = U.filter(ctx, 'lowpass', 2500 + 9000 / (1 + D / 1000), 0.5);
+      const g = U.gain(ctx, Math.min(1, Math.sqrt(900 / (D + 600))));
+      s.connect(lp).connect(g).connect(gains.storm);
+      s.start(Math.max(t, ctx.currentTime));
+      return s.buffer.duration;
     }
-
     // ---------- świerszcze ----------
     let crickets;
     function makeCricket(i) {
@@ -119,9 +87,19 @@
 
     const build = {
       storm() {
-        // niebo między grzmotami: bardzo niski, falujący pomruk
-        sky = U.gain(ctx, 0.1);
-        src(B.brown, 3.9).connect(U.filter(ctx, 'lowpass', 75, 0.7)).connect(sky).connect(gains.storm);
+        // ulewa: ta sama tekstura kropli co deszcz, ale wolniej (cięższe krople) i gęściej
+        downpour = U.gain(ctx, 0.25);
+        const heavy = src(B.patter, 2.1);
+        heavy.playbackRate.value = 0.78;
+        heavy.connect(U.filter(ctx, 'highpass', 150, 0.6)).connect(U.filter(ctx, 'lowpass', 2400, 0.5)).connect(downpour);
+        src(B.pink, 7.3).connect(U.filter(ctx, 'bandpass', 800, 0.5)).connect(U.gain(ctx, 0.12)).connect(downpour);
+        downpour.connect(gains.storm);
+        // porywy wiatru niosące deszcz
+        gustBp = U.filter(ctx, 'bandpass', 500, 1);
+        gustG = U.gain(ctx, 0.1);
+        src(B.pink, 1.9).connect(gustBp).connect(U.filter(ctx, 'lowpass', 1800, 0.5)).connect(gustG).connect(gains.storm);
+        // daleki pomruk nieba między grzmotami
+        src(B.brown, 3.9).connect(U.filter(ctx, 'lowpass', 90, 0.7)).connect(U.gain(ctx, 0.12)).connect(gains.storm);
       },
       crickets() {
         crickets = Array.from({ length: U.randi(4, 6) }, (_, i) => makeCricket(i));
@@ -152,13 +130,16 @@
           ready('storm');
           if (!nextThunder || nextThunder < now - 30) nextThunder = now + U.rand(1.5, 4);
           while (nextThunder < until) {
-            const len = thunder(nextThunder);
-            nextThunder += Math.max(len * 0.6, U.rand(10, 35) / (0.4 + level.storm));
+            thunder(nextThunder);
+            nextThunder += U.rand(8, 28) / (0.4 + level.storm);
           }
-          if (nextSky < now) nextSky = now;
-          while (nextSky < until) {
-            sky.gain.setTargetAtTime(U.rand(0.04, 0.16), nextSky, 1.5);
-            nextSky += U.rand(2, 5);
+          if (nextGust < now) nextGust = now;
+          while (nextGust < until) {
+            const d = U.rand(1.5, 4.5), g = Math.pow(U.random(), 1.5);
+            gustBp.frequency.setTargetAtTime(U.rand(300, 900), nextGust, d * 0.4);
+            gustG.gain.setTargetAtTime(0.02 + 0.15 * g, nextGust, d * 0.35);
+            downpour.gain.setTargetAtTime(0.2 + 0.12 * g, nextGust, d * 0.4); // w porywie deszcz zacina mocniej
+            nextGust += d;
           }
         } else nextThunder = 0;
 

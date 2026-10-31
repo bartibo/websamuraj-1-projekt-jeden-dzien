@@ -1,7 +1,7 @@
 /* =====================================================================
    Nurt – surowce dźwiękowe liczone w przeglądarce
-   Szumy (biały, różowy, brązowy), krople deszczu, trzaski winylu
-   i kominka oraz odpowiedź impulsowa pogłosu. Zero plików, zero nagrań.
+   Szumy (biały, różowy, brązowy), deszcz, trzaski winylu i kominka,
+   grzmoty i odpowiedź impulsowa pogłosu. Zero plików, zero nagrań.
    ===================================================================== */
 'use strict';
 (function (N) {
@@ -52,36 +52,30 @@
     return buf;
   };
 
-  /** Krople: krótki trzask uderzenia i pęcherzyk, którego ton rośnie (rezonans Minnaerta). */
-  B.rainDrops = function (ctx, seconds) {
+  /**
+   * Deszcz: tysiące drobnych uderzeń kropli na sekundę. Każde to krótki trzask szumu
+   * z własną barwą (jedne głuche, inne jaśniejsze) i siłą: większość ledwo słychać,
+   * nieliczne są wyraźne. Tak wygląda prawdziwy deszcz na spektrogramie: ziarnista
+   * mgiełka w paśmie ok. 300 Hz–2 kHz, a nie gładki szum ani dzwoniące krople.
+   */
+  B.rainPatter = function (ctx, seconds, perSecond) {
     const sr = ctx.sampleRate, len = Math.floor(sr * seconds);
     const buf = ctx.createBuffer(2, len, sr);
-    const L = buf.getChannelData(0), R = buf.getChannelData(1);
-    const count = Math.floor(seconds * 120);
-    for (let k = 0; k < count; k++) {
-      const start = Math.floor(rnd() * len);
-      const heavy = rnd() < 0.07;
-      const f0 = heavy ? 450 + rnd() * 700 : 1300 + rnd() * 3800;
-      const tau = heavy ? 0.010 + rnd() * 0.012 : 0.0018 + rnd() * 0.0055;
-      const amp = heavy ? 0.22 + rnd() * 0.2 : 0.04 + Math.pow(rnd(), 3) * 0.42;
-      const p = rnd();
-      const gl = Math.cos(p * Math.PI / 2), gr = Math.sin(p * Math.PI / 2);
-      const n = Math.floor(tau * 7 * sr);
-      let ph = 0;
-      for (let j = 0; j < n; j++) {
-        const t = j / sr;
-        const f = f0 * (1 + 1.1 * j / n);
-        ph += 2 * Math.PI * f / sr;
-        const v = Math.sin(ph) * Math.exp(-t / tau) * amp;
-        const idx = (start + j) % len;
-        L[idx] += v * gl;
-        R[idx] += v * gr;
-      }
-      for (let j = 0; j < 20; j++) {
-        const v = (rnd() * 2 - 1) * amp * 0.5 * Math.exp(-j / 4);
-        const idx = (start + j) % len;
-        L[idx] += v * gl;
-        R[idx] += v * gr;
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      for (let k = Math.floor(seconds * perSecond); k > 0; k--) {
+        const start = Math.floor(rnd() * len);
+        const amp = 0.03 + Math.pow(rnd(), 5) * 0.9;               // większość cicha, nieliczne mocne
+        const tau = (0.4 + Math.pow(rnd(), 2) * 3.5) * 1e-3 * sr;  // zanik 0,4–3,9 ms
+        const color = 0.05 + rnd() * 0.4;                           // filtr: od głuchego do jasnego
+        const dec = Math.exp(-1 / tau);
+        let lp = 0, lp2 = 0, env = amp;
+        for (let j = 0, m = Math.floor(tau * 4); j < m; j++) {
+          lp += color * ((rnd() * 2 - 1) - lp);
+          lp2 += color * (lp - lp2);
+          d[(start + j) % len] += lp2 * env;
+          env *= dec;
+        }
       }
     }
     return buf;
@@ -169,6 +163,111 @@
     return buf;
   };
   const U01 = v => Math.min(1, Math.max(0, v));
+
+  /**
+   * Grzmot z modelu kanału błyskawicy. Kanał to kręta droga z ok. tysiąca odcinków od ziemi
+   * do chmury, z odgałęzieniami i odcinkiem w poziomie wewnątrz chmury. Każdy odcinek wysyła
+   * krótką falę uderzeniową w kształcie litery N, która dociera do słuchacza tym później,
+   * im odcinek jest dalej. Odcinki ustawione w poprzek kierunku słuchania grzmią mocniej,
+   * więc grzmot przetacza się seriami uderzeń. Bliskie odcinki dają krótkie fale (trzask),
+   * dalekie długie i wygładzone (pomruk). Echa od terenu i chmur przedłużają przetaczanie.
+   * D – odległość uderzenia w metrach.
+   */
+  B.thunder = function (ctx, D) {
+    // grzmot ma prawie całą energię nisko, więc wystarczy rzadsze próbkowanie (szybciej liczyć);
+    // bliski potrzebuje więcej, bo zaczyna się trzaskiem. Przeglądarka sama przelicza przy graniu.
+    const sr = D < 1500 ? 22050 : 11025, C = 343, MAX = 24;
+    const segs = [];
+    const az = (rnd() * 2 - 1) * 1.1;                    // kierunek uderzenia względem słuchacza
+    let x = D * Math.sin(az), y = D * Math.cos(az), z = 0;
+    let ux = 0, uy = 0, uz = 1;
+    // Krętość na dwóch skalach: kanał biegnie prosto przez kilkadziesiąt do kilkuset metrów,
+    // ostro skręca, a po drodze drobno się wije. Prosty kawałek w poprzek słuchacza
+    // wysyła wszystkie fale naraz, i to jest „klaśnięcie” w przetaczającym się grzmocie.
+    let mx = 0, my = 0, mz = 1, straight = 0;
+    function walk(n, bx, by, bz, stop) {
+      for (let i = 0; i < n; i++) {
+        const l = 0.5 + 12 * rnd() * rnd();               // odcinki 0,5–12,5 m, najczęściej krótkie
+        if (straight <= 0) {
+          const nx = (rnd() * 2 - 1) + bx * 1.2, ny = (rnd() * 2 - 1) + by * 1.2, nz = (rnd() * 2 - 1) + bz * 1.2;
+          const k = 1 / Math.hypot(nx, ny, nz);
+          mx = nx * k; my = ny * k; mz = nz * k;
+          straight = 40 + 260 * rnd();
+        }
+        straight -= l;
+        let nx = mx + (rnd() * 2 - 1) * 0.45, ny = my + (rnd() * 2 - 1) * 0.45, nz = mz + (rnd() * 2 - 1) * 0.45;
+        const k = 1 / Math.hypot(nx, ny, nz);
+        ux = nx * k; uy = ny * k; uz = nz * k;
+        segs.push({ x: x + ux * l / 2, y: y + uy * l / 2, z: z + uz * l / 2, l, ux, uy, uz });
+        x += ux * l; y += uy * l; z += uz * l;
+        if (stop && stop()) return;
+      }
+    }
+    const H = 2500 + rnd() * 2000;
+    const trunk = [];
+    walk(8000, 0, 0, 0.9, () => { if (rnd() < 0.01) trunk.push([x, y, z]); return z >= H; });
+    // w chmurze: długi kanał w poziomie, 3–9 km, czasem skręcający
+    for (let k = 0; k < 3; k++) {
+      const ha = rnd() * Math.PI * 2;
+      walk(Math.floor(400 + rnd() * 800), Math.cos(ha) * 0.9, Math.sin(ha) * 0.9, 0, null);
+    }
+    // odgałęzienia w dół i na boki
+    for (let b = 0; b < 3 + Math.floor(rnd() * 5) && trunk.length; b++) {
+      [x, y, z] = trunk[Math.floor(rnd() * trunk.length)];
+      const ba = rnd() * Math.PI * 2;
+      walk(Math.floor(60 + rnd() * 250), Math.cos(ba) * 0.6, Math.sin(ba) * 0.6, -0.5, () => z < 0);
+    }
+    let rmin = Infinity;
+    for (const s of segs) { s.r = Math.hypot(s.x, s.y, s.z); if (s.r < rmin) rmin = s.r; }
+    const len = Math.floor(sr * MAX);
+    const buf = ctx.createBuffer(2, len, sr);
+    const L = buf.getChannelData(0), R = buf.getChannelData(1);
+    let peak = 0, end = 0;
+    for (const s of segs) {
+      const t0 = Math.floor((s.r - rmin) / C * sr);
+      const T = Math.max(4, Math.floor((0.6 + 0.3 * s.l) * 1e-3 * sr * (1 + s.r / 5000)));
+      // czoło fali tępieje z odległością: blisko trzask, daleko miękkie uderzenie
+      const rise = Math.max(1, Math.min(T / 3, Math.floor((0.1 + s.r * 0.0004) * 1e-3 * sr)));
+      end = Math.max(end, t0 + T);
+      if (t0 + T >= len) continue;
+      // odcinek w poprzek kierunku słuchania grzmi najmocniej
+      const vx = s.x / s.r, vy = s.y / s.r, vz = s.z / s.r;
+      const cx = s.uy * vz - s.uz * vy, cy = s.uz * vx - s.ux * vz, cz = s.ux * vy - s.uy * vx;
+      const side = cx * cx + cy * cy + cz * cz;
+      const a = s.l * (0.04 + side * side) / s.r * (0.6 + 0.8 * rnd());
+      const pan = Math.max(-1, Math.min(1, s.x / (Math.hypot(s.x, s.y) + 1) * 0.9));
+      const gl = Math.cos((pan + 1) * Math.PI / 4) * a, gr = Math.sin((pan + 1) * Math.PI / 4) * a;
+      for (let j = 0; j < T; j++) {
+        // fala N: szybko w górę, równy spadek, szybki powrót do zera
+        const v = (1 - 2 * j / T) * Math.min(1, j / rise, (T - j) / rise);
+        L[t0 + j] += v * gl;
+        R[t0 + j] += v * gr;
+      }
+    }
+    // ostatnie, najdalsze odcinki w chmurze słabną, więc grzmot wygasa, a nie urywa się
+    for (let i = Math.floor(end * 0.6); i < end; i++) {
+      const k = 1 - (i - end * 0.6) / (end * 0.4), g = k * k * (3 - 2 * k);
+      L[i] *= g;
+      R[i] *= g;
+    }
+    // echa od wzgórz, lasu i chmur: coraz później, ciszej i ciemniej
+    const dryL = L.slice(), dryR = R.slice();
+    for (let e = 0, n = 3 + Math.floor(rnd() * 4); e < n; e++) {
+      const delay = Math.floor(sr * (0.3 + rnd() * 4.5)), g = 0.12 + rnd() * 0.3, c = 0.15 + rnd() * 0.3;
+      const fromL = rnd() < 0.5;
+      let lpL = 0, lpR = 0;
+      for (let i = 0; i < end && i + delay < len; i++) {
+        lpL += c * ((fromL ? dryL : dryR)[i] - lpL);
+        lpR += c * ((fromL ? dryR : dryL)[i] - lpR);
+        L[i + delay] += lpL * g;
+        R[i + delay] += lpR * g;
+      }
+    }
+    for (let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
+    const g = peak > 0 ? 0.9 / peak : 0;
+    for (let i = 0; i < len; i++) { L[i] *= g; R[i] *= g; }
+    return buf;
+  };
 
   /** Pogłos „średniego pokoju”: ciemniejący z czasem, wykładniczo gasnący szum. */
   B.impulse = function (ctx, seconds, decay) {

@@ -114,17 +114,38 @@ Głośności przeliczyłem tak, żeby kalibracja względem deszczu się nie zmie
 **5. Pętla bez szwu i nowe tła.**
 - *Pętla bez szwu* (w „Wejście i wyjście”): nagranie jest o 8 s dłuższe, a ten nadmiar przenika się z początkiem (równa moc), więc koniec płynnie przechodzi w początek. Pasuje do przebiegu stałego i fali. Pętle szumów mają teraz „nieokrągłe” długości (4,79–13,91 s), żeby w zakładce nie zgrywały się same ze sobą (zmierzone: pierwsze 10 s pętli szumów trzyma się ±0,4 dB mediany).
 - Każde MP3 ma teraz ramkę **Info z rozszerzeniem LAME** z opóźnieniem kodera (576 próbek, zmierzone korelacją) i dopełnieniem końca. Dzięki niej odtwarzacze znają długość co do próbki i nie wstawiają ciszy na styku pętli. Sprawdzone ffmpeg: 3 minuty dekodują się do dokładnie 7 938 000 próbek, a skok na styku pętli mieści się w zwykłym zakresie różnic między sąsiednimi próbkami.
-- *Burza*: grzmoty co 10–35 s (gęściej przy wyższym suwaku). Daleki tylko się toczy, przez kilka przetoczeń w dół, a bliski zaczyna się trzaskiem rozdzieranego powietrza. Między grzmotami niski, falujący pomruk nieba.
+- *Burza*: ulewa z porywami wiatru i grzmoty co 8–28 s (gęściej przy wyższym suwaku), opis grzmotu niżej, w rundzie 3.
 - *Świerszcze*: 4–6 owadów, każdy na swoim tonie 2,8–5,2 kHz. Czysty ton jest cięty na impulsy (oscylator, kształtownik i wzmacniacz, bez tworzenia węzłów na każdy impuls). Krótkie ćwierknięcia po 3–5 impulsów albo długi tryl jak u świerszcza drzewnego.
 - *Pociąg*: stukot na stykach szyn co 25 m, czyli dwa wózki wagonu (osie co 2,5 m, tylny wózek 17,5 m dalej): „ta-dam… ta-dam”. Do tego szum toczenia i powolne zmiany prędkości (65–110 km/h), od których zależy rytm. Stuknięcia wystają ok. 21 dB ponad tło w paśmie 0,4–1,5 kHz.
 - Nowe tła skalibrowane względem deszczu (−28,3 dB): burza −29, świerszcze −32, pociąg −28 dB RMS.
+
+## Rozwój po eksperymencie: runda 3 – deszcz i burza z nagrań
+
+Autor napisał, że deszcz nie brzmi jak deszcz, a burza jak burza. Nie słyszę dźwięku, więc zamiast zgadywać, porównałem syntezę z prawdziwymi nagraniami z Wikimedia Commons (4 nagrania deszczu, 4 grzmotów i 2 burz, użyte tylko do analizy, nie ma ich w projekcie). Dla każdego nagrania liczyłem widmo w pasmach tercjowych, impulsywność (kurtozę), liczbę wyraźnych uderzeń na sekundę i wahania głośności, a potem przebudowałem syntezę, aż liczby się zgadzały.
+
+**Deszcz.** Stary deszcz miał za dużo basu (63–125 Hz o 10–25 dB za głośno), dołek na środku pasma, za jasną górę i 33 wyraźne „plumknięcia” na sekundę. Każde z nich to był wznoszący się ton pęcherzyka (rezonans Minnaerta), czyli bardziej krople w wiadrze niż deszcz. Na spektrogramach prawdziwego deszczu nie ma tonów, jest ziarnista mgiełka tysięcy uderzeń w paśmie 300 Hz–2 kHz i co jakiś czas szerokie „plaśnięcie” bliskiej kropli. Nowy deszcz:
+- tekstura: 2600 drobnych uderzeń na sekundę w każdym kanale, każde to krótki trzask szumu (zanik 0,4–3,9 ms) z własną barwą i siłą, większość ledwo słyszalna, nieliczne wyraźne. Grają dwie kopie bufora, druga wolniej i z zamienionymi kanałami, więc wzór się nie powtarza,
+- bliskie plaśnięcia: ok. 9 na sekundę w nieregularnych odstępach, planowane na bieżąco, więc nic nie wraca w pętli,
+- cichy szum spływającej wody i odrobina dołu.
+
+Po zmianie wszystkie pasma od 63 Hz do 12,5 kHz, impulsywność i liczba wyraźnych uderzeń mieszczą się w zakresie prawdziwych nagrań.
+
+**Grzmot.** Stary grzmot był gładkim, niskim szumem: powyżej 125 Hz o 15–25 dB za cichym, bez przetoczeń. Nowy liczy się z modelu fizycznego (`B.thunder` w `js/buffers.js`), osobno dla każdego uderzenia:
+- kanał błyskawicy to kręta droga od ziemi do chmury (2,5–4,5 km), z odgałęzieniami i 3–9 km kanału poziomo w chmurze. Krętość ma dwie skale: kanał biegnie prosto przez 40–300 m, ostro skręca i po drodze drobno się wije,
+- każdy z kilku tysięcy odcinków wysyła falę uderzeniową w kształcie litery N, która dociera do słuchacza z opóźnieniem zależnym od odległości (343 m/s). Odcinek ustawiony w poprzek kierunku słuchania grzmi najmocniej, więc proste kawałki kanału dają „klaśnięcia”, a grzmot przetacza się seriami,
+- blisko fala jest krótka i ostra (trzask rozdzieranego powietrza), daleko dłuższa i miękka. Powietrze dodatkowo tłumi wysokie tony z odległością,
+- 3–6 ech od terenu i chmur przedłuża przetaczanie, a końcówka wygasa.
+
+Odległość uderzenia losuje się od 300 m do 11 km. Grzmot liczy się w 15–60 ms (w niższym próbkowaniu, bo prawie cała jego energia jest nisko), więc nie zacina muzyki. Pomiar: widmo grzmotu z 2,5 km pokrywa się z nagraniami grzmotów w paśmie 63 Hz–2 kHz z dokładnością do kilku dB, bliski zaczyna się trzaskiem i wygasa przez ok. 15 s, a daleki toczy się 12–14 s. Impulsywność w paśmie 300 Hz–2 kHz (4–9) jest w zakresie nagrań (3–7).
+
+**Burza** ma teraz też własną ulewę (ta sama tekstura kropli, wolniej, więc cięższe krople) i porywy wiatru, w których deszcz zacina mocniej, więc brzmi jak burza także bez osobnego suwaka deszczu.
 
 ## Nic tu nie jest nagrane
 
 Każdy dźwięk powstaje na żywo w Web Audio, więc projekt nie ma ani jednego pliku audio:
 
 - **Szumy**: biały, różowy (filtr Paula Kelleta) i brązowy (całkowany biały) liczone do kilkusekundowych pętli o „nieokrągłych” długościach, których koniec przenika się z początkiem (szew jest niesłyszalny).
-- **Deszcz**: szelest z różowego szumu, pomruk z brązowego i ok. 1400 pojedynczych kropli. Każda kropla to trzask uderzenia i pęcherzyk powietrza, którego ton rośnie (rezonans Minnaerta). Do tego dwa bardzo wolne oscylatory robią podmuchy.
+- **Deszcz**: ziarnista tekstura tysięcy drobnych uderzeń kropli, bliskie plaśnięcia planowane na bieżąco, cichy szum wody i odrobina dołu, dobrane do widma prawdziwych nagrań (runda 3). Dwa bardzo wolne oscylatory robią podmuchy.
 - **Lo-fi**: komponowane takt po takcie. 7 jazzowych progresji (m.in. ii–V–I–vi, molowa subdominanta), akordy nonowe i tercdecymowe w ciasnym układzie, co jakiś czas zmiana tonacji. Instrumenty:
   - elektryczne pianino: synteza FM 1:1 z gasnącym indeksem, jasny atak przechodzi w okrągły dźwięk,
   - bas: trójkąt i sinus,

@@ -9,10 +9,10 @@
 (function (N) {
   // Poziom każdej warstwy przy wartości 1 w tabeli miksu (zmierzony, patrz README)
   const LEVEL = {
-    brown: 0.31, pink: 0.18, rain: 0.36, pad: 0.52, keys: 0.46,
+    brown: 0.31, pink: 0.18, rain: 0.51, pad: 0.52, keys: 0.46,
     bass: 0.09, drums: 0.38, melody: 0.5, vinyl: 0.64, cafe: 0.7,
     wind: 1.1, waves: 0.32, fire: 0.81, birds: 1.03,
-    storm: 0.61, crickets: 0.79, train: 0.94
+    storm: 1.32, crickets: 0.79, train: 0.94
   };
   // Głośność (RMS) każdej warstwy przy wartości 1, względem deszczu – do pilnowania poziomu ręcznego miksu
   const LOUD = {
@@ -44,7 +44,7 @@
       white: B.noise(ctx, 'white', 4.79),
       pink: B.noise(ctx, 'pink', 10.41),
       brown: B.noise(ctx, 'brown', 9.73),
-      drops: B.rainDrops(ctx, 12.13),
+      patter: B.rainPatter(ctx, 9.37, 2600),
       crackle: B.crackle(ctx, 8.87),
       fire: B.fire(ctx, 13.91)
     };
@@ -98,6 +98,7 @@
         if (immediate) { g.cancelScheduledValues(t); g.setValueAtTime(v, t); }
         else g.setTargetAtTime(v, t, 0.7);
       }
+      E.noise.setParams(mix, immediate);
       E.lofi.setParams(mix, immediate);
       E.cafe.setParams(mix, immediate);
       E.nature.setParams(mix, immediate);
@@ -115,6 +116,7 @@
     };
 
     E.schedule = function (until) {
+      E.noise.schedule(until);
       E.lofi.schedule(until);
       E.cafe.schedule(until);
       E.nature.schedule(until);
