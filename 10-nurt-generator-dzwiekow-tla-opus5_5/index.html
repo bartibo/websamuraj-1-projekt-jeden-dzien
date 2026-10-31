@@ -10,6 +10,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Nurt">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -79,15 +84,16 @@
   <p class="mixer-note">Suwak energii dalej ustawia wszystko naraz. Przesuń tu dowolną warstwę, a zostanie tam, gdzie ją zostawisz (świeci kropka). Reszta płynie za energią.</p>
   <div class="mixer-body" id="mixer-body"></div>
   <div class="mixer-foot">
-    <button class="btn-text" id="mixer-auto" disabled>Wszystko z energii</button>
+    <button class="btn-text" id="mixer-auto" title="Wszystko z energii: zdejmij ręczne ustawienia" disabled>Z energii</button>
     <button class="btn-text" id="mixer-random" title="Wylosuj własny miks">Losuj miks</button>
+    <button class="btn-text" id="mixer-share" title="Skopiuj link do tego miksu">Udostępnij</button>
   </div>
 </aside>
 
 <dialog class="info export" id="export">
   <button class="close" id="export-close" aria-label="Zamknij">×</button>
   <h2>Nagraj utwór MP3</h2>
-  <p>Nurt skomponuje i nagra utwór z tym, co jest teraz ustawione: <b id="ex-what">Przepływ</b>. Muzyka powstaje od nowa, więc każde nagranie jest inne. Wszystko dzieje się na tym komputerze, nic nie jest wysyłane.</p>
+  <p>Nurt skomponuje i nagra utwór z tym, co jest teraz ustawione: <b id="ex-what">Przepływ</b>. Muzyka komponuje się od nowa z <b>ziarna</b>: nowe ziarno to nowy utwór, to samo ziarno to ten sam utwór. Wszystko dzieje się na tym komputerze, nic nie jest wysyłane.</p>
   <div class="ex-row">
     <span class="ex-label">Długość</span>
     <div class="seg" id="ex-len" role="radiogroup" aria-label="Długość utworu"></div>
@@ -101,6 +107,14 @@
     <div class="seg" id="ex-shape" role="radiogroup" aria-label="Przebieg utworu"></div>
   </div>
   <figure class="curve"><svg id="ex-curve" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"></svg><figcaption></figcaption></figure>
+  <div class="ex-row">
+    <label class="ex-label" for="ex-seed">Ziarno</label>
+    <div class="seed">
+      <input type="text" id="ex-seed" maxlength="12" autocomplete="off" spellcheck="false" aria-describedby="ex-seed-hint">
+      <button type="button" class="pchip" id="ex-seed-new" title="Wylosuj nowe ziarno">Nowe</button>
+      <span class="seed-hint" id="ex-seed-hint">To samo ziarno i te same ustawienia dają ten sam utwór.</span>
+    </div>
+  </div>
   <p class="ex-meta" id="ex-meta"></p>
   <div class="ex-progress" id="ex-progress" hidden>
     <div class="ex-bar"><i id="ex-bar"></i></div>
@@ -109,6 +123,7 @@
   <div class="ex-actions">
     <button class="btn-main" id="ex-go">Nagraj MP3</button>
     <a class="btn-main ghost" id="ex-save" hidden>Pobierz ponownie</a>
+    <button class="btn-main ghost" id="ex-link" hidden>Link do utworu</button>
   </div>
 </dialog>
 
@@ -147,12 +162,16 @@
   <p>Każde położenie pomiędzy brzmi inaczej. Tempo, jasność, gęstość akompaniamentu i liczba gości w kawiarni zmieniają się razem z suwakiem.</p>
   <h3>Mikser</h3>
   <p>Wolisz sam? W <b>mikserze</b> każda z czternastu warstw ma swój suwak: szumy, deszcz, wiatr, fale morza, kominek, ptaki, kawiarnia, ambient, pianino, bas, melodia, bit i winyl. Do tego tempo, jasność, gęstość gry i przestrzeń (pogłos). Przesunięty suwak zostaje na swoim miejscu, a resztą dalej rządzi energia. Kliknięcie paska w „Teraz słychać” otwiera mikser na tej warstwie.</p>
+  <p>Na górze miksera są <b>gotowe miksy</b> (np. kominek w deszczu, plaża o świcie) i twoje własne: „Zapisz obecny” zapamiętuje energię i suwaki pod nazwą. <b>Udostępnij</b> kopiuje link, który odtwarza to samo ustawienie u kogoś innego.</p>
   <h3>Sesje</h3>
   <p>Przycisk z zegarem wybiera plan. <b>Swobodnie</b> gra, ile chcesz (albo 25, 50 lub 90 minut z wyciszeniem na końcu). <b>Skupienie</b> przeplata pracę z przerwą (25 + 5, 50 + 10 albo 90 + 15 minut): w przerwie tło samo się uspokaja, a dzwonek ogłasza każdą zmianę. <b>Rozruch</b> zaczyna od spokoju i powoli dochodzi do energii z suwaka. <b>Zasypianie</b> wycisza energię, potem muzykę, aż zostaje samo tło, które też w końcu cichnie.</p>
   <h3>Nagraj MP3</h3>
   <p>Przycisk <b>MP3</b> nagrywa utwór od 3 do 30 minut z tym, co jest ustawione, z łagodnym wejściem i wyjściem. Utwór może mieć <b>przebieg</b>: stały, falujący, rozkręcający się albo wyciszający do snu. Nagranie powstaje szybciej niż w czasie rzeczywistym (10 minut to zwykle 2–4 minuty czekania), a muzyka komponuje się od nowa, więc każdy plik jest inny.</p>
+  <h3>Aplikacja i telefon</h3>
+  <p>Po pierwszej wizycie Nurt działa także <b>bez internetu</b>. Możesz go zainstalować jak aplikację: w Chrome i Edge z menu („Zainstaluj aplikację”), na iPhonie przez Udostępnij → „Do ekranu początkowego”. Na telefonie pauza i zmiana strefy są też na ekranie blokady i w powiadomieniach („następny” i „poprzedni” przesuwają energię o jedną strefę). Na komputerze działają klawisze multimedialne.</p>
+  <p><button class="btn-main ghost" id="btn-install" hidden>Zainstaluj Nurt</button></p>
   <h3>Nic tu nie jest nagrane</h3>
-  <p>Wszystko powstaje na żywo w przeglądarce: szumy, krople, akordy, bit, ptaki i rozmowy (słów nie da się zrozumieć, więc nie przyciągają uwagi). Muzyka komponuje się takt po takcie, więc nic się nie zapętla. Działa od razu, bez konta, bez reklam i bez internetu. Na tym urządzeniu zapamiętywane są tylko ustawienia suwaków, głośność i długość sesji.</p>
+  <p>Wszystko powstaje na żywo w przeglądarce: szumy, krople, akordy, bit, ptaki i rozmowy (słów nie da się zrozumieć, więc nie przyciągają uwagi). Muzyka komponuje się takt po takcie, więc nic się nie zapętla. Działa od razu, bez konta, bez reklam i bez internetu. Na tym urządzeniu zapamiętywane są tylko ustawienia suwaków, zapisane miksy, głośność i plan sesji.</p>
   <h3>Skróty</h3>
   <dl class="keys">
     <dt><kbd>spacja</kbd></dt><dd>graj / pauza</dd>
@@ -169,6 +188,7 @@
 <script src="js/buffers.js"></script>
 <script src="js/mix.js"></script>
 <script src="js/arc.js"></script>
+<script src="js/presets.js"></script>
 <script src="js/noise.js"></script>
 <script src="js/lofi.js"></script>
 <script src="js/cafe.js"></script>

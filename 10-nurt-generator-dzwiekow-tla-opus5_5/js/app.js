@@ -17,7 +17,8 @@
     exProgress: $('ex-progress'), exBar: $('ex-bar'), exStatus: $('ex-status'), exGo: $('ex-go'), exSave: $('ex-save'),
     exShape: $('ex-shape'), exCurve: $('ex-curve'),
     ss: $('session'), ssClose: $('session-close'), ssPlan: $('ss-plan'), ssOpt: $('ss-opt'), ssOptLabel: $('ss-opt-label'),
-    ssHint: $('ss-hint'), ssCurve: $('ss-curve'), ssGo: $('ss-go'), toast: $('toast')
+    ssHint: $('ss-hint'), ssCurve: $('ss-curve'), ssGo: $('ss-go'), toast: $('toast'),
+    mixerShare: $('mixer-share'), install: $('btn-install'), exSeed: $('ex-seed'), exSeedNew: $('ex-seed-new'), exLink: $('ex-link')
   };
   const PLANS = N.arc.PLANS, SHAPES = N.arc.SHAPES;
   const STORE = 'nurt.v1';
@@ -50,6 +51,12 @@
     const so = saved.planOpts || {};
     PLANS.forEach(p => { if (Number.isInteger(so[p.id]) && so[p.id] >= 0 && so[p.id] < p.options.length) sess.opts[p.id] = so[p.id]; });
   }
+  // własne miksy zapisane pod nazwą
+  const MAX_PRESETS = 12;
+  const userPresets = (Array.isArray(saved.presets) ? saved.presets : [])
+    .filter(p => p && typeof p.name === 'string' && p.manual && typeof p.manual === 'object')
+    .slice(0, MAX_PRESETS)
+    .map(p => ({ name: p.name.slice(0, 40), energy: U.clamp(+p.energy || 0, 0, 100), manual: p.manual }));
   if (saved.manual && typeof saved.manual === 'object') {
     CONTROLS.forEach(c => { if (c.id in saved.manual) state.manual[c.id] = U.clamp(+saved.manual[c.id] || 0, 0, 1); });
   }
@@ -57,6 +64,7 @@
     len: EX_LENGTHS.includes(saved.exLen) ? saved.exLen : 10,
     fade: U.clamp(saved.exFade == null ? 1 : +saved.exFade || 0, 0, EX_FADES.length - 1),
     shape: Math.max(0, SHAPES.findIndex(s => s.id === saved.exShape)),
+    seed: U.newSeed(), last: null,
     busy: false, cancel: false, url: null
   };
   function save() {
@@ -64,7 +72,8 @@
       localStorage.setItem(STORE, JSON.stringify({
         energy: +state.energy.toFixed(1), volume: state.volume,
         plan: PLANS[sess.plan].id, planOpts: sess.opts,
-        manual: state.manual, exLen: ex.len, exFade: ex.fade, exShape: SHAPES[ex.shape].id
+        manual: state.manual, exLen: ex.len, exFade: ex.fade, exShape: SHAPES[ex.shape].id,
+        presets: userPresets
       }));
     } catch (e) { /* tryb prywatny */ }
   }
@@ -144,23 +153,156 @@
       m.classList.toggle('off', v < 0.04);
     });
     updateMixer(mix);
+    updatePresets();
     if (state.playing) el.status.textContent = describe(mix);
     if (el.exp.open && !ex.busy) updateExportInfo();
     clearTimeout(refreshMix.s);
     refreshMix.s = setTimeout(save, 400);
   }
 
-  function describe(mix) {
+  /** Najgłośniejsze składniki miksu jako zdanie: „Deszcz za oknem, lo-fi i miękki bit”. */
+  function topPhrase(mix, n) {
     const parts = N.mix.GROUPS.map(g => ({ p: g.phrase, v: g.get(mix) }))
-      .filter(x => x.v > 0.22).sort((a, b) => b.v - a.v).slice(0, 3).map(x => x.p);
+      .filter(x => x.v > 0.22).sort((a, b) => b.v - a.v).slice(0, n).map(x => x.p);
+    if (!parts.length) return '';
+    const txt = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' i ' + parts[parts.length - 1] : parts[0];
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  }
+  function describe(mix) {
+    const txt = topPhrase(mix, 3);
     const tempo = mix.drums > 0.1 ? ` · ${Math.round(mix.bpm)} BPM` : '';
     const own = isCustom() ? ' · własny miks' : '';
-    if (!parts.length) return isCustom() ? 'Prawie cisza. Podgłośnij coś w mikserze.' : '';
-    const txt = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' i ' + parts[parts.length - 1] : parts[0];
-    return txt.charAt(0).toUpperCase() + txt.slice(1) + tempo + own;
+    if (!txt) return isCustom() ? 'Prawie cisza. Podgłośnij coś w mikserze.' : '';
+    return txt + tempo + own;
   }
 
   // ---------- mikser ----------
+  // ---------- gotowe i zapisane miksy ----------
+  const PR = N.presets;
+  const presetChips = [];
+  const presetBox = document.createElement('div');
+  presetBox.className = 'presets';
+  {
+    const h = document.createElement('h3');
+    h.textContent = 'Miksy';
+    el.mixerBody.append(h, presetBox);
+  }
+  function renderPresets(editing) {
+    presetBox.textContent = '';
+    presetChips.length = 0;
+    const add = (p, own, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pchip' + (own ? ' own' : '');
+      b.textContent = p.name;
+      b.title = own ? `Twój miks: ${p.name}` : `Gotowy miks: ${p.name}`;
+      b.addEventListener('click', () => applyPreset(p.energy, own ? p.manual : PR.manualOf(p)));
+      presetChips.push({ b, energy: p.energy, manual: own ? p.manual : PR.manualOf(p) });
+      if (!own) return presetBox.appendChild(b);
+      const wrap = document.createElement('span');
+      wrap.className = 'pown';
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'pdel';
+      del.textContent = '×';
+      del.setAttribute('aria-label', `Usuń miks ${p.name}`);
+      del.title = 'Usuń';
+      del.addEventListener('click', () => {
+        userPresets.splice(i, 1);
+        save();
+        renderPresets();
+        toast(`Usunięto miks „${p.name}”.`);
+      });
+      wrap.append(b, del);
+      presetBox.appendChild(wrap);
+    };
+    PR.BUILTIN.forEach(p => add(p, false));
+    userPresets.forEach((p, i) => add(p, true, i));
+    if (editing) {
+      const form = document.createElement('form');
+      form.className = 'psave';
+      form.innerHTML = '<input type="text" maxlength="40" aria-label="Nazwa miksu" autocomplete="off" spellcheck="false">' +
+        '<button type="submit" class="pchip on">Zapisz</button>';
+      const input = form.querySelector('input');
+      input.placeholder = topPhrase(mixNow(), 2) || 'Nazwa miksu';
+      form.addEventListener('submit', ev => { ev.preventDefault(); savePreset(input.value); });
+      input.addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.stopPropagation(); renderPresets(); } });
+      presetBox.appendChild(form);
+      input.focus();
+    } else {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pchip add';
+      b.textContent = '+ Zapisz obecny';
+      b.title = 'Zapisz energię i suwaki miksera pod nazwą';
+      b.addEventListener('click', () => renderPresets(true));
+      presetBox.appendChild(b);
+    }
+    updatePresets();
+  }
+  function updatePresets() {
+    for (const c of presetChips) {
+      const on = Math.abs(state.energy - c.energy) < 0.6 && PR.same(state.manual, c.manual);
+      c.b.setAttribute('aria-pressed', String(on));
+    }
+  }
+  function applyPreset(energy, manual) {
+    state.manual = Object.assign({}, manual);
+    glideTo(energy);
+    refreshMix();
+    ensureStarted();
+  }
+  function savePreset(name) {
+    name = name.trim() || topPhrase(mixNow(), 2) || state.zone.name;
+    if (userPresets.length >= MAX_PRESETS) userPresets.shift();
+    userPresets.push({ name: name.slice(0, 40), energy: +state.energy.toFixed(1), manual: Object.assign({}, state.manual) });
+    save();
+    renderPresets();
+    toast(`Zapisano miks „${name}”.`);
+  }
+
+  // ---------- link do miksu i do utworu ----------
+  const pageUrl = () => location.href.split('#')[0];
+  async function shareLink(url, msg) {
+    // na telefonie systemowe „Udostępnij”, na komputerze schowek
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share({ title: 'Nurt', text: 'Posłuchaj tego tła w Nurcie', url }); return; } catch (e) {
+        if (e && e.name === 'AbortError') return;
+      }
+    }
+    let ok = false;
+    try { await navigator.clipboard.writeText(url); ok = true; } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch (e2) { /* brak */ }
+      ta.remove();
+    }
+    toast(ok ? msg : 'Nie udało się skopiować. Link: ' + url);
+  }
+  function shareMix() {
+    shareLink(pageUrl() + '#' + PR.encode({ energy: state.energy, manual: state.manual }),
+      'Link do tego miksu jest w schowku. Kto go otworzy, usłyszy to samo ustawienie.');
+  }
+  /** Link z adresu: miks od razu na suwakach, a link do utworu otwiera okno nagrania z jego ziarnem. */
+  function readLink() {
+    const d = PR.decode(location.hash);
+    if (!d) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* file:// */ }
+    state.manual = d.manual;
+    state.energy = d.energy;
+    if (!d.track) { toast('Wczytano miks z linku. Kliknij odtwarzanie.'); return; }
+    const t = d.track;
+    if (EX_LENGTHS.includes(t.minutes)) ex.len = t.minutes;
+    if (+t.fade >= 0 && +t.fade < EX_FADES.length) ex.fade = +t.fade;
+    ex.shape = Math.max(0, SHAPES.findIndex(s => s.id === t.shape));
+    ex.seed = t.seed;
+    readLink.track = true;
+  }
+  readLink();
+
   const rows = {};
   N.mix.SECTIONS.forEach(sec => {
     const h = document.createElement('h3');
@@ -330,6 +472,17 @@
     el.exMeta.textContent = `Przebieg: ${shape.hint}. MP3 ${KBPS} kb/s, stereo · ok. ${fmtMB(ex.len * 60 * KBPS * 125)} · wchodzi przez ${f.fadeIn} s, cichnie przez ${f.fadeOut} s`;
   }
 
+  el.exSeed.value = ex.seed;
+  el.exSeed.addEventListener('input', () => {
+    const v = U.cleanSeed(el.exSeed.value);
+    if (v !== el.exSeed.value) el.exSeed.value = v;
+    ex.seed = v;
+  });
+  el.exSeedNew.addEventListener('click', () => {
+    if (ex.busy) return;
+    ex.seed = el.exSeed.value = U.newSeed();
+  });
+
   function openExport() {
     if (!ex.busy) updateExportInfo();
     if (!el.exp.open) el.exp.showModal();
@@ -342,12 +495,16 @@
     if (ex.busy) { ex.cancel = true; el.exStatus.textContent = 'Przerywam…'; return; }
     const f = EX_FADES[ex.fade], minutes = ex.len, seconds = minutes * 60, shape = SHAPES[ex.shape];
     const e0 = state.energy / 100, manual = Object.assign({}, state.manual);
+    if (!ex.seed) ex.seed = el.exSeed.value = U.newSeed();
+    const seed = ex.seed;
     const name = state.zone.name + (isCustom() ? ' · własny miks' : '') + (shape.id !== 'flat' ? ' · ' + shape.name : '');
-    const file = `nurt-${slug(state.zone.name)}${isCustom() ? '-wlasny-miks' : ''}${shape.id !== 'flat' ? '-' + slug(shape.name) : ''}-${minutes}-min.mp3`;
+    const file = `nurt-${slug(state.zone.name)}${isCustom() ? '-wlasny-miks' : ''}${shape.id !== 'flat' ? '-' + slug(shape.name) : ''}-${minutes}-min-${seed}.mp3`;
     ex.busy = true; ex.cancel = false;
     el.exp.classList.add('busy');
     el.exProgress.hidden = false;
     el.exSave.hidden = true;
+    el.exLink.hidden = true;
+    el.exSeed.disabled = el.exSeedNew.disabled = true;
     el.exGo.textContent = 'Przerwij';
     el.exBar.style.width = '0%';
     el.exStatus.textContent = 'Stroję instrumenty…';
@@ -376,7 +533,7 @@
       blob = await N.recordMp3({
         seconds, fadeIn: f.fadeIn, fadeOut: f.fadeOut, kbps: KBPS,
         mixAt: t => { const a = N.arc.shape(shape.id, t, seconds, e0); return N.mix.at(a.e, manual, a.music); },
-        title: `Nurt · ${name} · ${minutes} min`,
+        seed, title: `Nurt · ${name} · ${minutes} min · ziarno ${seed}`,
         onProgress, isCancelled: () => ex.cancel
       });
     } catch (e) {
@@ -384,6 +541,7 @@
     }
     ex.busy = false;
     el.exp.classList.remove('busy');
+    el.exSeed.disabled = el.exSeedNew.disabled = false;
     el.exGo.textContent = 'Nagraj MP3';
     el.exportLabel.textContent = 'MP3';
     if (err) {
@@ -403,8 +561,12 @@
     el.exSave.download = file;
     el.exSave.hidden = false;
     el.exGo.textContent = 'Nagraj kolejny';
+    ex.last = { energy: e0 * 100, manual, track: { minutes, fade: ex.fade, shape: shape.id, seed } };
+    el.exLink.hidden = false;
+    // następne nagranie dostaje nowe ziarno, więc będzie inne
+    ex.seed = el.exSeed.value = U.newSeed();
     const took = (performance.now() - t0) / 1000;
-    el.exStatus.textContent = `Gotowe: ${file} (${fmtMB(blob.size)}) trafił do pobranych. Nagranie trwało ${took > 90 ? Math.round(took / 60) + ' min' : Math.round(took) + ' s'}.`;
+    el.exStatus.textContent = `Gotowe: ${file} (${fmtMB(blob.size)}) trafił do pobranych. Nagranie trwało ${took > 90 ? Math.round(took / 60) + ' min' : Math.round(took) + ' s'}. Ziarno tego utworu: ${seed}.`;
     el.exSave.click();
   }
 
@@ -445,11 +607,14 @@
   function play() {
     clearTimeout(suspendTimer);
     clearTimeout(endTimer);
+    keepAlive.play(); // jeszcze w geście użytkownika, inaczej telefon może nie pozwolić
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) { el.status.textContent = 'Ta przeglądarka nie obsługuje Web Audio. Spróbuj Chrome, Edge, Firefox albo Safari.'; return; }
       try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* tylko Safari */ }
       ctx = new AC({ latencyHint: 'playback' });
+      // iOS przerywa dźwięk przy telefonie lub innej aplikacji: po powrocie gramy dalej
+      ctx.onstatechange = () => { if (state.playing && ctx.state !== 'running' && document.visibilityState === 'visible') ctx.resume(); };
       state.starting = true;
       el.play.classList.add('loading');
       el.status.textContent = 'Stroję instrumenty…';
@@ -490,6 +655,7 @@
   function pause(msg) {
     if (!state.playing) return;
     state.playing = false;
+    keepAlive.pause();
     engine.fadeTo(0, 0.45);
     clearTimeout(suspendTimer);
     suspendTimer = setTimeout(() => { if (!state.playing) ctx.suspend(); }, 600);
@@ -518,6 +684,7 @@
     clearTimeout(endTimer);
     Object.assign(sess, { started: true, ended: false, done: false, t: 0, phase: null, ramp: null, music: 1, fading: false, target: state.energy });
     if (d.id === 'focus') sess.phase = 'work';
+    updateMediaSession();
     if (d.id === 'rise') {
       const from = Math.min(N.arc.LOW * 100, sess.target);
       sess.ramp = { from, to: sess.target, t0: 0, dur: opt * 60 };
@@ -692,14 +859,78 @@
   }
   function updateMediaSession() {
     if (!('mediaSession' in navigator) || !state.zone || typeof MediaMetadata === 'undefined') return;
-    try { navigator.mediaSession.metadata = new MediaMetadata({ title: state.zone.name, artist: 'Nurt', album: 'tło do pracy' }); } catch (e) { /* brak */ }
+    const plan = planDef().id === 'free' ? 'tło do pracy' : 'sesja: ' + planDef().name.toLowerCase();
+    const art = [192, 512].map(s => ({ src: `icons/icon-${s}.png`, sizes: `${s}x${s}`, type: 'image/png' }));
+    try { navigator.mediaSession.metadata = new MediaMetadata({ title: state.zone.name, artist: 'Nurt', album: plan, artwork: art }); } catch (e) { /* brak */ }
+  }
+  /** Strefa obok obecnej: „następny” i „poprzedni” na ekranie blokady albo w słuchawkach. */
+  function stepZone(d) {
+    const i = N.mix.ZONES.indexOf(N.mix.zone(state.energy / 100));
+    glideTo(N.mix.ZONES[U.clamp(i + d, 0, N.mix.ZONES.length - 1)].center);
   }
   if ('mediaSession' in navigator) {
-    try {
-      navigator.mediaSession.setActionHandler('play', () => { if (!state.playing) play(); });
-      navigator.mediaSession.setActionHandler('pause', () => pause());
-    } catch (e) { /* brak */ }
+    const on = (action, fn) => { try { navigator.mediaSession.setActionHandler(action, fn); } catch (e) { /* nieobsługiwane */ } };
+    on('play', () => { if (!state.playing) play(); });
+    on('pause', () => pause());
+    on('stop', () => pause());
+    on('nexttrack', () => stepZone(1));
+    on('previoustrack', () => stepZone(-1));
   }
+
+  // ---------- telefon: ekran blokady i granie w tle ----------
+  // Razem z Web Audio gra prawie niesłyszalny element <audio>. Dzięki niemu przeglądarka
+  // traktuje stronę jak odtwarzacz: pokazuje sterowanie na ekranie blokady i w powiadomieniach,
+  // a klawisze multimedialne działają także na komputerze.
+  const keepAlive = (() => {
+    let a = null;
+    function wav() {
+      const sr = 8000, n = sr * 10, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+      const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+      str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+      v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+      str(36, 'data'); v.setUint32(40, n * 2, true);
+      for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.random() < 0.5 ? -1 : 1, true); // ok. -90 dB
+      return new Blob([buf], { type: 'audio/wav' });
+    }
+    return {
+      play() {
+        try {
+          if (!a) {
+            a = new Audio(URL.createObjectURL(wav()));
+            a.loop = true;
+            a.setAttribute('playsinline', '');
+          }
+          const pr = a.play();
+          if (pr && pr.catch) pr.catch(() => { /* bez tego też gra, tylko bez ekranu blokady */ });
+        } catch (e) { /* brak */ }
+      },
+      pause() { if (a) a.pause(); }
+    };
+  })();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.playing && ctx && ctx.state !== 'running') ctx.resume();
+  });
+
+  // ---------- aplikacja: praca bez internetu i instalacja ----------
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { /* bez offline */ }));
+  }
+  let installPrompt = null;
+  window.addEventListener('beforeinstallprompt', ev => {
+    ev.preventDefault();
+    installPrompt = ev;
+    el.install.hidden = false;
+  });
+  el.install.addEventListener('click', async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const choice = await installPrompt.userChoice.catch(() => null);
+    installPrompt = null;
+    el.install.hidden = true;
+    if (choice && choice.outcome === 'accepted') toast('Nurt jest zainstalowany. Znajdziesz go wśród aplikacji.');
+  });
+  window.addEventListener('appinstalled', () => { el.install.hidden = true; });
 
   // ---------- poziom dźwięku dla wizualizacji ----------
   let td = null;
@@ -740,6 +971,10 @@
   el.mixerClose.addEventListener('click', closeMixer);
   el.mixerAuto.addEventListener('click', () => { state.manual = {}; refreshMix(); });
   el.mixerRandom.addEventListener('click', randomMix);
+  el.mixerShare.addEventListener('click', shareMix);
+  el.exLink.addEventListener('click', () => {
+    if (ex.last) shareLink(pageUrl() + '#' + PR.encode(ex.last), 'Link do tego utworu jest w schowku. Z nim nagrasz ten sam utwór jeszcze raz.');
+  });
   el.exportBtn.addEventListener('click', openExport);
   el.exGo.addEventListener('click', record);
   el.expClose.addEventListener('click', () => el.exp.close());
@@ -756,6 +991,8 @@
 
   document.addEventListener('keydown', ev => {
     if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const tg = ev.target;
+    if (tg && (tg.tagName === 'TEXTAREA' || (tg.tagName === 'INPUT' && tg.type !== 'range'))) return; // pisanie nazwy
     if (el.info.open && ev.key !== '?') return;
     if (el.exp.open || el.ss.open) return;
     if (ev.key === 'Escape' && mixerOpen()) { closeMixer(); return; }
@@ -789,6 +1026,11 @@
 
   // ---------- start ----------
   setVolume(state.volume);
+  renderPresets();
   setEnergy(state.energy);
   updateTimerLabel();
+  if (readLink.track) {
+    openExport();
+    toast('Ustawienia utworu z linku. Nagraj, a dostaniesz ten sam utwór.');
+  }
 })(window.Nurt);
