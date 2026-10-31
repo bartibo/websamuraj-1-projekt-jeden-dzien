@@ -141,6 +141,7 @@
       const dur = U.rand(3, 7);
       const n = ctx.createBufferSource();
       n.buffer = B.white;
+      n.loop = true;
       const e = ctx.createGain();
       e.gain.setValueAtTime(0, t);
       e.gain.linearRampToValueAtTime(0.06, t + 0.5);
@@ -159,6 +160,7 @@
       o.frequency.linearRampToValueAtTime(108, t + dur);
       const n = ctx.createBufferSource();
       n.buffer = B.white;
+      n.loop = true;
       const e = ctx.createGain();
       e.gain.setValueAtTime(0, t);
       e.gain.linearRampToValueAtTime(0.05, t + 0.25);

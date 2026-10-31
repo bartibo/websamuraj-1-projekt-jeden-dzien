@@ -5,11 +5,11 @@
    koder MP3, więc po pierwszej wizycie Nurt działa w samolocie.
    ===================================================================== */
 'use strict';
-const CACHE = 'nurt-v1';
+const CACHE = 'nurt-v2';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/util.js', 'js/buffers.js', 'js/mix.js', 'js/arc.js', 'js/presets.js', 'js/noise.js', 'js/lofi.js',
-  'js/cafe.js', 'js/nature.js', 'js/engine.js', 'js/export.js', 'js/visual.js', 'js/app.js',
+  'js/cafe.js', 'js/nature.js', 'js/ambience.js', 'js/engine.js', 'js/export.js', 'js/visual.js', 'js/app.js',
   'js/vendor/lame.min.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'
 ];
 const FONTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;

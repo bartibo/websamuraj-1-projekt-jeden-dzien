@@ -7,12 +7,19 @@
    nagranie jest wyrównywane do stałej głośności i kodowane do MP3
    (lamejs, ładowany dopiero przy pierwszym nagraniu). Nic nie wychodzi
    poza ten komputer.
+   Pętla bez szwu: nagranie jest o kilka sekund dłuższe, a ten nadmiar
+   przenika się z początkiem, więc koniec płynnie przechodzi w początek.
+   Ramka „Info” (z rozszerzeniem LAME) mówi odtwarzaczowi, ile ciszy
+   koder dokleił na początku i na końcu, więc zapętlony plik nie ma dziury.
    ===================================================================== */
 'use strict';
 (function (N) {
   const SR = 44100;
   const TARGET_RMS = Math.pow(10, -17 / 20);   // wyrównanie głośności
   const CEILING = Math.pow(10, -1 / 20);       // szczyty najwyżej -1 dBFS
+  const LOOP_X = 8;                            // tyle sekund końca pętli przenika się z początkiem
+  const ENC_DELAY = 576;                       // cisza, którą lamejs dokleja na początku (zmierzone)
+  const BITRATES = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
 
   let lameLoading = null;
   function loadLame() {
@@ -65,30 +72,92 @@
     return out;
   }
 
+  // CRC-16 (ten sam co w LAME) – odtwarzacze sprawdzają nim ramkę Info
+  function crc16(bytes) {
+    let crc = 0;
+    for (let i = 0; i < bytes.length; i++) {
+      crc ^= bytes[i];
+      for (let k = 0; k < 8; k++) crc = crc & 1 ? (crc >>> 1) ^ 0xA001 : crc >>> 1;
+    }
+    return crc;
+  }
+
+  /** Ramka „Info” z rozszerzeniem LAME dla nagrania CBR: długość co do próbki i bez przerwy w pętli. */
+  function infoFrame(audio, samples, kbps) {
+    let frames = 0, o = 0;
+    while (o + 4 <= audio.length && audio[o] === 0xFF && (audio[o + 1] & 0xE0) === 0xE0) {
+      o += Math.floor(144000 * BITRATES[audio[o + 2] >> 4] / SR) + ((audio[o + 2] >> 1) & 1);
+      frames++;
+    }
+    const head = audio.slice(0, 4);
+    head[2] &= ~0x02; // bez bajtu dopełnienia
+    const size = Math.floor(144000 * BITRATES[head[2] >> 4] / SR);
+    const f = new Uint8Array(size);
+    f.set(head);
+    let p = 4 + ((head[3] >> 6) === 3 ? 17 : 32); // za informacją boczną (mono 17, stereo 32 bajty)
+    const put = (...b) => b.forEach(v => { f[p++] = v & 255; });
+    const u32 = v => put(v >>> 24, v >>> 16, v >>> 8, v);
+    const txt = s => put(...[...s].map(c => c.charCodeAt(0)));
+    txt('Info');
+    u32(0x0F);                                         // są: liczba ramek, bajtów, spis treści, jakość
+    u32(frames);
+    u32(size + audio.length);
+    for (let i = 0; i < 100; i++) put(Math.floor(i * 256 / 100)); // CBR: spis treści jest liniowy
+    u32(0);
+    txt('LAME3.100');
+    put(0x01, 0);                                      // CBR, filtr nieokreślony
+    u32(0); put(0, 0, 0, 0);                           // szczyt i ReplayGain: brak
+    put(0, Math.min(255, kbps));
+    const pad = frames * 1152 - ENC_DELAY - samples;   // cisza na końcu
+    put(ENC_DELAY >> 4, ((ENC_DELAY & 15) << 4) | (pad >> 8), pad);
+    put(0, 0, 0, 0);
+    u32(size + audio.length);
+    put(0, 0);                                         // CRC muzyki: niesprawdzane
+    const crc = crc16(f.subarray(0, p));
+    put(crc >> 8, crc);
+    return f;
+  }
+
+  /** Pętla: ostatnie x próbek (za długością n) przenika się z początkiem. W miejscu, bez kopii. */
+  function seamless(d, n, x) {
+    for (let i = 0; i < x; i++) {
+      const k = i / x * Math.PI / 2;
+      d[i] = d[i] * Math.sin(k) + d[n + i] * Math.cos(k);
+    }
+    return d.subarray(0, n);
+  }
+
   /**
    * Nagraj utwór.
    * opts: seconds, fadeIn, fadeOut, mix (przepis z N.mix.at) albo mixAt(t) – przepis
    *       w chwili t (łuk utworu), seed (ziarno: to samo daje ten sam utwór), kbps, title,
-   *       onProgress(faza, 0–1), isCancelled()
+   *       loop (pętla bez szwu, bez wejścia i wyjścia), onProgress(faza, 0–1), isCancelled()
    * Zwraca Blob z MP3 albo null, gdy przerwano.
    */
   N.recordMp3 = async function (opts) {
-    const { seconds, fadeIn, fadeOut, kbps = 192 } = opts;
+    const { seconds, kbps = 192, loop } = opts;
+    const fadeIn = loop ? 0 : opts.fadeIn, fadeOut = loop ? 0 : opts.fadeOut;
+    const total = seconds + (loop ? LOOP_X : 0);
     const mixAt = opts.mixAt || (() => opts.mix);
     const progress = opts.onProgress || (() => {});
     const cancelled = opts.isCancelled || (() => false);
     const lame = loadLame();
 
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-    const ctx = new OAC(2, Math.ceil(SR * seconds), SR);
+    const ctx = new OAC(2, Math.ceil(SR * total), SR);
     progress('render', 0);
     await wait();
     const E = N.createEngine(ctx, opts.seed);
     E.apply(mixAt(0), true);
     E.setVolume(0.8, true);
-    E.fade.gain.setValueAtTime(0, 0);
-    E.fade.gain.setValueCurveAtTime(fadeCurve(512, true), 0.05, fadeIn);
-    E.fade.gain.setValueCurveAtTime(fadeCurve(512, false), seconds - fadeOut - 0.05, fadeOut);
+    if (loop) {
+      // pętla: tło gra od pierwszej próbki, a zakładka na końcu zastąpi rozbieg na początku
+      E.fade.gain.setValueAtTime(1, 0);
+    } else {
+      E.fade.gain.setValueAtTime(0, 0);
+      E.fade.gain.setValueCurveAtTime(fadeCurve(512, true), 0.05, fadeIn);
+      E.fade.gain.setValueCurveAtTime(fadeCurve(512, false), seconds - fadeOut - 0.05, fadeOut);
+    }
     E.start();
 
     // Renderowanie staje co sekundę nagrania, żeby dopisać następne nuty
@@ -96,7 +165,7 @@
     E.schedule(AHEAD);
     let stopped = false;
     if (typeof ctx.suspend === 'function') ctx.suspend(STEP).then(onStep);
-    else E.schedule(seconds); // przeglądarka bez suspend(): wszystko zaplanowane z góry
+    else E.schedule(total); // przeglądarka bez suspend(): wszystko zaplanowane z góry
     let resolveStop;
     const stop = new Promise(r => { resolveStop = r; });
     function onStep() {
@@ -104,8 +173,8 @@
       const t = ctx.currentTime;
       if (opts.mixAt) E.apply(mixAt(t));
       E.schedule(t + AHEAD);
-      progress('render', t / seconds);
-      if (t + STEP < seconds) ctx.suspend(t + STEP).then(onStep);
+      progress('render', t / total);
+      if (t + STEP < total) ctx.suspend(t + STEP).then(onStep);
       ctx.resume();
     }
     const buf = await Promise.race([ctx.startRendering(), stop]);
@@ -114,7 +183,12 @@
     // Wyrównanie głośności: RMS liczony bez wejścia i wyjścia, szczyty pod sufitem
     progress('encode', 0);
     await wait();
-    const L = buf.getChannelData(0), R = buf.getChannelData(1);
+    let L = buf.getChannelData(0), R = buf.getChannelData(1);
+    if (loop) {
+      const n = Math.round(SR * seconds), x = Math.round(SR * LOOP_X);
+      L = seamless(L, n, x);
+      R = seamless(R, n, x);
+    }
     let sum = 0, cnt = 0, peak = 0;
     const a = Math.floor(SR * fadeIn), b = Math.max(a + 1, L.length - Math.floor(SR * fadeOut));
     for (let i = 0; i < L.length; i++) {
@@ -129,7 +203,8 @@
     await lame;
     if (cancelled()) return null;
     const enc = new window.lamejs.Mp3Encoder(2, SR, kbps);
-    const chunks = [id3({ TIT2: opts.title || 'Nurt', TPE1: 'Nurt', TALB: 'Nurt – tło do pracy', TCON: 'Ambient' })];
+    const tag = id3({ TIT2: opts.title || 'Nurt', TPE1: 'Nurt', TALB: 'Nurt – tło do pracy', TCON: 'Ambient' });
+    const chunks = [];
     const BLOCK = 1152 * 48;
     const l16 = new Int16Array(BLOCK), r16 = new Int16Array(BLOCK);
     let lastYield = performance.now();
@@ -153,7 +228,9 @@
     }
     const tail = enc.flush();
     if (tail.length) chunks.push(new Uint8Array(tail));
+    const audio = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+    chunks.reduce((o, c) => { audio.set(c, o); return o + c.length; }, 0);
     progress('encode', 1);
-    return new Blob(chunks, { type: 'audio/mpeg' });
+    return new Blob([tag, infoFrame(audio, L.length, kbps), audio], { type: 'audio/mpeg' });
   };
 })(window.Nurt);

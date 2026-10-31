@@ -11,12 +11,14 @@
   const LEVEL = {
     brown: 0.31, pink: 0.18, rain: 0.36, pad: 0.52, keys: 0.46,
     bass: 0.09, drums: 0.38, melody: 0.5, vinyl: 0.64, cafe: 0.7,
-    wind: 1.1, waves: 0.32, fire: 0.81, birds: 1.03
+    wind: 1.1, waves: 0.32, fire: 0.81, birds: 1.03,
+    storm: 0.61, crickets: 0.79, train: 0.94
   };
   // Głośność (RMS) każdej warstwy przy wartości 1, względem deszczu – do pilnowania poziomu ręcznego miksu
   const LOUD = {
     brown: 1.23, pink: 0.56, rain: 1, pad: 0.99, keys: 1.12, bass: 1.32, drums: 1.43, melody: 0.55,
-    vinyl: 0.09, cafe: 1.15, wind: 0.9, waves: 1.13, fire: 0.92, birds: 0.4
+    vinyl: 0.09, cafe: 1.15, wind: 0.9, waves: 1.13, fire: 0.92, birds: 0.4,
+    storm: 0.92, crickets: 0.65, train: 1.03
   };
   const power = mix => N.mix.LAYERS.reduce((p, k) => p + Math.pow(LOUD[k] * mix[k], 2), 0);
 
@@ -71,7 +73,8 @@
     E.lofi = N.createLofi(E);
     E.cafe = N.createCafe(E);
     E.nature = N.createNature(E);
-    E.layerGains = Object.assign({}, E.noise.gains, E.lofi.gains, E.cafe.gains, E.nature.gains);
+    E.ambience = N.createAmbience(E);
+    E.layerGains = Object.assign({}, E.noise.gains, E.lofi.gains, E.cafe.gains, E.nature.gains, E.ambience.gains);
     E.mix = null;
 
     /** Ustaw proporcje warstw. Bez `immediate` wszystko płynie z ok. 0,7 s stałej czasowej. */
@@ -98,6 +101,7 @@
       E.lofi.setParams(mix, immediate);
       E.cafe.setParams(mix, immediate);
       E.nature.setParams(mix, immediate);
+      E.ambience.setParams(mix, immediate);
       E.mix = mix;
     };
 
@@ -107,12 +111,14 @@
       E.lofi.start(t);
       E.cafe.start(t);
       E.nature.start(t);
+      E.ambience.start(t);
     };
 
     E.schedule = function (until) {
       E.lofi.schedule(until);
       E.cafe.schedule(until);
       E.nature.schedule(until);
+      E.ambience.schedule(until);
     };
 
     E.setVolume = function (v, immediate) {

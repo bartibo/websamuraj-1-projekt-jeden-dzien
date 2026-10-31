@@ -27,7 +27,8 @@
   const EX_FADES = [
     { name: 'krótkie', fadeIn: 4, fadeOut: 6 },
     { name: 'łagodne', fadeIn: 15, fadeOut: 25 },
-    { name: 'bardzo długie', fadeIn: 40, fadeOut: 60 }
+    { name: 'bardzo długie', fadeIn: 40, fadeOut: 60 },
+    { name: 'pętla bez szwu', fadeIn: 0, fadeOut: 0, loop: true }
   ];
   const KBPS = 192;
 
@@ -377,7 +378,7 @@
   /** Losowy, ale sensowny miks: 1–3 dźwięki otoczenia i muzyka z wylosowanej energii. */
   function randomMix() {
     const m = {};
-    const amb = ['brown', 'pink', 'rain', 'wind', 'waves', 'fire', 'birds', 'cafe'];
+    const amb = N.presets.AMBIENT;
     const on = amb.slice().sort(() => Math.random() - 0.5).slice(0, U.randi(1, 3));
     amb.forEach(k => { m[k] = on.includes(k) ? +U.rand(0.25, 0.85).toFixed(2) : 0; });
     const base = N.mix.at(U.rand(0, 1));
@@ -436,8 +437,11 @@
     i => { if (ex.busy) return false; ex.len = EX_LENGTHS[i]; }, exChanged);
   segmented(el.exFade, () => EX_FADES.map(f => f.name), () => ex.fade,
     i => { if (ex.busy) return false; ex.fade = i; }, exChanged);
-  segmented(el.exShape, () => SHAPES.map(s => s.name), () => ex.shape,
-    i => { if (ex.busy) return false; ex.shape = i; }, exChanged);
+  const exShape = segmented(el.exShape, () => SHAPES.map(s => s.name), () => ex.shape, i => {
+    if (ex.busy) return false;
+    if (EX_FADES[ex.fade].loop && !SHAPES[i].loop) { toast('Pętla pasuje do przebiegu stałego albo fali: koniec musi wrócić do początku.'); return false; }
+    ex.shape = i;
+  }, exChanged);
 
   /**
    * Podgląd przebiegu w czasie: pole – głośność, linia – energia, kreski – muzyka.
@@ -461,15 +465,20 @@
   }
 
   function updateExportInfo() {
+    // pętla: przebieg musi kończyć się tam, gdzie zaczął
+    if (EX_FADES[ex.fade].loop && !SHAPES[ex.shape].loop) { ex.shape = 0; exShape.paint(); }
+    [...el.exShape.children].forEach((b, i) => b.classList.toggle('dim', !!EX_FADES[ex.fade].loop && !SHAPES[i].loop));
     const f = EX_FADES[ex.fade], shape = SHAPES[ex.shape], T = ex.len * 60, e0 = state.energy / 100;
     drawCurve(el.exCurve, t => {
       const a = N.arc.shape(shape.id, t, T, e0);
-      const vol = t < f.fadeIn ? U.smooth(t / f.fadeIn) : t > T - f.fadeOut ? U.smooth((T - t) / f.fadeOut) : 1;
+      const vol = f.loop ? 1 : t < f.fadeIn ? U.smooth(t / f.fadeIn) : t > T - f.fadeOut ? U.smooth((T - t) / f.fadeOut) : 1;
       return { e: a.e, music: a.music, vol };
     }, T);
     const desc = describe(N.mix.at(e0, state.manual)).replace(' · własny miks', '');
     el.exWhat.textContent = state.zone.name + (isCustom() ? ' z własnym miksem' : '') + (desc ? ` (${desc.charAt(0).toLowerCase() + desc.slice(1)})` : '');
-    el.exMeta.textContent = `Przebieg: ${shape.hint}. MP3 ${KBPS} kb/s, stereo · ok. ${fmtMB(ex.len * 60 * KBPS * 125)} · wchodzi przez ${f.fadeIn} s, cichnie przez ${f.fadeOut} s`;
+    el.exMeta.textContent = `Przebieg: ${shape.hint}. MP3 ${KBPS} kb/s, stereo · ok. ${fmtMB(ex.len * 60 * KBPS * 125)} · ` +
+      (f.loop ? 'koniec płynnie przechodzi w początek, więc plik można zapętlić w odtwarzaczu albo w montażu'
+        : `wchodzi przez ${f.fadeIn} s, cichnie przez ${f.fadeOut} s`);
   }
 
   el.exSeed.value = ex.seed;
@@ -497,8 +506,8 @@
     const e0 = state.energy / 100, manual = Object.assign({}, state.manual);
     if (!ex.seed) ex.seed = el.exSeed.value = U.newSeed();
     const seed = ex.seed;
-    const name = state.zone.name + (isCustom() ? ' · własny miks' : '') + (shape.id !== 'flat' ? ' · ' + shape.name : '');
-    const file = `nurt-${slug(state.zone.name)}${isCustom() ? '-wlasny-miks' : ''}${shape.id !== 'flat' ? '-' + slug(shape.name) : ''}-${minutes}-min-${seed}.mp3`;
+    const name = state.zone.name + (isCustom() ? ' · własny miks' : '') + (shape.id !== 'flat' ? ' · ' + shape.name : '') + (f.loop ? ' · pętla' : '');
+    const file = `nurt-${slug(state.zone.name)}${isCustom() ? '-wlasny-miks' : ''}${shape.id !== 'flat' ? '-' + slug(shape.name) : ''}${f.loop ? '-petla' : ''}-${minutes}-min-${seed}.mp3`;
     ex.busy = true; ex.cancel = false;
     el.exp.classList.add('busy');
     el.exProgress.hidden = false;
@@ -531,7 +540,7 @@
     let blob = null, err = null;
     try {
       blob = await N.recordMp3({
-        seconds, fadeIn: f.fadeIn, fadeOut: f.fadeOut, kbps: KBPS,
+        seconds, fadeIn: f.fadeIn, fadeOut: f.fadeOut, loop: !!f.loop, kbps: KBPS,
         mixAt: t => { const a = N.arc.shape(shape.id, t, seconds, e0); return N.mix.at(a.e, manual, a.music); },
         seed, title: `Nurt · ${name} · ${minutes} min · ziarno ${seed}`,
         onProgress, isCancelled: () => ex.cancel
@@ -841,14 +850,23 @@
   }
 
   // krótka wiadomość na dole ekranu
+  // jako popover leży w warstwie wierzchniej, więc widać ją także nad otwartym oknem
+  const popover = typeof el.toast.showPopover === 'function';
+  if (popover) { el.toast.setAttribute('popover', 'manual'); el.toast.hidden = false; }
   function toast(msg) {
     el.toast.textContent = msg;
-    el.toast.hidden = false;
+    if (popover) {
+      // na wierzch nad oknem, które otworzyło się po poprzednim komunikacie
+      try { el.toast.hidePopover(); } catch (e) { /* nie był pokazany */ }
+      el.toast.showPopover();
+    } else el.toast.hidden = false;
     requestAnimationFrame(() => el.toast.classList.add('in'));
     clearTimeout(toast.t);
     toast.t = setTimeout(() => {
       el.toast.classList.remove('in');
-      toast.t = setTimeout(() => { el.toast.hidden = true; }, 400);
+      toast.t = setTimeout(() => {
+        if (popover) { try { el.toast.hidePopover(); } catch (e) { /* już schowany */ } } else el.toast.hidden = true;
+      }, 400);
     }, 4200);
   }
 

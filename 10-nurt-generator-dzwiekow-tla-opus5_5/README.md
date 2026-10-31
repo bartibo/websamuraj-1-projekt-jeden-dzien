@@ -19,6 +19,7 @@ Dzień 10 eksperymentu [1 prompt, 1 zdanie](../README.md): jeden prompt, zero po
 
 Kliknij dwa razy plik **`index.html`**. Strona otworzy się w przeglądarce (Chrome, Edge, Firefox, Safari). Kliknij ▶ albo przesuń suwak i gotowe.
 Nie trzeba niczego instalować ani budować. Bez internetu działa tak samo, tylko z czcionką systemową.
+Otwarty z serwera (np. [projekty.vibemaster.pl](https://projekty.vibemaster.pl/10-nurt-generator-dzwiekow-tla-opus5_5/)) Nurt zapisuje się też do pracy offline i da się go zainstalować jak aplikację.
 
 ## Jeden suwak
 
@@ -44,13 +45,13 @@ Wszystkie zmiany płyną ze stałą czasową ok. 0,7 s, więc nawet szarpnięcie
 
 ## Co jeszcze
 
-- **Sesja z wyciszeniem**: bez limitu, 25, 50 albo 90 minut. Pod koniec dźwięk przez 12 s łagodnie cichnie i odzywa się miękki dzwonek.
-- **Pamięć**: położenie suwaka, ręczny miks, głośność, długość sesji i ustawienia nagrywania zostają w przeglądarce (localStorage), więc po powrocie wszystko jest tak, jak było. Nic nie wychodzi poza komputer.
+- **Sesje** (opis niżej, w rundzie 2): swobodnie (bez limitu, 25, 50 albo 90 minut z wyciszeniem i dzwonkiem na końcu), skupienie z przerwami, rozruch i zasypianie.
+- **Pamięć**: położenie suwaka, ręczny miks, zapisane miksy, głośność, plan sesji i ustawienia nagrywania zostają w przeglądarce (localStorage), więc po powrocie wszystko jest tak, jak było. Nic nie wychodzi poza komputer.
 - **Tło**: wstęga płynących linii. Przy niskiej energii płynie wolno, szeroko i w chłodnych barwach, przy wysokiej przyspiesza, faluje drobniej i robi się ciepła. Oddycha razem z głośnością muzyki.
 - Tytuł karty pokazuje strefę (`▶ Przepływ · Nurt`). Dźwięk gra też w karcie w tle, bo zegar planowania nut działa w Web Workerze.
 - Szanuje ustawienie „ogranicz ruch” w systemie.
 
-Klawisze: `spacja` graj/pauza, `←` `→` energia (z `Shift` szybciej), `1`–`5` skok do strefy, `↑` `↓` głośność, `T` sesja, `M` mikser, `N` nagraj MP3, `?` pomoc.
+Klawisze: `spacja` graj/pauza, `←` `→` energia (z `Shift` szybciej), `1`–`5` skok do strefy, `↑` `↓` głośność, `T` plan sesji, `M` mikser, `N` nagraj MP3, `?` pomoc. Działają też klawisze multimedialne (graj/pauza, następny i poprzedni zmieniają strefę).
 
 ## Rozwój po eksperymencie
 
@@ -80,11 +81,49 @@ Klawisze: `spacja` graj/pauza, `←` `→` energia (z `Shift` szybciej), `1`–`
 
   Pomiar w Chrome: 3 minuty z falami, ptakami, kominkiem i wiatrem nagrały się w 79 s. Plik ma 3:00, 4,1 MB, równe −17,8 dB RMS w środku i −16,6 LUFS całości. Synteza idzie ok. 3,3–4× szybciej niż czas rzeczywisty przy średniej i pełnej energii, a ok. 6× przy niskiej, więc 10 minut to zwykle 2,5–4 minuty czekania. Nagranie 30-minutowe potrzebuje ok. 650 MB pamięci, więc na telefonie lepiej wybrać krótsze.
 
+## Rozwój po eksperymencie: runda 2
+
+Tego samego dnia (31.10.2026) autor zapytał, co jeszcze ulepszyć, i poprosił o wdrożenie wszystkich pięciu propozycji po kolei.
+
+**1. Łuk: energia zmienia się w czasie.** Przycisk z zegarem (`T`) otwiera okno sesji z czterema planami i podglądem przebiegu (linia: energia, kreski: muzyka, pole: głośność):
+- *Swobodnie*: jak dawniej, bez limitu albo 25, 50 lub 90 minut z wyciszeniem i dzwonkiem.
+- *Skupienie*: praca i przerwa na zmianę (25 + 5, 50 + 10 albo 90 + 15 minut), aż do pauzy. Na przerwę energia w 20 s schodzi do wyciszenia, po przerwie wraca. Każdą zmianę ogłasza dzwonek (inny na przerwę, inny na powrót) i komunikat.
+- *Rozruch*: start od głębokiego spokoju i powolne rozkręcanie (10, 20 albo 30 minut) do energii z suwaka, potem gra dalej bez limitu.
+- *Zasypianie* (20–60 minut): energia schodzi do zera w 60% czasu, muzyka znika między 15 a 70%, a w ostatnich 20% cichnie też tło. Bez dzwonka, a po wszystkim suwak wraca tam, skąd zasypianie ruszyło.
+
+Plan prowadzi suwak tylko w przejściach, a czas biegnie tylko podczas grania. Ręczne przesunięcie zawsze wygrywa: kończy bieżące przejście, a w czasie pracy staje się nową energią pracy. Przy nagrywaniu MP3 utwór dostaje **przebieg**: stały, fala (energia faluje ±20 wokół ustawionej, pełne okresy co ok. 5 minut), rozruch albo do snu.
+
+**2. Miksy, link i ziarno.**
+- Na górze miksera jest osiem gotowych miksów (m.in. „Kominek w deszczu”, „Plaża o świcie”, „Burza za oknem”, „Nocny pociąg”) i własne: „Zapisz obecny” zapamiętuje energię i suwaki pod nazwą (do 12 miksów).
+- „Udostępnij” kopiuje link z miksem w adresie (`#e=26&rain=55&fire=60…`). Na telefonie otwiera systemowe „Udostępnij”.
+- Każde nagranie ma **ziarno** (np. `K7QF2M`). Cała losowość silnika (szumy, nuty, rozmowy, fale, ptaki) idzie przez jeden generator z ziarnem, więc to samo ziarno i te same ustawienia dają ten sam utwór. Zmierzone: dwa rendery z tym samym ziarnem różnią się o −89 dB (szum zaokrągleń oscylatorów Chrome), z innym ziarnem o +2,7 dB, czyli to zupełnie inny utwór. Ziarno jest w nazwie pliku i w tytule ID3, a „Link do utworu” po nagraniu otwiera okno MP3 z kompletem ustawień.
+
+**3. Telefon i aplikacja.**
+- Manifest, ikony (zwykłe i maskowalna) i service worker. Pliki są pobierane najpierw z sieci, a bez niej z pamięci, łącznie z koderem MP3, więc po pierwszej wizycie Nurt działa w samolocie. Przycisk „Zainstaluj Nurt” w pomocy pojawia się, gdy przeglądarka na to pozwala.
+- Razem z dźwiękiem gra prawie niesłyszalny element `<audio>` (szum ±1 bit). Dzięki temu przeglądarka traktuje stronę jak odtwarzacz: Media Session pokazuje strefę, plan i okładkę, a przyciski na ekranie blokady i klawisze multimedialne działają (następny i poprzedni zmieniają strefę). Po powrocie do karty przerwany dźwięk wznawia się sam.
+- Sprawdzone w Chrome z emulacją telefonu: service worker przejmuje stronę, po odcięciu sieci strona się ładuje i gra, koder MP3 jest dostępny offline. Na prawdziwym iPhonie i Androidzie tego nie testowałem: granie przy zablokowanym ekranie zależy od przeglądarki i systemu.
+
+**4. Naturalniejsze dźwięki.** Każdą warstwę natury wyrenderowałem osobno i obejrzałem na spektrogramie:
+- *ptaki*: zamiast powtarzanego czystego tonu każdy gatunek ma frazę z 2–4 sylab o różnych przebiegach wysokości (opadający, wznoszący, haczyk, dołek, zjazd), czasem z trylem albo drugim alikwotem. Fraza schodzi lub wspina się, a w 30% przypadków odpowiada drugi ptak z innej strony. Pogłos jest dwa razy krótszy,
+- *fale*: załamanie narasta w ok. 0,3 s zamiast skokiem, a osobny jasny syk piany zostaje, gdy niski szum wody już opada (jak na prawdziwej plaży),
+- *wiatr*: ciemniejszy (filtr 2,6 kHz) i z niskim pomrukiem rosnącym razem z podmuchami,
+- *kominek*: pomruk płomieni o połowę cichszy, więcej strzałów żywicy, więc słychać przede wszystkim trzaski.
+
+Głośności przeliczyłem tak, żeby kalibracja względem deszczu się nie zmieniła.
+
+**5. Pętla bez szwu i nowe tła.**
+- *Pętla bez szwu* (w „Wejście i wyjście”): nagranie jest o 8 s dłuższe, a ten nadmiar przenika się z początkiem (równa moc), więc koniec płynnie przechodzi w początek. Pasuje do przebiegu stałego i fali. Pętle szumów mają teraz „nieokrągłe” długości (4,79–13,91 s), żeby w zakładce nie zgrywały się same ze sobą (zmierzone: pierwsze 10 s pętli szumów trzyma się ±0,4 dB mediany).
+- Każde MP3 ma teraz ramkę **Info z rozszerzeniem LAME** z opóźnieniem kodera (576 próbek, zmierzone korelacją) i dopełnieniem końca. Dzięki niej odtwarzacze znają długość co do próbki i nie wstawiają ciszy na styku pętli. Sprawdzone ffmpeg: 3 minuty dekodują się do dokładnie 7 938 000 próbek, a skok na styku pętli mieści się w zwykłym zakresie różnic między sąsiednimi próbkami.
+- *Burza*: grzmoty co 10–35 s (gęściej przy wyższym suwaku). Daleki tylko się toczy, przez kilka przetoczeń w dół, a bliski zaczyna się trzaskiem rozdzieranego powietrza. Między grzmotami niski, falujący pomruk nieba.
+- *Świerszcze*: 4–6 owadów, każdy na swoim tonie 2,8–5,2 kHz. Czysty ton jest cięty na impulsy (oscylator, kształtownik i wzmacniacz, bez tworzenia węzłów na każdy impuls). Krótkie ćwierknięcia po 3–5 impulsów albo długi tryl jak u świerszcza drzewnego.
+- *Pociąg*: stukot na stykach szyn co 25 m, czyli dwa wózki wagonu (osie co 2,5 m, tylny wózek 17,5 m dalej): „ta-dam… ta-dam”. Do tego szum toczenia i powolne zmiany prędkości (65–110 km/h), od których zależy rytm. Stuknięcia wystają ok. 21 dB ponad tło w paśmie 0,4–1,5 kHz.
+- Nowe tła skalibrowane względem deszczu (−28,3 dB): burza −29, świerszcze −32, pociąg −28 dB RMS.
+
 ## Nic tu nie jest nagrane
 
 Każdy dźwięk powstaje na żywo w Web Audio, więc projekt nie ma ani jednego pliku audio:
 
-- **Szumy**: biały, różowy (filtr Paula Kelleta) i brązowy (całkowany biały) liczone do 10-sekundowych pętli, których koniec przenika się z początkiem (szew jest niesłyszalny).
+- **Szumy**: biały, różowy (filtr Paula Kelleta) i brązowy (całkowany biały) liczone do kilkusekundowych pętli o „nieokrągłych” długościach, których koniec przenika się z początkiem (szew jest niesłyszalny).
 - **Deszcz**: szelest z różowego szumu, pomruk z brązowego i ok. 1400 pojedynczych kropli. Każda kropla to trzask uderzenia i pęcherzyk powietrza, którego ton rośnie (rezonans Minnaerta). Do tego dwa bardzo wolne oscylatory robią podmuchy.
 - **Lo-fi**: komponowane takt po takcie. 7 jazzowych progresji (m.in. ii–V–I–vi, molowa subdominanta), akordy nonowe i tercdecymowe w ciasnym układzie, co jakiś czas zmiana tonacji. Instrumenty:
   - elektryczne pianino: synteza FM 1:1 z gasnącym indeksem, jasny atak przechodzi w okrągły dźwięk,
@@ -100,6 +139,7 @@ Każdy dźwięk powstaje na żywo w Web Audio, więc projekt nie ma ani jednego 
   - dysza do mleka w ekspresie,
   - młynek.
   Goście „siadają”, gdy gwar rośnie, i wychodzą, gdy cichnie, więc przy niskiej energii kawiarnia nie zużywa procesora.
+- **Natura i reszta otoczenia**: wiatr, fale, kominek, ptaki, burza, świerszcze i pociąg (opis w rundach rozwoju wyżej).
 - **Pogłos**: splot z odpowiedzią impulsową wygenerowaną w kodzie (ciemniejący, wykładniczo gasnący szum z wczesnymi odbiciami).
 - **Master**: lekkie ściszenie przy wysokiej energii (do −2 dB), łagodna kompresja i limiter.
 
@@ -116,18 +156,23 @@ Wynik: cały zakres suwaka mieści się w ok. −16 … −19 dB RMS, a szczyty 
 ## Struktura
 
 ```
-index.html        – układ strony i okno „Jak to działa”
+index.html        – układ strony, okna: sesja, nagrywanie MP3, „Jak to działa”
+manifest.webmanifest, icons/ – instalacja jako aplikacja
+sw.js             – praca bez internetu (najpierw sieć, potem pamięć)
 css/style.css     – wygląd
-js/util.js        – drobne narzędzia (losowanie, filtry, wzmacniacze)
+js/util.js        – drobne narzędzia (losowanie z ziarnem, filtry, wzmacniacze)
 js/buffers.js     – szumy, krople deszczu, trzaski winylu i kominka, odpowiedź impulsowa pogłosu
 js/mix.js         – tabela energia → proporcje warstw, ręczne wartości z miksera, suwaki miksera, strefy, kolory
+js/arc.js         – plany sesji i przebiegi nagrania (energia i muzyka w funkcji czasu)
+js/presets.js     – gotowe miksy, link do miksu i do utworu
 js/noise.js       – warstwy: brązowy szum, różowy szum, deszcz
 js/lofi.js        – generatywne lo-fi: harmonia, instrumenty, sekwencer, taśma, winyl
 js/cafe.js        – gwar kawiarni: rozmowy, naczynia, ekspres, młynek
 js/nature.js      – wiatr, fale morza, kominek, ptaki
+js/ambience.js    – burza, świerszcze, pociąg
 js/engine.js      – tor sygnału, poziomy warstw, pilnowanie głośności, kompresja, dzwonek końca sesji
-js/export.js      – nagrywanie utworu offline, wejście i wyjście, wyrównanie głośności, MP3 z ID3
+js/export.js      – nagrywanie utworu offline, przebieg, pętla bez szwu, wyrównanie głośności, MP3 z ID3 i ramką Info
 js/vendor/        – lamejs (koder MP3, LGPL) i jego licencja
 js/visual.js      – tło z płynącą wstęgą linii
-js/app.js         – suwak, mikser, odtwarzanie, sesje, nagrywanie, skróty, pamięć ustawień
+js/app.js         – suwak, mikser, miksy, odtwarzanie, plany sesji, nagrywanie, ekran blokady, skróty, pamięć
 ```

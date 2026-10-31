@@ -18,7 +18,10 @@
       { id: 'fireplace', name: 'Kominek w deszczu', energy: 26, mix: { rain: 0.55, fire: 0.6, brown: 0.15, vinyl: 0.2 } },
       { id: 'beach', name: 'Plaża o świcie', energy: 14, mix: { waves: 0.7, birds: 0.3, wind: 0.2, pad: 0.45, keys: 0.2, vinyl: 0 } },
       { id: 'forest', name: 'Las rano', energy: 32, mix: { birds: 0.6, wind: 0.3, pink: 0.08, drums: 0, vinyl: 0.1 } },
-      { id: 'cafe-night', name: 'Nocna kawiarnia', energy: 62, mix: { cafe: 0.55, rain: 0.45, vinyl: 0.6, bright: 0.3, tempo: 0.3 } }
+      { id: 'cafe-night', name: 'Nocna kawiarnia', energy: 62, mix: { cafe: 0.55, rain: 0.45, vinyl: 0.6, bright: 0.3, tempo: 0.3 } },
+      { id: 'storm', name: 'Burza za oknem', energy: 10, mix: { rain: 0.75, storm: 0.6, wind: 0.2, brown: 0.2, keys: 0.15, vinyl: 0 } },
+      { id: 'summer-night', name: 'Letnia noc', energy: 8, mix: { crickets: 0.55, wind: 0.12, pad: 0.4, keys: 0.12, vinyl: 0 } },
+      { id: 'train', name: 'Nocny pociąg', energy: 38, mix: { train: 0.65, rain: 0.25, drums: 0, vinyl: 0.3 } }
     ],
 
     /** Ręczne suwaki gotowego miksu: otoczenie spoza listy milknie. */

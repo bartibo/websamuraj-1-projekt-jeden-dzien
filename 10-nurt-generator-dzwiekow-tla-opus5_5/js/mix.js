@@ -1,5 +1,5 @@
 /* =====================================================================
-   Nurt – jeden suwak, czternaście warstw
+   Nurt – jeden suwak, siedemnaście warstw
    Tu zapisane jest, jak poziom energii (0–1) przekłada się na proporcje
    szumów, deszczu, ambientu, lo-fi i gwaru kawiarni. Między punktami
    kontrolnymi wartości przechodzą liniowo, a silnik dźwięku dodatkowo
@@ -26,7 +26,10 @@
     wind:   [0, 0, 0, 0, 0, 0],
     waves:  [0, 0, 0, 0, 0, 0],
     fire:   [0, 0, 0, 0, 0, 0],
-    birds:  [0, 0, 0, 0, 0, 0]
+    birds:  [0, 0, 0, 0, 0, 0],
+    storm:  [0, 0, 0, 0, 0, 0],
+    crickets: [0, 0, 0, 0, 0, 0],
+    train:  [0, 0, 0, 0, 0, 0]
   };
   const BPM = [56, 100];
 
@@ -79,10 +82,13 @@
         { id: 'brown', name: 'Brązowy szum' },
         { id: 'pink', name: 'Różowy szum' },
         { id: 'rain', name: 'Deszcz' },
-        { id: 'wind', name: 'Wiatr', isNew: true },
-        { id: 'waves', name: 'Fale morza', isNew: true },
-        { id: 'fire', name: 'Kominek', isNew: true },
-        { id: 'birds', name: 'Ptaki', isNew: true },
+        { id: 'storm', name: 'Burza', isNew: true },
+        { id: 'wind', name: 'Wiatr' },
+        { id: 'waves', name: 'Fale morza' },
+        { id: 'fire', name: 'Kominek' },
+        { id: 'birds', name: 'Ptaki' },
+        { id: 'crickets', name: 'Świerszcze', isNew: true },
+        { id: 'train', name: 'Pociąg', isNew: true },
         { id: 'cafe', name: 'Kawiarnia' }
       ] },
       { name: 'Muzyka', controls: [
@@ -114,7 +120,10 @@
       { id: 'wind', name: 'Wiatr', phrase: 'wiatr', get: m => m.wind, extra: true },
       { id: 'waves', name: 'Fale', phrase: 'fale morza', get: m => m.waves, extra: true },
       { id: 'fire', name: 'Kominek', phrase: 'trzask kominka', get: m => m.fire, extra: true },
-      { id: 'birds', name: 'Ptaki', phrase: 'ptaki', get: m => m.birds, extra: true }
+      { id: 'birds', name: 'Ptaki', phrase: 'ptaki', get: m => m.birds, extra: true },
+      { id: 'storm', name: 'Burza', phrase: 'burza', get: m => m.storm, extra: true },
+      { id: 'crickets', name: 'Świerszcze', phrase: 'świerszcze', get: m => m.crickets, extra: true },
+      { id: 'train', name: 'Pociąg', phrase: 'stukot pociągu', get: m => m.train, extra: true }
     ],
 
     ZONES: [
