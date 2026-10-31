@@ -125,7 +125,7 @@
       });
     }
     function dishes(t) {
-      const r = Math.random();
+      const r = U.random();
       if (r < 0.55) {
         clink(t, U.rand(0.04, 0.1), U.rand(1700, 3200), U.rand(0.25, 0.6));
       } else if (r < 0.85) {
@@ -148,7 +148,7 @@
       e.gain.setTargetAtTime(0, t + dur, 0.3);
       n.connect(U.filter(ctx, 'bandpass', U.rand(2800, 4200), 0.9)).connect(e)
         .connect(U.panner(ctx, U.rand(-0.6, 0.6))).connect(near);
-      n.start(t, Math.random() * 3);
+      n.start(t, U.random() * 3);
       n.stop(t + dur + 2);
     }
     function grinder(t) {
@@ -167,7 +167,7 @@
       o.connect(U.filter(ctx, 'bandpass', 1100, 1.4)).connect(e);
       n.connect(U.filter(ctx, 'bandpass', 1900, 1)).connect(U.gain(ctx, 0.6)).connect(e);
       e.connect(U.panner(ctx, U.rand(-0.6, 0.6))).connect(room);
-      o.start(t); n.start(t, Math.random() * 3);
+      o.start(t); n.start(t, U.random() * 3);
       o.stop(t + dur + 0.5); n.stop(t + dur + 0.5);
     }
 

@@ -52,8 +52,13 @@
   N.mix = {
     LAYERS: Object.keys(TABLE),
 
-    /** Pełny przepis miksu dla danej energii. `manual` – ręczne wartości z miksera (0–1). */
-    at(e, manual) {
+    MUSIC: ['pad', 'keys', 'bass', 'melody', 'drums', 'vinyl'],
+
+    /**
+     * Pełny przepis miksu dla danej energii. `manual` – ręczne wartości z miksera (0–1),
+     * `music` – ile zostaje z warstw muzyki (łuk zasypiania ścisza je do zera).
+     */
+    at(e, manual, music) {
       e = N.util.clamp(e, 0, 1);
       const m = { energy: e };
       for (const k in TABLE) m[k] = interp(TABLE[k], e);
@@ -62,6 +67,7 @@
       m.busy = e;                                         // gęstość akompaniamentu i bitu
       m.space = 0.5;                                      // ilość pogłosu
       if (manual) for (const k in manual) if (k in m && k !== 'energy') m[k] = N.util.clamp(+manual[k] || 0, 0, 1);
+      if (music != null && music < 1) for (const k of this.MUSIC) m[k] *= Math.max(0, music);
       m.bpm = BPM[0] + (BPM[1] - BPM[0]) * m.tempo;
       m.cutoff = 1500 * Math.pow(5600 / 1500, m.bright);
       return m;

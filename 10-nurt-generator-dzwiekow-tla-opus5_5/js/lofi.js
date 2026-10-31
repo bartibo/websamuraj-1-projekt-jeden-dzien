@@ -204,7 +204,7 @@
     function noiseHit(t, dur) {
       const s = ctx.createBufferSource();
       s.buffer = B.white;
-      s.start(t, Math.random() * (B.white.duration - 1));
+      s.start(t, U.random() * (B.white.duration - 1));
       s.stop(t + dur);
       return s;
     }

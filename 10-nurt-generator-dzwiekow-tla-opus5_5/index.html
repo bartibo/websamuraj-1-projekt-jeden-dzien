@@ -32,7 +32,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>MP3</span>
       </button>
-      <button class="chip" id="btn-timer" title="Sesja z łagodnym wyciszeniem na końcu (T)">
+      <button class="chip" id="btn-timer" title="Sesja: swobodnie, skupienie z przerwami, rozruch albo zasypianie (T)" aria-haspopup="dialog">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2.5 2M9.5 2.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         <span id="timer-label">bez limitu</span>
       </button>
@@ -96,6 +96,11 @@
     <span class="ex-label">Wejście i wyjście</span>
     <div class="seg" id="ex-fade" role="radiogroup" aria-label="Wejście i wyjście"></div>
   </div>
+  <div class="ex-row">
+    <span class="ex-label">Przebieg</span>
+    <div class="seg" id="ex-shape" role="radiogroup" aria-label="Przebieg utworu"></div>
+  </div>
+  <figure class="curve"><svg id="ex-curve" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"></svg><figcaption></figcaption></figure>
   <p class="ex-meta" id="ex-meta"></p>
   <div class="ex-progress" id="ex-progress" hidden>
     <div class="ex-bar"><i id="ex-bar"></i></div>
@@ -106,6 +111,27 @@
     <a class="btn-main ghost" id="ex-save" hidden>Pobierz ponownie</a>
   </div>
 </dialog>
+
+<dialog class="info export" id="session">
+  <button class="close" id="session-close" aria-label="Zamknij">×</button>
+  <h2>Sesja</h2>
+  <p>Jak ma płynąć czas? Plan sam prowadzi suwak energii, a&nbsp;ty możesz go w każdej chwili przesunąć.</p>
+  <div class="ex-row">
+    <span class="ex-label">Plan</span>
+    <div class="seg" id="ss-plan" role="radiogroup" aria-label="Plan sesji"></div>
+  </div>
+  <p class="ss-hint" id="ss-hint"></p>
+  <div class="ex-row">
+    <span class="ex-label" id="ss-opt-label">Długość</span>
+    <div class="seg" id="ss-opt" role="radiogroup" aria-labelledby="ss-opt-label"></div>
+  </div>
+  <figure class="curve"><svg id="ss-curve" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"></svg><figcaption></figcaption></figure>
+  <div class="ex-actions">
+    <button class="btn-main" id="ss-go">Zacznij</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <dialog class="info" id="info">
   <button class="close" id="info-close" aria-label="Zamknij">×</button>
@@ -121,8 +147,10 @@
   <p>Każde położenie pomiędzy brzmi inaczej. Tempo, jasność, gęstość akompaniamentu i liczba gości w kawiarni zmieniają się razem z suwakiem.</p>
   <h3>Mikser</h3>
   <p>Wolisz sam? W <b>mikserze</b> każda z czternastu warstw ma swój suwak: szumy, deszcz, wiatr, fale morza, kominek, ptaki, kawiarnia, ambient, pianino, bas, melodia, bit i winyl. Do tego tempo, jasność, gęstość gry i przestrzeń (pogłos). Przesunięty suwak zostaje na swoim miejscu, a resztą dalej rządzi energia. Kliknięcie paska w „Teraz słychać” otwiera mikser na tej warstwie.</p>
+  <h3>Sesje</h3>
+  <p>Przycisk z zegarem wybiera plan. <b>Swobodnie</b> gra, ile chcesz (albo 25, 50 lub 90 minut z wyciszeniem na końcu). <b>Skupienie</b> przeplata pracę z przerwą (25 + 5, 50 + 10 albo 90 + 15 minut): w przerwie tło samo się uspokaja, a dzwonek ogłasza każdą zmianę. <b>Rozruch</b> zaczyna od spokoju i powoli dochodzi do energii z suwaka. <b>Zasypianie</b> wycisza energię, potem muzykę, aż zostaje samo tło, które też w końcu cichnie.</p>
   <h3>Nagraj MP3</h3>
-  <p>Przycisk <b>MP3</b> nagrywa utwór od 3 do 30 minut z tym, co jest ustawione, z łagodnym wejściem i wyjściem. Nagranie powstaje szybciej niż w czasie rzeczywistym (10 minut to zwykle 2–4 minuty czekania), a muzyka komponuje się od nowa, więc każdy plik jest inny.</p>
+  <p>Przycisk <b>MP3</b> nagrywa utwór od 3 do 30 minut z tym, co jest ustawione, z łagodnym wejściem i wyjściem. Utwór może mieć <b>przebieg</b>: stały, falujący, rozkręcający się albo wyciszający do snu. Nagranie powstaje szybciej niż w czasie rzeczywistym (10 minut to zwykle 2–4 minuty czekania), a muzyka komponuje się od nowa, więc każdy plik jest inny.</p>
   <h3>Nic tu nie jest nagrane</h3>
   <p>Wszystko powstaje na żywo w przeglądarce: szumy, krople, akordy, bit, ptaki i rozmowy (słów nie da się zrozumieć, więc nie przyciągają uwagi). Muzyka komponuje się takt po takcie, więc nic się nie zapętla. Działa od razu, bez konta, bez reklam i bez internetu. Na tym urządzeniu zapamiętywane są tylko ustawienia suwaków, głośność i długość sesji.</p>
   <h3>Skróty</h3>
@@ -131,7 +159,7 @@
     <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>mniej / więcej energii (z <kbd>Shift</kbd> szybciej)</dd>
     <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>skok do strefy</dd>
     <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>głośność</dd>
-    <dt><kbd>T</kbd></dt><dd>sesja: bez limitu, 25, 50 albo 90 minut, na końcu łagodne wyciszenie i dzwonek</dd>
+    <dt><kbd>T</kbd></dt><dd>sesja: swobodnie, skupienie z przerwami, rozruch albo zasypianie</dd>
     <dt><kbd>M</kbd></dt><dd>mikser</dd>
     <dt><kbd>N</kbd></dt><dd>nagraj utwór MP3</dd>
   </dl>
@@ -140,6 +168,7 @@
 <script src="js/util.js"></script>
 <script src="js/buffers.js"></script>
 <script src="js/mix.js"></script>
+<script src="js/arc.js"></script>
 <script src="js/noise.js"></script>
 <script src="js/lofi.js"></script>
 <script src="js/cafe.js"></script>

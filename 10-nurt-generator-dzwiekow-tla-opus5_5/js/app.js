@@ -14,9 +14,12 @@
     mixerBadge: $('mixer-badge'), mixerClose: $('mixer-close'), mixerAuto: $('mixer-auto'), mixerRandom: $('mixer-random'),
     exportBtn: $('btn-export'), exportLabel: $('btn-export').querySelector('span'), exp: $('export'),
     expClose: $('export-close'), exWhat: $('ex-what'), exLen: $('ex-len'), exFade: $('ex-fade'), exMeta: $('ex-meta'),
-    exProgress: $('ex-progress'), exBar: $('ex-bar'), exStatus: $('ex-status'), exGo: $('ex-go'), exSave: $('ex-save')
+    exProgress: $('ex-progress'), exBar: $('ex-bar'), exStatus: $('ex-status'), exGo: $('ex-go'), exSave: $('ex-save'),
+    exShape: $('ex-shape'), exCurve: $('ex-curve'),
+    ss: $('session'), ssClose: $('session-close'), ssPlan: $('ss-plan'), ssOpt: $('ss-opt'), ssOptLabel: $('ss-opt-label'),
+    ssHint: $('ss-hint'), ssCurve: $('ss-curve'), ssGo: $('ss-go'), toast: $('toast')
   };
-  const TIMERS = [0, 25, 50, 90];
+  const PLANS = N.arc.PLANS, SHAPES = N.arc.SHAPES;
   const STORE = 'nurt.v1';
   const CONTROLS = [].concat(...N.mix.SECTIONS.map(sec => sec.controls));
   const EX_LENGTHS = [3, 5, 10, 20, 30];
@@ -32,27 +35,40 @@
   const state = {
     energy: U.clamp(saved.energy == null ? 50 : +saved.energy || 0, 0, 100),
     volume: U.clamp(saved.volume == null ? 70 : +saved.volume, 0, 100),
-    timerIdx: TIMERS.includes(saved.timer) ? TIMERS.indexOf(saved.timer) : 0,
     manual: {},
-    playing: false, starting: false, remaining: 0, zone: null
+    playing: false, starting: false, zone: null
   };
+  // Sesja: wybrany plan i jego wariant oraz stan biegnącego planu (czas liczy się tylko podczas grania)
+  const sess = {
+    plan: 0, opts: { free: 0, focus: 0, rise: 1, sleep: 1 },
+    started: false, ended: false, done: false, t: 0, phase: null, ramp: null, music: 1, fading: false, target: 50
+  };
+  {
+    const pi = PLANS.findIndex(p => p.id === saved.plan);
+    if (pi >= 0) sess.plan = pi;
+    else if ([25, 50, 90].includes(saved.timer)) sess.opts.free = PLANS[0].options.indexOf(saved.timer); // zapis sprzed planów
+    const so = saved.planOpts || {};
+    PLANS.forEach(p => { if (Number.isInteger(so[p.id]) && so[p.id] >= 0 && so[p.id] < p.options.length) sess.opts[p.id] = so[p.id]; });
+  }
   if (saved.manual && typeof saved.manual === 'object') {
     CONTROLS.forEach(c => { if (c.id in saved.manual) state.manual[c.id] = U.clamp(+saved.manual[c.id] || 0, 0, 1); });
   }
   const ex = {
     len: EX_LENGTHS.includes(saved.exLen) ? saved.exLen : 10,
     fade: U.clamp(saved.exFade == null ? 1 : +saved.exFade || 0, 0, EX_FADES.length - 1),
+    shape: Math.max(0, SHAPES.findIndex(s => s.id === saved.exShape)),
     busy: false, cancel: false, url: null
   };
   function save() {
     try {
       localStorage.setItem(STORE, JSON.stringify({
-        energy: +state.energy.toFixed(1), volume: state.volume, timer: TIMERS[state.timerIdx],
-        manual: state.manual, exLen: ex.len, exFade: ex.fade
+        energy: +state.energy.toFixed(1), volume: state.volume,
+        plan: PLANS[sess.plan].id, planOpts: sess.opts,
+        manual: state.manual, exLen: ex.len, exFade: ex.fade, exShape: SHAPES[ex.shape].id
       }));
     } catch (e) { /* tryb prywatny */ }
   }
-  const mixNow = () => N.mix.at(state.energy / 100, state.manual);
+  const mixNow = () => N.mix.at(state.energy / 100, state.manual, sess.music);
   const isCustom = () => Object.keys(state.manual).length > 0;
 
   const visual = N.createVisual($('flow'));
@@ -87,6 +103,7 @@
   function setEnergy(v, fromUser) {
     state.energy = U.clamp(v, 0, 100);
     if (fromUser !== 'slider') el.energy.value = state.energy;
+    if (fromUser !== 'arc') onUserEnergy();
     const e = state.energy / 100;
     visual.setEnergy(e);
     const [r, g, b] = N.mix.color(e);
@@ -237,37 +254,80 @@
   // ---------- nagrywanie MP3 ----------
   const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const fmtMB = bytes => (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB';
-  function segmented(box, items, get, set) {
-    items.forEach((label, i) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.setAttribute('role', 'radio');
-      b.textContent = label;
-      b.addEventListener('click', () => { if (ex.busy) return; set(i); paint(); updateExportInfo(); save(); });
-      box.appendChild(b);
-    });
-    const paint = () => [...box.children].forEach((b, i) => {
-      b.setAttribute('aria-checked', String(i === get()));
-      b.tabIndex = i === get() ? 0 : -1;
-    });
+  /**
+   * Grupa przycisków „jeden z wielu”. `items()` może się zmieniać (wtedy rebuild()),
+   * `set(i)` zwraca false, gdy wyboru nie wolno teraz zmienić.
+   */
+  function segmented(box, items, get, set, after) {
+    const pickIt = i => { if (set(i) === false) return false; api.paint(); after(); return true; };
+    const api = {
+      rebuild() {
+        box.textContent = '';
+        items().forEach((label, i) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.setAttribute('role', 'radio');
+          b.textContent = label;
+          b.addEventListener('click', () => pickIt(i));
+          box.appendChild(b);
+        });
+        api.paint();
+      },
+      paint() {
+        [...box.children].forEach((b, i) => {
+          b.setAttribute('aria-checked', String(i === get()));
+          b.tabIndex = i === get() ? 0 : -1;
+        });
+      }
+    };
     box.addEventListener('keydown', ev => {
       const d = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0;
-      if (!d || ex.busy) return;
+      if (!d) return;
       ev.preventDefault();
-      set(U.clamp(get() + d, 0, items.length - 1));
-      paint(); updateExportInfo(); save();
-      box.children[get()].focus();
+      if (pickIt(U.clamp(get() + d, 0, box.children.length - 1))) box.children[get()].focus();
     });
-    paint();
+    api.rebuild();
+    return api;
   }
-  segmented(el.exLen, EX_LENGTHS.map(m => m + ' min'), () => EX_LENGTHS.indexOf(ex.len), i => { ex.len = EX_LENGTHS[i]; });
-  segmented(el.exFade, EX_FADES.map(f => f.name), () => ex.fade, i => { ex.fade = i; });
+  const exChanged = () => { updateExportInfo(); save(); };
+  segmented(el.exLen, () => EX_LENGTHS.map(m => m + ' min'), () => EX_LENGTHS.indexOf(ex.len),
+    i => { if (ex.busy) return false; ex.len = EX_LENGTHS[i]; }, exChanged);
+  segmented(el.exFade, () => EX_FADES.map(f => f.name), () => ex.fade,
+    i => { if (ex.busy) return false; ex.fade = i; }, exChanged);
+  segmented(el.exShape, () => SHAPES.map(s => s.name), () => ex.shape,
+    i => { if (ex.busy) return false; ex.shape = i; }, exChanged);
+
+  /**
+   * Podgląd przebiegu w czasie: pole – głośność, linia – energia, kreski – muzyka.
+   * `at(t)` zwraca { e, music, vol } dla t w sekundach od 0 do T.
+   */
+  function drawCurve(svg, at, T, endLabel) {
+    const W = 300, H = 64, n = 150, pts = [];
+    for (let i = 0; i <= n; i++) pts.push(at(T * i / n));
+    const x = i => (i / n * W).toFixed(1), y = v => (H - 4 - v * (H - 10)).toFixed(1);
+    const line = key => pts.map((p, i) => (i ? 'L' : 'M') + x(i) + ' ' + y(p[key])).join('');
+    const area = 'M0 ' + H + pts.map((p, i) => 'L' + x(i) + ' ' + (H - p.vol * (H - 2)).toFixed(1)).join('') + 'L' + W + ' ' + H + 'Z';
+    const music = pts.some(p => p.music < 0.999);
+    const mins = T / 60;
+    svg.innerHTML =
+      `<path class="c-vol" d="${area}"/>` +
+      (music ? `<path class="c-music" d="${line('music')}"/>` : '') +
+      `<path class="c-e" d="${line('e')}"/>`;
+    svg.nextElementSibling.innerHTML = '<span>0</span><span class="c-key"><i class="k-e"></i>energia' +
+      (music ? ' <i class="k-music"></i>muzyka' : '') + ' <i class="k-vol"></i>głośność</span>' +
+      `<span>${endLabel || (Number.isInteger(mins) ? mins : mins.toFixed(1).replace('.', ',')) + ' min'}</span>`;
+  }
 
   function updateExportInfo() {
-    const f = EX_FADES[ex.fade];
-    const desc = describe(mixNow()).replace(' · własny miks', '');
+    const f = EX_FADES[ex.fade], shape = SHAPES[ex.shape], T = ex.len * 60, e0 = state.energy / 100;
+    drawCurve(el.exCurve, t => {
+      const a = N.arc.shape(shape.id, t, T, e0);
+      const vol = t < f.fadeIn ? U.smooth(t / f.fadeIn) : t > T - f.fadeOut ? U.smooth((T - t) / f.fadeOut) : 1;
+      return { e: a.e, music: a.music, vol };
+    }, T);
+    const desc = describe(N.mix.at(e0, state.manual)).replace(' · własny miks', '');
     el.exWhat.textContent = state.zone.name + (isCustom() ? ' z własnym miksem' : '') + (desc ? ` (${desc.charAt(0).toLowerCase() + desc.slice(1)})` : '');
-    el.exMeta.textContent = `MP3 ${KBPS} kb/s, stereo · ok. ${fmtMB(ex.len * 60 * KBPS * 125)} · muzyka wchodzi przez ${f.fadeIn} s i cichnie przez ${f.fadeOut} s`;
+    el.exMeta.textContent = `Przebieg: ${shape.hint}. MP3 ${KBPS} kb/s, stereo · ok. ${fmtMB(ex.len * 60 * KBPS * 125)} · wchodzi przez ${f.fadeIn} s, cichnie przez ${f.fadeOut} s`;
   }
 
   function openExport() {
@@ -280,9 +340,10 @@
 
   async function record() {
     if (ex.busy) { ex.cancel = true; el.exStatus.textContent = 'Przerywam…'; return; }
-    const f = EX_FADES[ex.fade], minutes = ex.len, seconds = minutes * 60;
-    const name = state.zone.name + (isCustom() ? ' · własny miks' : '');
-    const file = `nurt-${slug(state.zone.name)}${isCustom() ? '-wlasny-miks' : ''}-${minutes}-min.mp3`;
+    const f = EX_FADES[ex.fade], minutes = ex.len, seconds = minutes * 60, shape = SHAPES[ex.shape];
+    const e0 = state.energy / 100, manual = Object.assign({}, state.manual);
+    const name = state.zone.name + (isCustom() ? ' · własny miks' : '') + (shape.id !== 'flat' ? ' · ' + shape.name : '');
+    const file = `nurt-${slug(state.zone.name)}${isCustom() ? '-wlasny-miks' : ''}${shape.id !== 'flat' ? '-' + slug(shape.name) : ''}-${minutes}-min.mp3`;
     ex.busy = true; ex.cancel = false;
     el.exp.classList.add('busy');
     el.exProgress.hidden = false;
@@ -313,7 +374,8 @@
     let blob = null, err = null;
     try {
       blob = await N.recordMp3({
-        seconds, fadeIn: f.fadeIn, fadeOut: f.fadeOut, mix: mixNow(), kbps: KBPS,
+        seconds, fadeIn: f.fadeIn, fadeOut: f.fadeOut, kbps: KBPS,
+        mixAt: t => { const a = N.arc.shape(shape.id, t, seconds, e0); return N.mix.at(a.e, manual, a.music); },
         title: `Nurt · ${name} · ${minutes} min`,
         onProgress, isCancelled: () => ex.cancel
       });
@@ -414,7 +476,8 @@
       engine.schedule(ctx.currentTime + 0.6);
       engine.fadeTo(1, 1.6);
     });
-    if (TIMERS[state.timerIdx] && state.remaining <= 0) state.remaining = TIMERS[state.timerIdx] * 60;
+    if (!sess.started || sess.ended) startPlan();
+    else sess.fading = false; // wyciszanie zasypiania ruszy od nowa z czasem, który został
     visual.setPlaying(true);
     el.play.classList.add('on');
     el.play.setAttribute('aria-label', 'Pauza');
@@ -444,44 +507,182 @@
     if (state.playing) pause(); else play();
   }
 
-  // ---------- sesja z wyciszeniem ----------
-  function updateTimerLabel() {
-    const mins = TIMERS[state.timerIdx];
-    el.timer.classList.toggle('on', mins > 0);
-    if (!mins) { el.timerLabel.textContent = 'bez limitu'; return; }
-    if (state.remaining > 0 && (state.playing || state.remaining < mins * 60)) {
-      const s = Math.ceil(state.remaining);
-      el.timerLabel.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-    } else el.timerLabel.textContent = `${mins} min`;
-  }
-  function cycleTimer() {
-    state.timerIdx = (state.timerIdx + 1) % TIMERS.length;
-    state.remaining = TIMERS[state.timerIdx] * 60;
+  // ---------- sesja: plan, który prowadzi energię w czasie ----------
+  const planDef = () => PLANS[sess.plan];
+  const planOpt = () => planDef().options[sess.opts[planDef().id]];
+  const fmtClock = s => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+  /** Plan rusza od zera: przy pierwszym graniu, po zakończeniu albo po „Zacznij”. */
+  function startPlan() {
+    const d = planDef(), opt = planOpt();
+    clearTimeout(endTimer);
+    Object.assign(sess, { started: true, ended: false, done: false, t: 0, phase: null, ramp: null, music: 1, fading: false, target: state.energy });
+    if (d.id === 'focus') sess.phase = 'work';
+    if (d.id === 'rise') {
+      const from = Math.min(N.arc.LOW * 100, sess.target);
+      sess.ramp = { from, to: sess.target, t0: 0, dur: opt * 60 };
+      setEnergy(from, 'arc');
+    } else if (d.id === 'sleep') {
+      // energia schodzi do zera w 60% czasu (tak samo jak w N.arc.sleep)
+      sess.ramp = { from: sess.target, to: 0, t0: 0, dur: opt * 60 * 0.6 };
+    }
+    refreshMix();
     updateTimerLabel();
-    save();
   }
-  let lastSec = performance.now();
+
+  /** Ręczny ruch energii: przejście planu się kończy, a w pracy nowa wartość staje się celem. */
+  function onUserEnergy() {
+    if (sess.ramp && sess.started) {
+      sess.ramp = null;
+      if (planDef().id === 'rise') sess.done = true;
+    }
+    if (planDef().id === 'focus' && sess.phase !== 'break') sess.target = state.energy;
+  }
+
+  let lastTick = performance.now();
   setInterval(() => {
-    const now = performance.now(), dt = (now - lastSec) / 1000;
-    lastSec = now;
-    if (!state.playing || !TIMERS[state.timerIdx] || state.remaining <= 0) return;
-    state.remaining -= dt;
-    if (state.remaining <= 0) endSession();
+    const now = performance.now(), dt = Math.min(5, (now - lastTick) / 1000);
+    lastTick = now;
+    if (!state.playing || !sess.started || sess.ended) return;
+    sess.t += dt;
+    const d = planDef(), opt = planOpt();
+    if (d.id === 'free') {
+      if (opt && sess.t >= opt * 60) return endSession();
+    } else if (d.id === 'focus') {
+      const ph = N.arc.focusPhase(sess.t, opt);
+      if (ph.phase !== sess.phase) {
+        const brk = ph.phase === 'break';
+        engine.chime(brk ? 'end' : 'work');
+        sess.ramp = { from: state.energy, to: brk ? Math.min(N.arc.LOW * 100, sess.target) : sess.target, t0: sess.t, dur: N.arc.RAMP };
+        toast(brk ? `Przerwa ${opt[1]} min. Odejdź od ekranu, tło się uspokaja.` : `Runda ${ph.round + 1}. Wracamy do pracy.`);
+      }
+      sess.phase = ph.phase;
+    } else if (d.id === 'sleep') {
+      const L = opt * 60, k = sess.t / L;
+      sess.music = N.arc.sleep(k, 0).music;
+      if (k >= 0.8 && !sess.fading) { sess.fading = true; engine.fadeTo(0, Math.max(1, L - sess.t)); }
+      if (sess.t >= L) {
+        sess.ended = true;
+        pause(`Dobranoc. Tło ucichło po ${opt} minutach.`);
+        // po ciszy suwak wraca tam, skąd zasypianie ruszyło
+        sess.music = 1;
+        setEnergy(sess.target, 'arc');
+        el.status.textContent = `Dobranoc. Tło ucichło po ${opt} minutach.`;
+        return;
+      }
+      if (!sess.ramp) refreshMix();
+    }
+    if (sess.ramp) {
+      const r = sess.ramp, k = (sess.t - r.t0) / r.dur;
+      setEnergy(U.lerp(r.from, r.to, U.smooth(k)), 'arc');
+      if (k >= 1) {
+        sess.ramp = null;
+        if (d.id === 'rise') { sess.done = true; toast('Rozkręcone. Gra dalej bez limitu.'); }
+      }
+    }
     updateTimerLabel();
-  }, 1000);
+  }, 500);
+
+  function updateTimerLabel() {
+    const d = planDef(), opt = planOpt();
+    const live = sess.started && !sess.ended;
+    let txt, on = true;
+    if (d.id === 'free') {
+      on = opt > 0;
+      txt = !opt ? 'bez limitu' : live && sess.t > 0 ? fmtClock(opt * 60 - sess.t) : opt + ' min';
+    } else if (d.id === 'focus') {
+      if (live) {
+        const ph = N.arc.focusPhase(sess.t, opt);
+        txt = (ph.phase === 'work' ? 'Praca ' : 'Przerwa ') + fmtClock(ph.left);
+      } else txt = `${opt[0]} + ${opt[1]} min`;
+    } else if (d.id === 'rise') {
+      if (live && sess.done) { txt = 'bez limitu'; on = false; }
+      else txt = 'Rozruch ' + (live && sess.ramp ? fmtClock(sess.ramp.dur - sess.t) : opt + ' min');
+    } else {
+      txt = 'Sen ' + (live ? fmtClock(opt * 60 - sess.t) : opt + ' min');
+    }
+    el.timerLabel.textContent = txt;
+    el.timer.classList.toggle('on', on);
+  }
 
   function endSession() {
-    state.remaining = 0;
+    sess.ended = true;
     engine.fadeTo(0, 12);
     el.status.textContent = 'Koniec sesji. Wyciszam…';
+    updateTimerLabel();
     clearTimeout(endTimer);
     endTimer = setTimeout(() => {
       if (!state.playing) return;
       engine.chime();
-      pause(`Sesja ${TIMERS[state.timerIdx]} min zakończona. Dobra robota – zrób przerwę.`);
+      pause(`Sesja ${planOpt()} min zakończona. Dobra robota – zrób przerwę.`);
       clearTimeout(suspendTimer);
       suspendTimer = setTimeout(() => { if (!state.playing) ctx.suspend(); }, 4500);
     }, 12500);
+  }
+
+  // okno sesji: wybór planu z podglądem przebiegu, rusza dopiero po „Zacznij”
+  const pick = { plan: 0, opts: {} };
+  const pickedDef = () => PLANS[pick.plan];
+  const ssPlan = segmented(el.ssPlan, () => PLANS.map(p => p.name), () => pick.plan, i => { pick.plan = i; }, paintSession);
+  const ssOpt = segmented(el.ssOpt, () => pickedDef().options.map(pickedDef().label), () => pick.opts[pickedDef().id],
+    i => { pick.opts[pickedDef().id] = i; }, paintSession);
+  function paintSession() {
+    const d = pickedDef(), opt = d.options[pick.opts[d.id]], e0 = state.energy / 100;
+    if (ssOpt.shown !== d.id) { ssOpt.shown = d.id; ssOpt.rebuild(); }
+    el.ssHint.textContent = d.hint;
+    el.ssOptLabel.textContent = d.id === 'focus' ? 'Praca + przerwa' : 'Długość';
+    const low = Math.min(N.arc.LOW, e0);
+    let T, at, end;
+    if (d.id === 'free') {
+      T = (opt || 60) * 60;
+      at = t => ({ e: e0, music: 1, vol: opt ? 1 - U.smooth((t - (T - 12)) / 12) : 1 });
+      end = opt ? null : 'bez końca';
+    } else if (d.id === 'focus') {
+      T = 2 * (opt[0] + opt[1]) * 60;
+      at = t => {
+        const ph = N.arc.focusPhase(t, opt), k = U.smooth(ph.into / N.arc.RAMP);
+        const e = ph.phase === 'break' ? U.lerp(e0, low, k) : ph.round ? U.lerp(low, e0, k) : e0;
+        return { e, music: 1, vol: 1 };
+      };
+      end = '2 rundy';
+    } else if (d.id === 'rise') {
+      T = opt * 60 * 1.5;
+      at = t => ({ e: U.lerp(low, e0, U.smooth(t / (opt * 60))), music: 1, vol: 1 });
+    } else {
+      T = opt * 60;
+      at = t => { const a = N.arc.sleep(t / T, e0); return { e: a.e, music: a.music, vol: 1 - U.smooth((t / T - 0.8) / 0.2) }; };
+    }
+    drawCurve(el.ssCurve, at, T, end);
+    const same = pick.plan === sess.plan && pick.opts[d.id] === sess.opts[d.id] && sess.started && !sess.ended;
+    el.ssGo.textContent = same ? 'Zacznij od nowa' : state.playing ? 'Przełącz na ten plan' : 'Zacznij';
+  }
+  function openSession() {
+    pick.plan = sess.plan;
+    pick.opts = Object.assign({}, sess.opts);
+    ssPlan.paint();
+    ssOpt.shown = null;
+    paintSession();
+    if (!el.ss.open) el.ss.showModal();
+  }
+  function goSession() {
+    sess.plan = pick.plan;
+    sess.opts = Object.assign({}, pick.opts);
+    save();
+    el.ss.close();
+    if (state.playing) startPlan();
+    else { sess.started = false; updateTimerLabel(); ensureStarted(); }
+  }
+
+  // krótka wiadomość na dole ekranu
+  function toast(msg) {
+    el.toast.textContent = msg;
+    el.toast.hidden = false;
+    requestAnimationFrame(() => el.toast.classList.add('in'));
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => {
+      el.toast.classList.remove('in');
+      toast.t = setTimeout(() => { el.toast.hidden = true; }, 400);
+    }, 4200);
   }
 
   // ---------- tytuł karty i sterowanie multimediami ----------
@@ -545,7 +746,10 @@
   el.exp.addEventListener('click', ev => { if (ev.target === el.exp) el.exp.close(); });
 
   el.play.addEventListener('click', toggle);
-  el.timer.addEventListener('click', cycleTimer);
+  el.timer.addEventListener('click', openSession);
+  el.ssGo.addEventListener('click', goSession);
+  el.ssClose.addEventListener('click', () => el.ss.close());
+  el.ss.addEventListener('click', ev => { if (ev.target === el.ss) el.ss.close(); });
   el.infoBtn.addEventListener('click', () => el.info.showModal());
   el.infoClose.addEventListener('click', () => el.info.close());
   el.info.addEventListener('click', ev => { if (ev.target === el.info) el.info.close(); });
@@ -553,7 +757,7 @@
   document.addEventListener('keydown', ev => {
     if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
     if (el.info.open && ev.key !== '?') return;
-    if (el.exp.open) return;
+    if (el.exp.open || el.ss.open) return;
     if (ev.key === 'Escape' && mixerOpen()) { closeMixer(); return; }
     // na każdym suwaku strzałki należą do niego
     const onSlider = document.activeElement && document.activeElement.type === 'range';
@@ -571,7 +775,8 @@
     } else if (k >= '1' && k <= '5') {
       glideTo(N.mix.ZONES[+k - 1].center);
     } else if (k === 't' || k === 'T') {
-      cycleTimer();
+      ev.preventDefault();
+      openSession();
     } else if (k === 'm' || k === 'M') {
       mixerOpen() ? closeMixer() : openMixer();
     } else if (k === 'n' || k === 'N') {
@@ -584,7 +789,6 @@
 
   // ---------- start ----------
   setVolume(state.volume);
-  state.remaining = TIMERS[state.timerIdx] * 60;
   setEnergy(state.energy);
   updateTimerLabel();
 })(window.Nurt);

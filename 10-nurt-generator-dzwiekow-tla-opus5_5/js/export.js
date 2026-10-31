@@ -67,12 +67,14 @@
 
   /**
    * Nagraj utwór.
-   * opts: seconds, fadeIn, fadeOut, mix (przepis z N.mix.at), kbps, title,
+   * opts: seconds, fadeIn, fadeOut, mix (przepis z N.mix.at) albo mixAt(t) – przepis
+   *       w chwili t (łuk utworu), seed (ziarno: to samo daje ten sam utwór), kbps, title,
    *       onProgress(faza, 0–1), isCancelled()
    * Zwraca Blob z MP3 albo null, gdy przerwano.
    */
   N.recordMp3 = async function (opts) {
-    const { seconds, fadeIn, fadeOut, mix, kbps = 192 } = opts;
+    const { seconds, fadeIn, fadeOut, kbps = 192 } = opts;
+    const mixAt = opts.mixAt || (() => opts.mix);
     const progress = opts.onProgress || (() => {});
     const cancelled = opts.isCancelled || (() => false);
     const lame = loadLame();
@@ -81,8 +83,8 @@
     const ctx = new OAC(2, Math.ceil(SR * seconds), SR);
     progress('render', 0);
     await wait();
-    const E = N.createEngine(ctx);
-    E.apply(mix, true);
+    const E = N.createEngine(ctx, opts.seed);
+    E.apply(mixAt(0), true);
     E.setVolume(0.8, true);
     E.fade.gain.setValueAtTime(0, 0);
     E.fade.gain.setValueCurveAtTime(fadeCurve(512, true), 0.05, fadeIn);
@@ -100,6 +102,7 @@
     function onStep() {
       if (cancelled()) { stopped = true; resolveStop(null); return; } // bez resume: renderowanie zostaje porzucone
       const t = ctx.currentTime;
+      if (opts.mixAt) E.apply(mixAt(t));
       E.schedule(t + AHEAD);
       progress('render', t / seconds);
       if (t + STEP < seconds) ctx.suspend(t + STEP).then(onStep);
@@ -130,11 +133,12 @@
     const BLOCK = 1152 * 48;
     const l16 = new Int16Array(BLOCK), r16 = new Int16Array(BLOCK);
     let lastYield = performance.now();
+    const dither = N.util.seeded('dither' + (opts.seed || ''));
     for (let i = 0; i < L.length; i += BLOCK) {
       const n = Math.min(BLOCK, L.length - i);
       for (let j = 0; j < n; j++) {
         // lekki szum TPDF zamiast twardego obcięcia do 16 bitów
-        const d = (Math.random() - Math.random()) * 0.5;
+        const d = (dither() - dither()) * 0.5;
         l16[j] = Math.max(-32768, Math.min(32767, Math.round(L[i + j] * gain * 32767 + d)));
         r16[j] = Math.max(-32768, Math.min(32767, Math.round(R[i + j] * gain * 32767 + d)));
       }

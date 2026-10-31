@@ -20,16 +20,31 @@
   };
   const power = mix => N.mix.LAYERS.reduce((p, k) => p + Math.pow(LOUD[k] * mix[k], 2), 0);
 
-  N.createEngine = function (ctx) {
+  /** Silnik dla kontekstu audio. Z ziarnem (`seed`) każdy wylosowany szczegół, od szumów po nuty, jest powtarzalny. */
+  N.createEngine = function (ctx, seed) {
+    const U = N.util;
+    const R = seed ? U.seeded(seed) : Math.random;
+    const E = U.withRng(R, () => build(ctx));
+    E.seed = seed || null;
+    // wszystko, co losuje, liczy się z generatorem tego silnika
+    ['apply', 'start', 'schedule'].forEach(k => {
+      const f = E[k];
+      E[k] = (...a) => U.withRng(R, () => f(...a));
+    });
+    return E;
+  };
+
+  function build(ctx) {
     const U = N.util, B = N.buffers;
     const E = { ctx, LEVEL };
+    // Długości pętli są „nieokrągłe”, żeby nie zgrywały się ze sobą ani z długością nagrania
     E.buffers = {
-      white: B.noise(ctx, 'white', 5),
-      pink: B.noise(ctx, 'pink', 10),
-      brown: B.noise(ctx, 'brown', 10),
-      drops: B.rainDrops(ctx, 12),
-      crackle: B.crackle(ctx, 9),
-      fire: B.fire(ctx, 14)
+      white: B.noise(ctx, 'white', 4.79),
+      pink: B.noise(ctx, 'pink', 10.41),
+      brown: B.noise(ctx, 'brown', 9.73),
+      drops: B.rainDrops(ctx, 12.13),
+      crackle: B.crackle(ctx, 8.87),
+      fire: B.fire(ctx, 13.91)
     };
 
     E.bus = U.gain(ctx, 1);
@@ -113,10 +128,15 @@
       E.fade.gain.linearRampToValueAtTime(v, t + seconds);
     };
 
-    /** Miękki dzwonek – koniec sesji. Omija wyciszanie, więc słychać go po wygaszeniu tła. */
-    E.chime = function () {
+    // Dzwonki: koniec sesji i przerwa (w górę), powrót do pracy (w dół, krótszy)
+    const CHIMES = {
+      end: [[0, 659.25], [0.42, 987.77]],
+      work: [[0, 987.77], [0.3, 739.99]]
+    };
+    /** Miękki dzwonek. Omija wyciszanie, więc słychać go także po wygaszeniu tła. */
+    E.chime = function (kind) {
       const t = ctx.currentTime + 0.05;
-      [[0, 659.25], [0.42, 987.77]].forEach(([dt, f]) => {
+      (CHIMES[kind] || CHIMES.end).forEach(([dt, f]) => {
         [[1, 1, 3.2], [2.0, 0.35, 1.8], [3.01, 0.18, 1.1], [4.2, 0.08, 0.7]].forEach(([r, a, d]) => {
           const o = ctx.createOscillator();
           o.frequency.value = f * r;
@@ -134,5 +154,5 @@
     };
 
     return E;
-  };
+  }
 })(window.Nurt);
