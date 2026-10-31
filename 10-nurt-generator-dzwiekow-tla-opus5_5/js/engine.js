@@ -11,7 +11,7 @@
   const LEVEL = {
     brown: 0.31, pink: 0.18, rain: 0.36, pad: 0.52, keys: 0.46,
     bass: 0.09, drums: 0.38, melody: 0.5, vinyl: 0.64, cafe: 0.7,
-    wind: 1.5, waves: 0.34, fire: 0.48, birds: 1.4
+    wind: 1.1, waves: 0.32, fire: 0.81, birds: 1.03
   };
   // Głośność (RMS) każdej warstwy przy wartości 1, względem deszczu – do pilnowania poziomu ręcznego miksu
   const LOUD = {

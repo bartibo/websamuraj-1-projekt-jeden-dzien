@@ -153,7 +153,7 @@
       }
     }
     // strzały żywicy: głośniejsze, z krótkim dźwięcznym ogonem
-    const pops = Math.floor(seconds * 0.35);
+    const pops = Math.floor(seconds * 0.5);
     for (let k = 0; k < pops; k++) {
       const start = Math.floor(rnd() * len), p = rnd();
       click(start, 0.5 + rnd() * 0.3, 18 + rnd() * 20, p);
