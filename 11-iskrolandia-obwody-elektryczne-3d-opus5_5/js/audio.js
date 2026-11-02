@@ -42,6 +42,11 @@ window.Iskry = window.Iskry || {};
     motorOsc.start();
   };
 
+  document.addEventListener('visibilitychange', () => {
+    if (!ctx) return;
+    if (document.hidden) ctx.suspend(); else ctx.resume();
+  });
+
   A.setMuted = function (m) {
     muted = m;
     if (master) master.gain.setTargetAtTime(m ? 0 : 0.55, ctx.currentTime, 0.05);

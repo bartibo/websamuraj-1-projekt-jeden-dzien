@@ -61,14 +61,14 @@ window.Iskry = window.Iskry || {};
       explain: 'Tor jest zamknięty, więc iskierki ścigają się dookoła bez końca: bateria daje im klocki energii, a w żarówce je oddają – cieniutki drucik rozgrzewa się i świeci. To właśnie jest <b>obwód elektryczny</b>: zamknięta pętla. Wystarczy jedna dziura w torze i wyścig staje.',
     },
     {
-      id: 'm2', emoji: '🔘', title: 'Pstryczek-elektryczek',
+      id: 'm2', emoji: '🔛', title: 'Pstryczek-elektryczek',
       intro: 'W torze jest dziura, a my chcemy ją otwierać i zamykać na zawołanie! Wstaw wyłącznik w puste miejsce, a potem pstrykaj nim, dotykając go.',
       hint: 'Wybierz „Wyłącznik” i dotknij pustego miejsca na górnym torze. Potem w trybie „Rączka” dotknij wyłącznika, żeby go włączyć i wyłączyć.',
       setup: [el('battery', [3, 4], [3, 3]), el('bulb', [7, 3], [7, 4]), ...wires([[3, 3], [4, 3]]), ...wires([[5, 3], [7, 3]]), ...wires([[3, 4], [7, 4]])],
       tray: { switch: 1, wire: 99 },
       checks: [
         { t: 'Wyłącznik włączony – żarówka świeci', sticky: true, f: c => of(c, 'switch').some(s => s.on) && of(c, 'bulb').some(p => on(c, p)) && of(c, 'switch').length > 0 },
-        { t: 'Wyłącznik wyłączony – ciemno', sticky: true, f: c => of(c, 'switch').length > 0 && of(c, 'switch').every(s => !s.on) && !of(c, 'bulb').some(p => on(c, p)) && C.combos(c.pieces, r => Object.values(r.pieces).some(x => x.on)).some(Boolean) },
+        { t: 'Wyłącznik wyłączony – ciemno', sticky: true, after: 0, f: c => of(c, 'switch').length > 0 && of(c, 'switch').every(s => !s.on) && !of(c, 'bulb').some(p => on(c, p)) && C.combos(c.pieces, r => Object.values(r.pieces).some(x => x.on)).some(Boolean) },
       ],
       explain: 'Wyłącznik działa jak <b>most zwodzony</b> na torze. Podniesiony – iskierki stają w miejscu, bo tor jest przerwany. Opuszczony – wyścig rusza. Tak samo działa każdy włącznik światła w domu, tylko jest schowany w ścianie.',
     },
@@ -198,6 +198,11 @@ window.Iskry = window.Iskry || {};
     { id: 'rainbow', e: '🌈', t: 'Tęcza', d: 'Zapal naraz 3 diody w różnych kolorach.' },
     { id: 'orchestra', e: '🎺', t: 'Orkiestra', d: 'Żarówka, silniczek i brzęczyk działają naraz.' },
     { id: 'tower', e: '🗼', t: 'Wieża mocy', d: 'Zbuduj napięcie 4 klocków (4 baterie w rzędzie).' },
+    { id: 'meter', e: '📏', t: 'Mierniczy', d: 'Zmierz miernikiem napięcie większe niż pół klocka.' },
+    { id: 'materials', e: '🧲', t: 'Badacz materiałów', d: 'Sprawdź na stoliku badacza 6 różnych przedmiotów.' },
+    { id: 'oracle', e: '🔮', t: 'Jasnowidz', d: 'Trafnie przewidź wynik 5 zagadek lub eksperymentów.' },
+    { id: 'scientist', e: '🔬', t: 'Mały naukowiec', d: 'Zrób 5 eksperymentów w Laboratorium.' },
+    { id: 'professor', e: '🎓', t: 'Profesor Iskrolandii', d: 'Zrób wszystkie eksperymenty w Laboratorium.' },
     { id: 'master', e: '🏆', t: 'Mistrz Iskrolandii', d: 'Ukończ wszystkie misje.' },
   ];
 
@@ -229,7 +234,7 @@ window.Iskry = window.Iskry || {};
     },
     {
       title: 'Napięcie = wielkość klocka',
-      svg: `${battery(40, 60)}<path d="M70,60 H340" stroke="#c9d6ea" stroke-width="26"/>${dots('M70,60 H340', 5, 4, 14, '#ffe14d')}${battery(26, 150)}${battery(56, 150)}<path d="M86,150 H340" stroke="#c9d6ea" stroke-width="36"/>${dots('M86,150 H340', 5, 4, 26, '#ff9f1c')}<text x="220" y="30" font-size="15" font-weight="800" fill="#555">1 bateria = 1 klocek</text><text x="200" y="118" font-size="15" font-weight="800" fill="#555">2 baterie = 2 klocki</text>`,
+      svg: `${battery(40, 60)}<path d="M70,60 H340" stroke="#c9d6ea" stroke-width="26"/>${dots('M70,60 H340', 5, 4, 14, '#ffe14d')}${battery(26, 150)}${battery(56, 150)}<path d="M86,150 H340" stroke="#c9d6ea" stroke-width="36"/>${dots('M86,150 H340', 5, 4, 26, '#ff9f1c')}<text x="345" y="30" font-size="15" font-weight="800" fill="#555" text-anchor="end">1 bateria = 1 klocek</text><text x="345" y="118" font-size="15" font-weight="800" fill="#555" text-anchor="end">2 baterie = 2 klocki</text>`,
       text: 'Bateria jest jak winda: każda iskierka, która przez nią przejedzie, dostaje <b>klocek energii</b>. Dwie baterie jedna za drugą dają dwa razy większy klocek. Wielkość klocka to <b>napięcie</b> – mierzy się je w <b>woltach (V)</b>. Jedna bateria AA to 1,5 V.',
     },
     {
@@ -269,5 +274,7 @@ window.Iskry = window.Iskry || {};
     led: 'Dioda LED przepuszcza iskierki tylko w jedną stronę (od + do −). Potrzebuje 2 baterii i opornika, żeby się nie przepalić.',
     buzzer: 'Brzęczyk robi BZZZ, kiedy przejeżdżają przez niego iskierki.',
     resistor: 'Opornik to wąska ścieżka – robi się korek i iskierki jadą wolniej. Chroni delikatne diody.',
+    dimmer: 'Ściemniacz to ścieżka, którą zwężasz suwakiem. Węższa ścieżka = większy korek = mniej iskierek i słabsze światło.',
+    tester: 'Stolik badacza sprawdza, czy przedmiot przewodzi prąd. Metale przewodzą, a guma, drewno, papier i plusz nie – to izolatory.',
   };
 })();

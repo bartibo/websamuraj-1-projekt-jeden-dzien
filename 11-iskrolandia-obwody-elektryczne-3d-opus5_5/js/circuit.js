@@ -17,6 +17,27 @@ window.Iskry = window.Iskry || {};
     led:      { name: 'Dioda LED',  Vf: 1.8, Rs: 8, Imax: 0.08 },
     buzzer:   { name: 'Brzęczyk',   R: 15 },
     resistor: { name: 'Opornik',    R: 50 },
+    dimmer:   { name: 'Ściemniacz', Rmax: 10 },
+    tester:   { name: 'Stolik badacza' },
+  };
+  // Przedmioty na stoliku badacza: przewodzi (metal), przewodzi słabo (grafit, słona woda) albo wcale
+  C.MATERIALS = [
+    { e: '🔑', n: 'klucz', R: 0.05 },
+    { e: '📎', n: 'spinacz', R: 0.05 },
+    { e: '🔩', n: 'śrubka', R: 0.05 },
+    { e: '🥄', n: 'metalowa łyżka', R: 0.05 },
+    { e: '✏️', n: 'ołówek (grafit w środku)', R: 8 },
+    { e: '🧂', n: 'słona woda', R: 12 },
+    { e: '🦆', n: 'gumowa kaczuszka', R: Infinity },
+    { e: '🥢', n: 'drewniane pałeczki', R: Infinity },
+    { e: '📄', n: 'kartka papieru', R: Infinity },
+    { e: '🧸', n: 'pluszowy miś', R: Infinity },
+  ];
+  // Opór elementu (dla ściemniacza zależy od pokrętła, dla stolika od przedmiotu)
+  C.R = function (p) {
+    if (p.type === 'dimmer') return 0.05 + (p.val === undefined ? 0.5 : p.val) * C.TYPES.dimmer.Rmax;
+    if (p.type === 'tester') return C.MATERIALS[(p.mat || 0) % C.MATERIALS.length].R;
+    return C.TYPES[p.type].R;
   };
   C.SHORT_I = 2.5;          // prąd baterii, od którego mówimy o zwarciu
   C.BLOCK_V = 1.5;          // 1 klocek = 1 bateria = 1,5 V
@@ -86,6 +107,7 @@ window.Iskry = window.Iskry || {};
   function conducts(p, ov) {
     if (p.burnt) return false;
     if (isInput(p)) return !!(p.id in ov ? ov[p.id] : p.on);
+    if (p.type === 'tester') return isFinite(C.R(p));
     return true;
   }
 
@@ -121,7 +143,7 @@ window.Iskry = window.Iskry || {};
         else if (p.type === 'led') {
           if (ledOn[p.id]) { const g = 1 / t.Rs; stamp(p.a, p.b, g); src(p.b, p.a, g * t.Vf); }
           else stamp(p.a, p.b, 1e-6);
-        } else stamp(p.a, p.b, 1 / t.R);
+        } else if (conducts(p, ov)) stamp(p.a, p.b, 1 / C.R(p));
       }
       v = gauss(G, I);
 
@@ -152,8 +174,8 @@ window.Iskry = window.Iskry || {};
       nodeV.set(n, hasBat[r] ? Math.max(0, v[i] - minV[r]) : 0);
     });
 
-    const out = { nodeV, pieces: {}, short: false, shortIds: [], island: n => find(idx.get(n)) };
     const raw = n => v[idx.get(n)];
+    const out = { nodeV, pieces: {}, short: false, shortIds: [], island: n => (idx.has(n) ? find(idx.get(n)) : -1 - n), raw: n => (idx.has(n) ? raw(n) : 0) };
     for (const p of pieces) {
       const t = T[p.type];
       const vd = raw(p.a) - raw(p.b);
@@ -162,7 +184,7 @@ window.Iskry = window.Iskry || {};
         if (p.type === 'battery') I = (t.V - (raw(p.b) - raw(p.a))) / t.r;
         else if (isInput(p)) I = conducts(p, ov) ? vd / t.R : 0;
         else if (p.type === 'led') I = ledOn[p.id] ? (vd - t.Vf) / t.Rs : 0;
-        else I = vd / t.R;
+        else I = conducts(p, ov) ? vd / C.R(p) : 0;
       }
       if (Math.abs(I) < 1e-6) I = 0;
       const r = { I, vd, Va: nodeV.get(p.a), Vb: nodeV.get(p.b), closed: conducts(p, ov) };
@@ -211,6 +233,7 @@ window.Iskry = window.Iskry || {};
   };
 
   C.isInput = isInput;
+  C.conducts = p => conducts(p, {});
 
   // Polska odmiana liczebników
   C.plural = function (n, one, few, many) {

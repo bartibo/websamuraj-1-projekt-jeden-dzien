@@ -16,16 +16,21 @@ window.Iskry = window.Iskry || {};
     button: '<rect x="7" y="31" width="34" height="9" rx="4" fill="#2d3142"/><rect x="14" y="20" width="20" height="13" rx="4" fill="#ff3d6e"/><ellipse cx="24" cy="20" rx="10" ry="5" fill="#ff7397"/>',
     led: '<circle cx="24" cy="22" r="15" fill="#ff3b3b" opacity=".18"/><path d="M16 22 a8 8 0 0 1 16 0 v10 h-16z" fill="#ff3b3b"/><rect x="14" y="31" width="20" height="4" rx="1" fill="#ff7b7b"/><rect x="18" y="35" width="2.5" height="9" fill="#999"/><rect x="27.5" y="35" width="2.5" height="7" fill="#999"/>',
     buzzer: '<ellipse cx="22" cy="32" rx="15" ry="6" fill="#23262f"/><rect x="7" y="20" width="30" height="12" fill="#23262f"/><ellipse cx="22" cy="20" rx="15" ry="6" fill="#3a3e4a"/><circle cx="22" cy="20" r="3" fill="#000"/><path d="M39 9 q4 4 0 8 M35 5 q8 8 0 16" stroke="#ffc93c" stroke-width="2.5" fill="none" stroke-linecap="round"/>',
+    meter: '<rect x="9" y="6" width="30" height="36" rx="6" fill="#2d3142"/><rect x="13" y="10" width="22" height="12" rx="2" fill="#9effc1"/><text x="24" y="20" font-size="9" font-weight="900" text-anchor="middle" fill="#14532d">1,5</text><circle cx="24" cy="32" r="5" fill="#ffd23f"/><path d="M14 42 L8 47 M34 42 L40 47" stroke-width="3" stroke-linecap="round" stroke="#ff3b4f"/>',
+    dimmer: '<rect x="6" y="30" width="36" height="10" rx="4" fill="#ffe3b8"/><circle cx="24" cy="24" r="13" fill="#ff8c1a"/><circle cx="24" cy="24" r="9" fill="#ffc06b"/><rect x="22.5" y="12" width="3" height="10" rx="1.5" fill="#fff"/><path d="M8 14 a17 17 0 0 1 8 -7" stroke="#2ecc71" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M32 7 a17 17 0 0 1 8 7" stroke="#ff4d5e" stroke-width="3" fill="none" stroke-linecap="round"/>',
+    tester: '<rect x="4" y="34" width="40" height="8" rx="3" fill="#d8f0ff"/><rect x="5" y="24" width="10" height="5" rx="2" fill="#ff4d5e"/><rect x="33" y="24" width="10" height="5" rx="2" fill="#2d3142"/><text x="24" y="31" font-size="20" text-anchor="middle">🔑</text>',
     resistor: '<line x1="3" y1="24" x2="45" y2="24" stroke="#999" stroke-width="3"/><rect x="11" y="16" width="26" height="16" rx="7" fill="#e8c99b"/><rect x="16" y="16" width="3" height="16" fill="#2ecc71"/><rect x="22" y="16" width="3" height="16" fill="#222"/><rect x="30" y="16" width="3" height="16" fill="#d4af37"/>',
   };
   U.icon = (k, cls) => `<svg class="${cls || 'ico'}" viewBox="0 0 48 48" aria-hidden="true">${U.ICONS[k] || ''}</svg>`;
 
   // ---------- Wolcik ----------
-  let sayTimer = null, sayText = '', readAloud = false;
+  let sayTimer = null, sayText = '', readAloud = false, sayStay = false;
   U.setReadAloud = v => { readAloud = v; };
   U.say = function (text, opt) {
     opt = opt || {};
     const box = $('say');
+    sayStay = !!opt.stay;
+    box.classList.toggle('detect', opt.mood === 'detect');
     sayText = text.replace(/<[^>]+>/g, '');
     $('sayText').innerHTML = text;
     box.hidden = false;
@@ -41,9 +46,13 @@ window.Iskry = window.Iskry || {};
   };
   U.hush = function () {
     clearTimeout(sayTimer);
+    const was = !$('say').hidden;
     $('say').hidden = true;
     U.mood('happy');
+    if (was && U.onHush) U.onHush();
   };
+  // chowa tylko dymki, które i tak zniknęłyby same (np. po dotknięciu planszy)
+  U.hushTransient = function () { if (!sayStay && !$('say').hidden) U.hush(); };
   U.mood = function (m) {
     const w = $('wolcik');
     w.className = 'm-' + m;
@@ -142,6 +151,7 @@ window.Iskry = window.Iskry || {};
     $('lsDots').innerHTML = L.map((_, i) => `<i class="${i === lsIdx ? 'on' : ''}"></i>`).join('');
     $('lsPrev').disabled = lsIdx === 0;
     $('lsNext').textContent = lsIdx === L.length - 1 ? '✓' : '▶';
+    $('lsTry').hidden = !(U.lessonTry && U.lessonTry(lsIdx) >= 0);
     if (readAloud) Iskry.audio.speak(l.title + '. ' + l.text.replace(/<[^>]+>/g, ''));
   }
   U.initLessons = function () {
@@ -150,6 +160,7 @@ window.Iskry = window.Iskry || {};
       Iskry.audio.sfx('ui');
       if (lsIdx < Iskry.LESSONS.length - 1) { lsIdx++; renderLesson(); } else { U.hide('lessons'); Iskry.audio.stopSpeak(); }
     };
+    $('lsTry').onclick = () => { Iskry.audio.sfx('ui'); U.hide('lessons'); if (U.onTry) U.onTry(lsIdx); };
     $('lsRead').onclick = () => { const l = Iskry.LESSONS[lsIdx]; Iskry.audio.speak(l.title + '. ' + l.text.replace(/<[^>]+>/g, '')); };
   };
 })();

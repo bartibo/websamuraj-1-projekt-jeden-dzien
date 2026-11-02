@@ -7,16 +7,24 @@ window.Iskry = window.Iskry || {};
   const geos = {};
   const mats = {};
   const geo = (k, fn) => geos[k] || (geos[k] = fn());
-  const std = (k, o) => mats[k] || (mats[k] = new T.MeshStandardMaterial(o));
+  const shared = new WeakSet();
+  const std = (k, o) => mats[k] || (mats[k] = new T.MeshStandardMaterial(o), shared.add(mats[k]), mats[k]);
+  // zwalnia materiały należące tylko do tego elementu (wspólne i tekstury z pamięci podręcznej zostają)
+  P.dispose = function (group) {
+    group.traverse(o => {
+      const m = o.material;
+      if (m && !shared.has(m)) m.dispose();
+    });
+  };
 
-  P.WIRE_COLORS = [0xff4d5e, 0x3d8bff, 0xffc93c, 0x2ecc71, 0xff8c1a, 0xb46bff];
+  P.WIRE_COLORS = [0xff4d5e, 0x3d8bff, 0x2ecc71, 0xb46bff, 0x2d3142, 0x14b8a6];
   P.LED_COLORS = [
     { c: 0xff3b3b, name: 'czerwona' }, { c: 0x2bff6a, name: 'zielona' },
     { c: 0x3b8bff, name: 'niebieska' }, { c: 0xffe23b, name: 'żółta' }, { c: 0xff5fd2, name: 'różowa' },
   ];
   P.PLATE = {
     battery: 0xcfdcff, bulb: 0xfff0c2, motor: 0xffd9c9, switch: 0xc6f3ec, button: 0xffd3e2,
-    led: 0xe6dcff, buzzer: 0xd9deea, resistor: 0xe0f2cc,
+    led: 0xe6dcff, buzzer: 0xd9deea, resistor: 0xe0f2cc, dimmer: 0xffe3b8, tester: 0xd8f0ff,
   };
 
   const metal = () => std('metal', { color: 0xdfe4ec, metalness: 0.9, roughness: 0.28 });
@@ -43,6 +51,8 @@ window.Iskry = window.Iskry || {};
     });
   };
 
+  // części, które się ruszają w update(); reszta modelu ma zamrożoną macierz (szybciej na telefonie)
+  const dyn = o => { o.userData.dyn = true; return o; };
   function add(parent, g, m, x, y, z, shadow) {
     const o = new T.Mesh(g, m);
     o.position.set(x || 0, y || 0, z || 0);
@@ -58,15 +68,15 @@ window.Iskry = window.Iskry || {};
 
   // --- tekstury rysowane w kodzie ---
   const texCache = {};
-  P.textTex = function (text, color, size, w, h) {
-    const k = [text, color, size, w, h].join('|');
+  P.textTex = function (text, color, size, w, h, stroke) {
+    const k = [text, color, size, w, h, stroke].join('|');
     if (texCache[k]) return texCache[k];
     const cv = document.createElement('canvas');
     cv.width = w || 128; cv.height = h || 128;
     const g = cv.getContext('2d');
     g.font = '900 ' + (size || 100) + 'px "Segoe UI", system-ui, sans-serif';
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineWidth = (size || 100) * 0.12; g.strokeStyle = 'rgba(255,255,255,.85)';
+    g.lineWidth = (size || 100) * (stroke ? 0.2 : 0.12); g.strokeStyle = stroke || 'rgba(255,255,255,.85)'; g.lineJoin = 'round';
     g.strokeText(text, cv.width / 2, cv.height / 2 + 4);
     g.fillStyle = color;
     g.fillText(text, cv.width / 2, cv.height / 2 + 4);
@@ -112,6 +122,17 @@ window.Iskry = window.Iskry || {};
     parent.add(m);
     return m;
   }
+  // plama światła na macie pod świecącym elementem
+  function lightPool(g, color, size) {
+    const m = new T.Mesh(geo('pool', () => new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)),
+      new T.MeshBasicMaterial({ map: P.glowTex(), color, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending }));
+    m.scale.set(size, 1, size);
+    m.position.y = 0.075;
+    m.raycast = () => {};
+    m.renderOrder = 1;
+    g.add(m);
+    return m;
+  }
   function glowSprite(color) {
     const s = new T.Sprite(new T.SpriteMaterial({
       map: P.glowTex(), color, depthWrite: false, transparent: true, opacity: 0,
@@ -131,6 +152,11 @@ window.Iskry = window.Iskry || {};
   }
   const frontPath = z => curvePath([[-0.5, 0.07], [-0.32, 0.1, z * 0.7], [0, 0.11, z], [0.32, 0.1, z * 0.7], [0.5, 0.07]], 22);
 
+  function poles(g, plusX) {
+    const ring = geo('poleRing', () => new T.TorusGeometry(0.115, 0.022, 8, 28).rotateX(Math.PI / 2));
+    add(g, ring, plastic(0xff3b3b, 0.4), plusX, 0.06, 0, false);
+    add(g, ring, plastic(0x2d3142, 0.4), -plusX, 0.06, 0, false);
+  }
   function basePlate(g, type) {
     add(g, P.slab(0.84, 0.42, 0.04, 0.1), plastic(P.PLATE[type], 0.6), 0, 0.005, 0);
     add(g, cyl(0.1, 0.1, 0.05, 20), metal(), -0.5, 0.03, 0);
@@ -163,9 +189,10 @@ window.Iskry = window.Iskry || {};
     // uchwyty
     add(g, box(0.035, 0.2, 0.16), metal(), -0.33, 0.12, 0);
     add(g, box(0.035, 0.2, 0.16), metal(), 0.33, 0.12, 0);
-    decal(g, P.textTex('−', '#ffffff', 110), 0.13, 0.13, -0.24, 0.334, 0);
-    decal(g, P.textTex('1,5V', '#ffffff', 46, 128, 64), 0.2, 0.1, -0.08, 0.334, 0);
-    decal(g, P.textTex('+', '#c0392b', 110), 0.13, 0.13, 0.18, 0.334, 0);
+    decal(g, P.textTex('−', '#ffffff', 110, 128, 128, '#16306e'), 0.17, 0.17, -0.24, 0.334, 0);
+    decal(g, P.textTex('1,5 V', '#ffffff', 60, 256, 96, '#16306e'), 0.24, 0.09, -0.06, 0.334, 0);
+    decal(g, P.textTex('+', '#ffffff', 120, 128, 128, '#a33a00'), 0.2, 0.2, 0.18, 0.334, 0);
+    poles(g, 0.5);
     // „winda” iskierek – łuk nad baterią
     const path = curvePath([[-0.5, 0.07], [-0.36, 0.3], [-0.15, 0.43], [0.15, 0.43], [0.36, 0.3], [0.5, 0.07]], 26);
     let heat = 0;
@@ -200,29 +227,33 @@ window.Iskry = window.Iskry || {};
     const fil = add(g, geo('fil', () => new T.TubeGeometry(helix, 80, 0.006, 5)), filMat, 0, 0, 0, false);
     add(g, geo('supp', () => new T.CylinderGeometry(0.007, 0.007, 0.2, 6)), metal(), -0.07, 0.33, 0, false);
     add(g, geo('supp'), metal(), 0.07, 0.33, 0, false);
-    const halo = glowSprite(0xffc21a);
+    const halo = dyn(glowSprite(0xffc21a));
     halo.position.set(0, 0.42, 0);
     g.add(halo);
+    const pool = lightPool(g, 0xffd23f, 1.3);
     const brokenMat = new T.MeshStandardMaterial({ color: 0x4a4a4a, transparent: true, opacity: 0.55, roughness: 0.3 });
     const path = polyPath([[-0.5, 0.07], [-0.2, 0.1], [-0.07, 0.24], [-0.07, 0.42], [0.07, 0.42], [0.07, 0.24], [0.2, 0.1], [0.5, 0.07]]);
     let glow = 0;
     return {
       path, light: { y: 0.42, color: 0xffc46b },
-      update(r, dt, t) {
+      update(r, dt, t, q) {
+        if (q) p = q;
         if (p.burnt) {
-          gl.material = brokenMat; fil.visible = false; halo.material.opacity = 0; glow = 0;
+          gl.material = brokenMat; fil.visible = false; halo.material.opacity = 0; pool.material.opacity = 0; glow = 0;
           return { glow: 0 };
         }
         gl.material = glass; fil.visible = true;
         const target = r ? r.glow : 0;
         glow += (target - glow) * Math.min(1, dt * 12);
         const flick = glow > 0.05 ? 1 + Math.sin(t * 37) * 0.015 : 1;
-        glass.emissiveIntensity = glow * 0.9 * flick;
-        glass.opacity = 0.32 + Math.min(0.45, glow * 0.35);
+        glass.color.setHex(glow > 0.05 ? 0xfff1b0 : 0xffffff);
+        glass.emissiveIntensity = glow * 1.5 * flick;
+        glass.opacity = 0.32 + Math.min(0.5, glow * 0.4);
         filMat.emissiveIntensity = Math.min(3, glow * 4);
-        halo.material.opacity = Math.min(0.75, glow * 0.55);
-        const s = 0.45 + glow * 0.75;
+        halo.material.opacity = Math.min(1, glow * 0.9);
+        const s = 0.55 + glow * 1.1;
         halo.scale.set(s, s, s);
+        pool.material.opacity = Math.min(0.75, glow * 0.55);
         return { glow };
       },
     };
@@ -236,7 +267,7 @@ window.Iskry = window.Iskry || {};
     add(g, cyl(0.016, 0.016, 0.16, 8), metal(), 0, 0.41, 0);
     add(g, box(0.06, 0.04, 0.03), gold(), -0.13, 0.1, 0.1);
     add(g, box(0.06, 0.04, 0.03), gold(), 0.13, 0.1, 0.1);
-    const prop = new T.Group();
+    const prop = dyn(new T.Group());
     prop.position.y = 0.48;
     g.add(prop);
     add(prop, sph(0.045, 16, 10), plastic(0xffd23f), 0, 0, 0);
@@ -269,7 +300,7 @@ window.Iskry = window.Iskry || {};
     add(g, box(0.035, 0.12, 0.12), metal(), 0.23, 0.1, 0.0);
     add(g, box(0.035, 0.12, 0.12), metal(), 0.29, 0.1, 0.0);
     add(g, cylX(0.03, 0.12, 12), gold(), -0.26, 0.17, 0);
-    const lever = new T.Group();
+    const lever = dyn(new T.Group());
     lever.position.set(-0.26, 0.17, 0);
     g.add(lever);
     add(lever, box(0.56, 0.025, 0.05), metal(), 0.28, 0, 0);
@@ -280,7 +311,8 @@ window.Iskry = window.Iskry || {};
     let a = p.on ? 0 : 0.85;
     return {
       path: polyPath([[-0.5, 0.07], [-0.26, 0.21], [0.26, 0.21], [0.5, 0.07]]),
-      update(r, dt) {
+      update(r, dt, t, q) {
+        if (q) p = q;
         const target = p.on ? 0 : 0.85;
         a += (target - a) * Math.min(1, dt * 14);
         lever.rotation.z = a;
@@ -294,7 +326,7 @@ window.Iskry = window.Iskry || {};
     basePlate(g, 'button');
     add(g, cyl(0.16, 0.17, 0.12, 28), plastic(0x2d3142, 0.5), 0, 0.1, 0);
     add(g, geo('btnRing', () => new T.TorusGeometry(0.135, 0.015, 8, 28).rotateX(Math.PI / 2)), metal(), 0, 0.165, 0, false);
-    const cap = new T.Group();
+    const cap = dyn(new T.Group());
     g.add(cap);
     const capMat = plastic(0xff3d6e, 0.3).clone();
     add(cap, cyl(0.115, 0.115, 0.07, 28), capMat, 0, 0.19, 0);
@@ -303,7 +335,8 @@ window.Iskry = window.Iskry || {};
     let y = 0;
     return {
       path: frontPath(0.23),
-      update(r, dt) {
+      update(r, dt, t, q) {
+        if (q) p = q;
         const target = p.on ? -0.045 : 0;
         y += (target - y) * Math.min(1, dt * 25);
         cap.position.y = y;
@@ -325,28 +358,32 @@ window.Iskry = window.Iskry || {};
     const d2 = add(g, geo('ledTop', () => new T.SphereGeometry(0.085, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2)), domeMat, 0, 0.345, 0, false);
     d1.renderOrder = d2.renderOrder = 3;
     add(g, box(0.05, 0.03, 0.05), plastic(0x9aa3b5), 0, 0.29, 0, false);
-    decal(g, diodeTex(), 0.3, 0.15, 0, 0.051, 0.13);
-    decal(g, P.textTex('+', '#c0392b', 110), 0.11, 0.11, -0.28, 0.051, 0);
-    decal(g, P.textTex('−', '#2c3e50', 110), 0.11, 0.11, 0.28, 0.051, 0);
-    const halo = glowSprite(col);
+    decal(g, diodeTex(), 0.36, 0.18, 0, 0.068, 0.12);
+    decal(g, P.textTex('+', '#ff3b3b', 120, 128, 128, '#ffffff'), 0.15, 0.15, -0.3, 0.068, -0.02);
+    decal(g, P.textTex('−', '#2d3142', 120, 128, 128, '#ffffff'), 0.15, 0.15, 0.3, 0.068, -0.02);
+    poles(g, -0.5);
+    const halo = dyn(glowSprite(col));
     halo.position.set(0, 0.3, 0);
     g.add(halo);
+    const pool = lightPool(g, col, 0.9);
     let glow = 0;
     return {
       path: polyPath([[-0.5, 0.07], [-0.15, 0.09], [-0.05, 0.2], [0, 0.32], [0.05, 0.2], [0.15, 0.09], [0.5, 0.07]]),
       light: { y: 0.3, color: col },
-      update(r, dt) {
+      update(r, dt, t, q) {
+        if (q) p = q;
         if (p.burnt) {
-          domeMat.color.setHex(0x444444); domeMat.emissiveIntensity = 0; halo.material.opacity = 0;
+          domeMat.color.setHex(0x444444); domeMat.emissiveIntensity = 0; halo.material.opacity = 0; pool.material.opacity = 0;
           return { glow: 0 };
         }
         domeMat.color.setHex(col);
         const target = r ? r.glow : 0;
         glow += (target - glow) * Math.min(1, dt * 18);
         domeMat.emissiveIntensity = glow * 1.6;
-        halo.material.opacity = Math.min(0.8, glow * 0.7);
-        const s = 0.3 + glow * 0.6;
+        halo.material.opacity = Math.min(0.9, glow * 0.75);
+        const s = 0.35 + glow * 0.7;
         halo.scale.set(s, s, s);
+        pool.material.opacity = Math.min(0.7, glow * 0.5);
         return { glow: glow * 0.6 };
       },
     };
@@ -354,7 +391,7 @@ window.Iskry = window.Iskry || {};
 
   B.buzzer = function (g, p) {
     basePlate(g, 'buzzer');
-    const body = new T.Group();
+    const body = dyn(new T.Group());
     g.add(body);
     add(body, cyl(0.17, 0.17, 0.15, 32), plastic(0x23262f, 0.5), 0, 0.12, 0);
     add(body, geo('bzRing', () => new T.TorusGeometry(0.1, 0.016, 8, 28).rotateX(Math.PI / 2)), metal(), 0, 0.2, 0, false);
@@ -362,7 +399,7 @@ window.Iskry = window.Iskry || {};
     decal(body, P.textTex('BZZ', '#ffd23f', 44, 128, 64), 0.16, 0.08, 0, 0.197, 0.115);
     const rings = [0, 1, 2].map(() => {
       const m = new T.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0, depthWrite: false });
-      const o = add(g, geo('wave', () => new T.TorusGeometry(0.2, 0.012, 6, 40).rotateX(Math.PI / 2)), m, 0, 0.25, 0, false);
+      const o = dyn(add(g, geo('wave', () => new T.TorusGeometry(0.2, 0.012, 6, 40).rotateX(Math.PI / 2)), m, 0, 0.25, 0, false));
       return o;
     });
     let lvl = 0;
@@ -402,11 +439,107 @@ window.Iskry = window.Iskry || {};
     };
   };
 
+  B.dimmer = function (g, p) {
+    basePlate(g, 'dimmer');
+    // łuk ścieżki oporowej i skala od „szeroko” do „wąsko”
+    const arc = geo('dimArc', () => new T.TorusGeometry(0.15, 0.022, 8, 40, Math.PI * 1.5).rotateX(Math.PI / 2).rotateY(-Math.PI * 0.25));
+    add(g, arc, plastic(0x3a2f2a, 0.7), 0, 0.06, 0, false);
+    for (let i = 0; i < 7; i++) {
+      const a = -Math.PI * 0.75 + (i / 6) * Math.PI * 1.5;
+      const w = 0.012 + i * 0.006;
+      add(g, box(w, 0.012, 0.04), plastic(i < 3 ? 0x2ecc71 : i < 5 ? 0xffc93c : 0xff4d5e, 0.5), Math.sin(a) * 0.23, 0.058, -Math.cos(a) * 0.23, false).rotation.y = -a;
+    }
+    const knob = dyn(new T.Group());
+    knob.position.set(0, 0.06, 0);
+    g.add(knob);
+    add(knob, cyl(0.105, 0.115, 0.13, 28), plastic(0xff8c1a, 0.35), 0, 0.075, 0);
+    add(knob, cyl(0.085, 0.085, 0.02, 28), plastic(0xffc06b, 0.3), 0, 0.15, 0, false);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      add(knob, box(0.018, 0.11, 0.022), plastic(0xe0700a, 0.4), Math.sin(a) * 0.112, 0.075, Math.cos(a) * 0.112, false).rotation.y = a;
+    }
+    add(knob, box(0.022, 0.012, 0.07), plastic(0xffffff, 0.3), 0, 0.165, -0.04, false);
+    let ang = 0;
+    return {
+      path: curvePath([[-0.5, 0.07], [-0.3, 0.2], [0, 0.3], [0.3, 0.2], [0.5, 0.07]], 20),
+      update(r, dt, t, q) {
+        if (q) p = q;
+        const v = p.val === undefined ? 0.5 : p.val;
+        const target = -Math.PI * 0.75 + v * Math.PI * 1.5;
+        ang += (target - ang) * Math.min(1, dt * 12);
+        knob.rotation.y = -ang;
+      },
+    };
+  };
+
+  P.emojiTex = function (e) {
+    const k = 'emoji' + e;
+    if (texCache[k]) return texCache[k];
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    const g = cv.getContext('2d');
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '96px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+    g.fillText(e, 64, 70);
+    const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace;
+    return (texCache[k] = t);
+  };
+  B.tester = function (g, p) {
+    basePlate(g, 'tester');
+    const clip = (x, c) => {
+      add(g, cyl(0.03, 0.03, 0.16, 10), metal(), x, 0.1, 0, false);
+      const jaw = add(g, box(0.12, 0.035, 0.06), plastic(c, 0.35), x * 0.72, 0.19, 0);
+      jaw.rotation.z = x < 0 ? -0.25 : 0.25;
+      add(g, box(0.1, 0.012, 0.05), metal(), x * 0.62, 0.165, 0, false);
+    };
+    clip(-0.3, 0xff4d5e);
+    clip(0.3, 0x2d3142);
+    add(g, cyl(0.12, 0.13, 0.05, 24), plastic(0xffffff, 0.5), 0, 0.05, 0);
+    const itemMat = new T.SpriteMaterial({ map: P.emojiTex('🔑'), transparent: true, depthWrite: false });
+    const item = dyn(new T.Sprite(itemMat));
+    item.scale.set(0.3, 0.3, 0.3);
+    item.position.set(0, 0.26, 0);
+    g.add(item);
+    const halo = dyn(glowSprite(0xffe14d));
+    halo.position.set(0, 0.26, 0);
+    g.add(halo);
+    let mat = -1, glow = 0;
+    return {
+      path: curvePath([[-0.5, 0.07], [-0.3, 0.2], [-0.12, 0.24], [0.12, 0.24], [0.3, 0.2], [0.5, 0.07]], 20),
+      update(r, dt, t, q) {
+        if (q) p = q;
+        const m = (p.mat || 0) % Iskry.circuit.MATERIALS.length;
+        if (m !== mat) { mat = m; itemMat.map = P.emojiTex(Iskry.circuit.MATERIALS[m].e); itemMat.needsUpdate = true; }
+        const target = r && Math.abs(r.I) > 1e-3 ? Math.min(1, Math.abs(r.I) * 4) : 0;
+        glow += (target - glow) * Math.min(1, dt * 8);
+        halo.material.opacity = glow * 0.6;
+        halo.scale.setScalar(0.3 + glow * 0.3);
+        item.position.y = 0.26 + Math.sin(t * 2) * 0.008;
+      },
+    };
+  };
+
+  // Ramka (obwódka) do zaznaczeń i wskazówek na planszy
+  P.frameGeo = function (w, d, th, r) {
+    return geo('frame' + [w, d, th, r], () => {
+      const s = roundedRect(w, d, r);
+      s.holes.push(roundedRect(w - th * 2, d - th * 2, Math.max(0.02, r - th)));
+      const g2 = new T.ShapeGeometry(s, 8);
+      g2.rotateX(-Math.PI / 2);
+      return g2;
+    });
+  };
+
   // Buduje element; zwraca { group, path (punkty lokalne), update, light }
   P.build = function (p) {
     const g = new T.Group();
     const res = B[p.type](g, p);
     res.group = g;
+    // dzieci części ruchomej też mają stałą macierz lokalną – świat liczy się od rodzica
+    g.traverse(o => {
+      if (o === g || o.userData.dyn) return;
+      o.matrixAutoUpdate = false;
+      o.updateMatrix();
+    });
     return res;
   };
 
