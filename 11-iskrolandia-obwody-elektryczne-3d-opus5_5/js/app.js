@@ -12,6 +12,7 @@
   const LESSON_OF = { wire: 0, battery: 2, bulb: 3, motor: 3, buzzer: 3, switch: 0, button: 0, resistor: 4, dimmer: 4, led: 6, tester: 4 };
   const compactMQ = window.matchMedia('(max-width: 640px) and (orientation: portrait), (max-height: 500px) and (orientation: landscape)');
   const portraitMQ = window.matchMedia('(max-width: 640px) and (orientation: portrait)');
+  const landMQ = window.matchMedia('(max-height: 500px) and (orientation: landscape)');
 
   const st = {
     mode: 'home', pieces: [], nextId: 1, tool: 'hand', res: null,
@@ -23,7 +24,7 @@
 
   // ---------- zapis ----------
   const KEY = 'iskrolandia.v1';
-  const fresh = () => ({ stars: {}, badges: {}, theme: 'klasyczny', sandbox: null, muted: false, read: false, lab: {}, oracle: 0, mats: {}, seen: {} });
+  const fresh = () => ({ stars: {}, badges: {}, theme: 'klasyczny', sandbox: null, muted: false, read: false, lab: {}, oracle: 0, mats: {}, seen: {}, tips: {} });
   let save = fresh();
   try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) save = Object.assign(save, s); } catch (e) {}
   let saveT = null;
@@ -31,6 +32,9 @@
     clearTimeout(saveT);
     saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }, 300);
   }
+  const saveNow = () => { clearTimeout(saveT); try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} };
+  window.addEventListener('pagehide', saveNow);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
   const totalStars = () => Object.values(save.stars).reduce((a, b) => a + b, 0);
   const buzzHand = ms => { if (!save.muted && navigator.vibrate) try { navigator.vibrate(ms || 10); } catch (e) {} };
 
@@ -65,7 +69,52 @@
     st.probes = [null, null];
     S.setProbes(null, null);
     selectPiece(null);
+    region = null;
     changed(false);
+    updateRegion(true);
+  }
+  // kable z zestawów bez koloru: czerwone po stronie plusa, niebieskie po stronie minusa (jak w piaskownicy)
+  function colorWires(setup) {
+    const res = C.solve(st.pieces);
+    st.pieces.forEach((p, i) => {
+      if (p.type !== 'wire' || (setup[i] && setup[i].color !== undefined)) return;
+      const v = Math.max(res.nodeV.get(p.a) || 0, res.nodeV.get(p.b) || 0);
+      const top = Math.max(0, ...res.nodeV.values());
+      p.color = top > 0.1 && v < top * 0.2 ? 1 : 0;
+    });
+    S.sync(st.pieces);
+  }
+
+  // ---------- kadr: kamera pokazuje obszar obwodu (rośnie razem z nim) ----------
+  let region = null, fullView = false;
+  function updateRegion(reset) {
+    if (st.mode === 'home' || fullView) { S.setRegion(null, !reset); if (reset) region = null; return; }
+    let c0 = 99, c1 = -1, r0 = 99, r1 = -1;
+    for (const p of st.pieces) for (const n of [p.a, p.b]) {
+      const q = C.cr(n);
+      c0 = Math.min(c0, q.c); c1 = Math.max(c1, q.c); r0 = Math.min(r0, q.r); r1 = Math.max(r1, q.r);
+    }
+    if (c1 < 0) { c0 = 3; c1 = 6; r0 = 2; r1 = 4; }
+    // margines jednej kratki, żeby było gdzie dobudować
+    c0 -= 1; c1 += 1; r0 -= 1; r1 += 1;
+    if (region && !reset) { c0 = Math.min(c0, region.c0); c1 = Math.max(c1, region.c1); r0 = Math.min(r0, region.r0); r1 = Math.max(r1, region.r1); }
+    const grow = (a, b, min, max) => {
+      const need = min - (b - a);
+      if (need > 0) { a -= need / 2; b += need / 2; }
+      if (a < 0) { b -= a; a = 0; }
+      if (b > max) { a -= b - max; b = max; }
+      return [Math.max(0, a), Math.min(max, b)];
+    };
+    [c0, c1] = grow(c0, c1, 5, C.COLS - 1);
+    [r0, r1] = grow(r0, r1, 3, C.ROWS - 1);
+    region = { c0, c1, r0, r1 };
+    S.setRegion(region, !reset);
+  }
+  function toggleFullView() {
+    fullView = !fullView;
+    $('vReset').querySelector('small').textContent = fullView ? 'Obwód' : 'Plansza';
+    updateRegion(false);
+    S.resetView();
   }
 
   // ---------- rozwiązywanie i reakcje ----------
@@ -90,6 +139,7 @@
     }
     S.sync(st.pieces);
     S.setResults(st.res);
+    updateRegion(false);
     reactions();
     if (st.mode === 'mission') evalMission();
     if (keepBubble) refreshBubbleLive(); else refreshBubble();
@@ -109,13 +159,15 @@
     }
   }
 
-  const tipsShown = {};
+  // wskazówki pokazane raz zapamiętujemy (także między sesjami)
+  const tipsShown = save.tips || (save.tips = {});
   let lastTip = 0;
   function tip(key, text, mood, force) {
     if (tipsShown[key] && !force) return;
     if (!force && performance.now() - lastTip < 4000) return;
     if (st.mode === 'home') return;
     tipsShown[key] = true;
+    persist();
     lastTip = performance.now();
     U.say(text, { mood: mood || 'happy' });
   }
@@ -183,6 +235,7 @@
   // ---------- misje ----------
   function enterBoard(mode) {
     st.mode = mode;
+    if (fullView) toggleFullView();
     hideScreens();
     document.body.classList.remove('at-home');
     document.body.dataset.mode = mode;
@@ -207,9 +260,11 @@
     $('mcTitle').textContent = m.title;
     $('modeLabel').textContent = m.emoji + ' ' + m.title;
     setPieces(m.setup.map(x => Object.assign({}, x)));
+    colorWires(m.setup);
     buildTray();
     setTool(m.id === 'm11' ? 'erase' : (m.tray.wire && Object.keys(m.tray).length === 1 ? 'wire' : 'hand'));
     evalMission();
+    updateHintLabel();
     layoutFrames();
     setTimeout(() => U.say(m.intro, { stay: true, mood: m.id === 'm11' ? 'worry' : 'happy' }), 350);
   }
@@ -245,6 +300,8 @@
     if (all && !st.done) {
       st.done = true;
       $('wolcikBadge').hidden = true;
+      selectPiece(null);
+      U.hush();
       U.dance();
       // chwila na nacieszenie się efektem, zanim wyskoczy okno
       setTimeout(() => { if (st.mission === m && st.done) missionComplete(); }, 2200);
@@ -285,16 +342,30 @@
     if (!st.mission) return;
     A.sfx('ui');
     if (!st.freeHint && !st.done) {
+      st.freeHint = true;
+      updateHintLabel();
       const o = E.overview(st.pieces, st.res);
+      const note = '<br><small>Ta podpowiedź była za darmo. Następna kosztuje gwiazdkę (−⭐).</small>';
       if (o && o.tone !== 'good' && o.marks.length) {
-        st.freeHint = true;
         setMarks(o.marks, 'wolcik');
-        U.say('🔍 ' + o.text + '<br><small>Ta podpowiedź była za darmo. Następna kosztuje gwiazdkę.</small>', { stay: true, mood: 'detect' });
+        U.say('🔍 ' + o.text + note, { stay: true, mood: 'detect' });
         return;
       }
+      // obwód działa, ale misja jeszcze nie: wskazujemy pierwszy niezaliczony punkt
+      const i = st.sticky.indexOf(false);
+      const c = st.mission.checks[i];
+      const ins = st.pieces.filter(C.isInput);
+      setMarks(ins.map(x => ({ piece: x.id, kind: 'cause' })), 'wolcik');
+      U.say(`🔍 Coś już działa! Brakuje jeszcze punktu: <b>${c ? c.t : ''}</b>.` + (ins.length ? ' Popstrykaj wyłącznikami i przyciskami (migają) i patrz, co się dzieje.' : ' Spójrz na listę misji i spróbuj to zrobić.') + note, { stay: true, mood: 'detect' });
+      return;
     }
     if (!st.done) st.hints++;
     U.say('💡 ' + st.mission.hint, { stay: true, mood: 'happy' });
+  }
+
+  function updateHintLabel() {
+    $('mcHint').textContent = st.freeHint ? '💡 Podpowiedź (−⭐)' : '💡 Podpowiedź (za darmo)';
+    $('mcHintMini').title = st.freeHint ? 'Podpowiedź (kosztuje gwiazdkę)' : 'Podpowiedź (za darmo)';
   }
 
   // ---------- tryby ----------
@@ -387,6 +458,7 @@
     tray.querySelectorAll('.titem').forEach(b => {
       b.addEventListener('pointerdown', e => trayDown(e, b.dataset.tool, b));
       b.addEventListener('contextmenu', e => e.preventDefault());
+      b.addEventListener('click', e => { if (e.detail === 0) { A.init(); A.sfx('ui'); setTool(b.dataset.tool); } });
     });
     updateTray();
   }
@@ -653,6 +725,7 @@
       mats.innerHTML = '<b style="width:100%;font-size:12px">Sprawdzone przedmioty:</b>' + C.MATERIALS.map((m, i) => save.mats[i] || i === cur
         ? `<span class="${!isFinite(m.R) ? 'no' : m.R > 1 ? 'weak' : 'yes'}">${m.e} ${!isFinite(m.R) ? '✗' : m.R > 1 ? '½' : '✓'}</span>` : '<span>❔</span>').join('');
     }
+    st.bubbleMarks = w ? w.marks.filter(x => x.piece && x.piece !== id).map(x => x.piece) : [];
     if (!(st.puz && st.puz.phase !== 'show')) setMarks(w ? w.marks : null, 'bubble');
   }
 
@@ -693,9 +766,9 @@
   function refreshMeter() {
     const box = $('meterBox');
     const [a, b] = st.probes;
-    if (a === null || st.tool !== 'meter' || !st.res) { box.hidden = true; return; }
+    if (a === null || st.tool !== 'meter' || !st.res) { if (!box.hidden) { box.hidden = true; requestAnimationFrame(layoutFrames); } return; }
     box.hidden = false;
-    if (b === null) { box.innerHTML = '<small>Miernik</small><em>Teraz dotknij drugiej kropki</em>'; return; }
+    if (b === null) { box.innerHTML = '<small>Miernik</small><em>Teraz dotknij drugiej kropki</em>'; requestAnimationFrame(layoutFrames); return; }
     const r = st.res;
     const on = n => r.nodeV.has(n);
     if (!on(a) || !on(b)) { box.innerHTML = '<small>Miernik</small><b>—</b><em>Sonda nie dotyka żadnego toru.</em>'; return; }
@@ -711,6 +784,7 @@
     }
     if (piece && dv < 0.05 && piece.type === 'wire') note = 'Kabel prawie nie zabiera klocków.';
     box.innerHTML = `<small>Miernik 📏</small><b>${C.blocksText(dv)} · ${C.fmt(dv, 2)} V</b><em>${note}</em>`;
+    requestAnimationFrame(layoutFrames);
     if (dv > 0.5) award('meter');
   }
 
@@ -722,6 +796,7 @@
     $('missionCard').hidden = true;
     $('modeLabel').textContent = '🔬 ' + ex.title;
     setPieces(ex.setup.map(x => Object.assign({}, x)));
+    colorWires(ex.setup);
     if (ex.stacks && !st.showStacks) toggleStacks();
     st.puz = L.fromExperiment(ex, st.pieces, st.res);
     st.puz.phase = 'ask';
@@ -749,8 +824,12 @@
     const pz = st.puz;
     if (!pz) return;
     const m = [];
-    if (pz.phase !== 'show' || pz.kind === 'cmpI' || pz.kind === 'cmpV') m.push({ piece: pz.target, kind: 'look' });
-    else m.push({ piece: pz.target, kind: 'look' });
+    m.push({ piece: pz.target, kind: 'look' });
+    // w wyniku plansza pokazuje to, o czym mówi wyjaśnienie (np. wykrzyknik na urwanym torze)
+    if (pz.phase === 'show' && !pz.exp) {
+      const w = E.why(st.pieces, st.res, pz.target);
+      if (w) w.marks.forEach(x => { if (x.piece !== pz.target) m.push(x); });
+    }
     if (pz.ref) m.push({ piece: pz.ref, kind: 'ref' });
     if (pz.phase !== 'show') {
       if (pz.move.do === 'add') m.push({ edge: [pz.move.a, pz.move.b], kind: 'spot' });
@@ -766,17 +845,19 @@
     card.hidden = false;
     const ex = pz.exp;
     const steps = ['Zgadnij', 'Sprawdź', 'Zrozum'];
-    const si = { ask: 0, do: 1, show: 2 }[pz.phase];
+    const si = { ask: 0, do: 1, wait: 1, show: 2 }[pz.phase];
+    if (pz.phase === 'wait') return;
     let body = '';
     if (pz.phase === 'ask') {
-      body = `<p class="pz-q">${L.question(pz, st.pieces)}</p><div class="pz-opts">${L.options(pz).map(o => `<button data-k="${o.k}"><span>${o.e}</span>${o.t}</button>`).join('')}</div>`;
+      body = `<p class="pz-q">${L.question(pz, st.pieces)}</p><div class="pz-opts">${L.options(pz).map(o => `<button data-k="${o.k}"><span>${optIcon(pz, o)}</span>${o.t}</button>`).join('')}</div>`;
     } else if (pz.phase === 'do') {
-      body = `<p class="pz-guess">Twój typ: <b>${L.label(pz, pz.guess)}</b></p><p class="pz-task">👉 ${L.task(pz.move, st.pieces)}</p>
+      body = `<p class="pz-guess">Twój typ: <b>${L.label(pz, pz.guess)}</b> · patrz na <span class="mk mk-b">niebieską ramkę</span></p><p class="pz-task">👉 ${L.task(pz.move, st.pieces)}</p>
         <div class="pz-btns"><button data-a="auto">🪄 Zrób to za mnie</button></div>`;
     } else {
       const right = pz.guess === pz.result;
       body = `<div class="pz-res"><span class="big-e">${right ? '🎉' : '🤯'}</span><b>${right ? 'Zgadłeś!' : 'Niespodzianka!'}</b></div>
         <p class="pz-guess" style="text-align:center">Wynik: <b>${L.label(pz, pz.result)}</b>${right ? '' : ` · twój typ: ${L.label(pz, pz.guess)}`}</p>
+        ${pz.diff ? `<p class="pz-diff">${pz.diff}</p>` : ''}
         <p class="pz-exp">${pz.explain}</p>
         <div class="pz-btns">${ex
           ? `${st.exp + 1 < EXPS.length ? '<button class="primary" data-a="next">▶ Następny</button>' : '<button class="primary" data-a="list">🔬 Lista</button>'}<button data-a="again">↺ Jeszcze raz</button>`
@@ -784,11 +865,19 @@
     }
     card.innerHTML = `<div class="pz-head"><span class="pz-emoji">${ex ? ex.emoji : '❓'}</span><div><small>${ex ? 'Eksperyment ' + (st.exp + 1) + ' z ' + EXPS.length : 'Zagadka Wolcika'}</small><b>${ex ? ex.title : 'Co się stanie, jeśli…?'}</b></div><button class="pz-x" data-a="x" aria-label="Zamknij">✕</button></div>
       <div class="pz-steps">${steps.map((s, i) => `<span class="${i === si ? 'on' : i < si ? 'done' : ''}">${i + 1}. ${s}</span>`).join('')}</div>${body}`;
+    U.toastHold(pz.phase === 'ask');
     card.querySelectorAll('[data-k]').forEach(b => b.onclick = () => answerPuz(b.dataset.k));
     card.querySelectorAll('[data-a]').forEach(b => b.onclick = () => puzAction(b.dataset.a));
     applyPuzMarks();
     if (save.read && pz.phase !== 'do') A.speak((pz.phase === 'ask' ? L.question(pz, st.pieces) : pz.explain).replace(/<[^>]+>/g, ''));
   }
+  // żarówka zgaszona / słabsza / jaśniejsza – czytelniej niż 🌑 🔅 🔆
+  const BULB_ICO = {
+    off: '<svg viewBox="0 0 32 32" class="opt-ico"><circle cx="16" cy="13" r="9" fill="#d5dcec" stroke="#8a93a8" stroke-width="2"/><rect x="12" y="22" width="8" height="6" rx="2" fill="#8a93a8"/></svg>',
+    down: '<svg viewBox="0 0 32 32" class="opt-ico"><circle cx="16" cy="13" r="9" fill="#fff3a8" stroke="#d9b440" stroke-width="2"/><rect x="12" y="22" width="8" height="6" rx="2" fill="#8a93a8"/></svg>',
+    up: '<svg viewBox="0 0 32 32" class="opt-ico"><g stroke="#ff9f1c" stroke-width="2.5" stroke-linecap="round"><path d="M16 1v3M4 13H1M31 13h-3M6 4l2 2M26 4l-2 2"/></g><circle cx="16" cy="13" r="9" fill="#ffd23f" stroke="#ff9f1c" stroke-width="2"/><rect x="12" y="22" width="8" height="6" rx="2" fill="#8a93a8"/></svg>',
+  };
+  const optIcon = (pz, o) => (pz.kind === 'bulb' && pz.before && pz.before.on && BULB_ICO[o.k]) || o.e;
   function answerPuz(k) {
     const pz = st.puz;
     if (!pz || pz.phase !== 'ask') return;
@@ -831,6 +920,7 @@
   function closePuz(silent) {
     if (!st.puz) return;
     st.puz = null;
+    U.toastHold(false);
     $('puzCard').hidden = true;
     S.setMarks(null); st.marksFrom = null;
     if (!silent) layoutFrames();
@@ -841,6 +931,7 @@
     if (!pz || pz.phase !== 'do' || pz.move.do === 'inspect') return;
     if (!L.done(st.pieces, pz.move)) return;
     pz.phase = 'wait';
+    if (compactMQ.matches) { selectPiece(null); U.hushTransient(); }
     clearTimeout(revealT);
     revealT = setTimeout(revealPuzzle, 1300); // chwila, żeby zobaczyć efekt na planszy
   }
@@ -854,6 +945,18 @@
     }
     pz.result = result;
     pz.phase = 'show';
+    if (compactMQ.matches || pz.move.do !== 'inspect') selectPiece(null);
+    {
+      const t = byId(pz.target), r = t && st.res.pieces[t.id];
+      if (pz.kind === 'cmpI' || pz.kind === 'cmpV') {
+        const ref = byId(pz.ref), rr = ref && st.res.pieces[ref.id];
+        const val = x => pz.kind === 'cmpI' ? C.sparksText(x.I) : C.blocksText(Math.max(x.Va || 0, x.Vb || 0));
+        if (r && rr) pz.diff = `Przed żarówką: <b>${val(rr)}</b> · za żarówką: <b>${val(r)}</b>`;
+      } else if (t) {
+        const fmt = m => pz.kind === 'battery' ? C.sparksText(m.v) : !m.on ? 'nie działa' : pz.kind === 'motor' ? `${m.v > 0 ? '↻' : '↺'} ${Math.round(Math.abs(m.v) * 100)}% obrotów` : pz.kind === 'buzzer' ? `🔔 ${Math.round(m.v * 100)}% głośności` : `💡 ${Math.round(Math.min(1.6, m.v) * 100)}% jasności`;
+        pz.diff = `Przed: <b>${fmt(pz.before)}</b> → po: <b>${fmt(L.measure(t, r))}</b>`;
+      }
+    }
     const right = pz.guess === result;
     if (pz.exp) pz.explain = pz.exp.explain;
     else {
@@ -907,8 +1010,10 @@
     sideWidth = s.w + 10;
     if (portraitMQ.matches) base.b = Math.max(base.b, sr.height - s.t + 4);
     else base.r = Math.max(base.r, sr.width - s.l + 4);
-    const bub = $('bubble');
+    const bub = $('bubble'), mb = $('meterBox');
     if (portraitMQ.matches && !bub.hidden) base.b = Math.max(base.b, sr.height - rel(bub).t + 4);
+    if (portraitMQ.matches && !mb.hidden) base.b = Math.max(base.b, sr.height - rel(mb).t + 4);
+    if (landMQ.matches && !bub.hidden) base.r = Math.max(base.r, sr.width - rel(bub).l + 4);
     const leg = $('legend');
     if (getComputedStyle(leg).display !== 'none') base.b = Math.max(base.b, sr.height - rel(leg).t + 2);
     const card = !$('puzCard').hidden ? $('puzCard') : !$('missionCard').hidden ? $('missionCard') : null;
@@ -1080,7 +1185,7 @@
         break;
       case 'pieceDown': {
         const p = g.p;
-        if (p.type === 'switch') { toggleSwitch(p); if (st.tool === 'hand') selectPiece(p.id); }
+        if (p.type === 'switch') { toggleSwitch(p); if (st.tool === 'hand' && !compactMQ.matches && !st.done) selectPiece(p.id); }
         else if (p.type === 'tester') { cycleMaterial(p); selectPiece(p.id); }
         else if (p.burnt) { pushHistory(); p.burnt = false; A.sfx('repair'); changed(); selectPiece(p.id); }
         else { A.sfx('ui'); selectPiece(st.selected === p.id ? null : p.id); }
@@ -1186,14 +1291,14 @@
   sideBtn('vZoomIn', () => S.zoomBy(0.85));
   sideBtn('vZoomOut', () => S.zoomBy(1.15));
   sideBtn('vTop', () => S.topView());
-  sideBtn('vReset', () => S.resetView());
+  sideBtn('vReset', toggleFullView);
   sideBtn('vUndo', undo);
   sideBtn('vMoreBtn', () => { const o = $('side').classList.toggle('open'); $('vMoreBtn').setAttribute('aria-expanded', o); });
   sideBtn('vClear', () => {
     $('side').classList.remove('open');
     if (st.mode === 'mission') {
       U.modal('<h2>Zacząć misję od nowa?</h2><p>Plansza wróci do początku. Gwiazdki z podpowiedzi zostaną policzone tak jak teraz.</p>',
-        [{ label: '↺ Od nowa', cls: 'primary', fn: () => { const h = st.hints, f = st.freeHint; startMission(st.mIdx); st.hints = h; st.freeHint = f; } }, { label: 'Nie' }]);
+        [{ label: '↺ Od nowa', cls: 'primary', fn: () => { const h = st.hints, f = st.freeHint; startMission(st.mIdx); st.hints = h; st.freeHint = f; updateHintLabel(); } }, { label: 'Nie' }]);
     } else if (st.mode === 'lab') {
       startExperiment(st.exp);
     } else {
@@ -1343,13 +1448,22 @@
     const y = Math.max(8, Math.min(H - bh - 8, sy - bh - gap));
     el.style.transform = `translate(${x}px, ${y}px)`;
   }
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  let lastTouch = 0, lastDraw = 0;
+  window.addEventListener('pointerdown', () => { lastTouch = performance.now(); S.wake(); }, true);
+  window.addEventListener('pointermove', () => { lastTouch = performance.now(); }, true);
   function frame(now) {
+    requestAnimationFrame(frame);
+    // nic się nie rusza – nie rysujemy (oszczędza baterię); w spokoju na telefonie 30 kl/s
+    if (!S.isBusy() && !g && !ptrs.size) { last = now; A.setContinuous(0, 0); return; }
+    if (coarse && !g && !ptrs.size && now - lastTouch > 2000 && now - lastDraw < 30) return;
+    lastDraw = now;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     S.render(dt, now / 1000);
     // dymek nad elementem (na telefonie pionowo jest panelem na dole)
     const sideW = portraitMQ.matches ? 0 : sideWidth;
-    if (st.selected && !portraitMQ.matches) {
+    if (st.selected && !portraitMQ.matches && !landMQ.matches) {
       const sp = S.screenOf(st.selected, 0.75);
       const b = $('bubble');
       if (sp && !sp.behind) {
@@ -1363,14 +1477,18 @@
           [sp.x - bw - 50, (sp.y + low.y) / 2 - bh / 2],
           [sp.x - bw / 2, low.y + 30],
         ];
-        const pos = cand.find(([x, y]) => x >= 8 && y >= 8 && x + bw <= W - 8 && y + bh <= H - 8) || cand[0];
+        // dymek nie zasłania elementów, które właśnie pokazuje (znaczniki „dlaczego”)
+        const avoid = (st.bubbleMarks || []).map(id => S.screenOf(id, 0.2)).filter(Boolean);
+        const free = ([x, y]) => !avoid.some(q => q.x > x - 20 && q.x < x + bw + 20 && q.y > y - 20 && q.y < y + bh + 20);
+        const fits = ([x, y]) => x >= 8 && y >= 8 && x + bw <= W - 8 && y + bh <= H - 8;
+        const pos = cand.find(c => fits(c) && free(c)) || cand.find(fits) || cand[0];
         const x = Math.max(8, Math.min(W - bw - 8, pos[0]));
         const y = Math.max(8, Math.min(H - bh - 8, pos[1]));
         b.style.transform = `translate(${x}px, ${y}px)`;
       }
     }
     // tabliczka miernika nad sondami
-    if (!$('meterBox').hidden && st.probes[0] !== null) {
+    if (!$('meterBox').hidden && st.probes[0] !== null && !portraitMQ.matches) {
       const a = S.nodePos(st.probes[0]);
       if (st.probes[1] !== null) a.add(S.nodePos(st.probes[1])).multiplyScalar(0.5);
       a.y = 0.6;
@@ -1388,7 +1506,6 @@
       }
       A.setContinuous(buzz, mot);
     } else A.setContinuous(0, 0);
-    requestAnimationFrame(frame);
   }
 
   // ---------- start ----------
@@ -1406,8 +1523,10 @@
   buildTray();
   goHome();
   S.resize();
-  requestAnimationFrame(frame);
+  // najpierw strona, potem w tle kompilacja shaderów, dopiero wtedy pierwsza klatka 3D
+  requestAnimationFrame(() => setTimeout(() => S.warm().then(() => requestAnimationFrame(frame)), 0));
   compactMQ.addEventListener && compactMQ.addEventListener('change', () => {
+    updateRegion(false);
     if (st.mission) $('missionCard').classList.toggle('min', compactMQ.matches);
     bubbleKey = ''; refreshBubble(); layoutFrames();
   });

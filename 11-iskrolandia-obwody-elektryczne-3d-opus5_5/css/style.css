@@ -115,11 +115,14 @@ b { font-weight: 800; }
 .pz-res .big-e { font-size: 44px; display: block; animation: spinIn .7s cubic-bezier(.2, 1.4, .4, 1); }
 .pz-res b { font-size: 20px; }
 .pz-exp { background: linear-gradient(180deg, #f3f8ff, #eef4ff); border-radius: 14px; padding: 10px 12px; font-size: 14.5px; font-weight: 600; line-height: 1.45; margin: 8px 0 0; }
-.pz-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.pz-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; position: sticky; bottom: -12px; background: #fff; padding: 8px 0 4px; }
 .pz-btns button { flex: 1 1 auto; min-height: 46px; padding: 0 14px; border-radius: 14px; background: #eef2fb; box-shadow: 0 3px 0 #cfd6e8; font-weight: 800; font-size: 15px; }
 .pz-btns button.primary { background: linear-gradient(180deg, #b58cff, #8b55f0); color: #fff; box-shadow: 0 3px 0 #6431c4; }
 .pz-btns button:active { transform: translateY(2px); box-shadow: none; }
-.mk { font-weight: 800; padding: 0 5px; border-radius: 6px; white-space: nowrap; }
+.mk { font-weight: 800; padding: 0 3px; border-radius: 6px; white-space: nowrap; }
+.mk-y { background: #fff1a8; color: #7a5a00; }
+.opt-ico { width: 28px; height: 28px; display: block; }
+.pz-diff { text-align: center; font-size: 14px; font-weight: 700; color: var(--ink2); background: #f6f3ff; border-radius: 12px; padding: 6px 10px; margin: 6px 0 0; }
 .mk-o { background: #ffe1c2; color: #a64b00; }
 .mk-b { background: #d6e6ff; color: #1d4fbf; }
 .mk-g { background: #d3f7e1; color: #127a3d; }
@@ -143,7 +146,7 @@ b { font-weight: 800; }
 }
 .sbtn span { font-size: 22px; line-height: 1; font-weight: 900; display: grid; place-items: center; height: 24px; }
 .sbtn span svg { width: 24px; height: 24px; }
-.sbtn small { font-size: 10.5px; font-weight: 800; color: var(--ink2); margin-top: 3px; }
+.sbtn small { font-size: 11.5px; font-weight: 800; color: var(--ink2); margin-top: 3px; white-space: nowrap; }
 .sbtn:active { transform: scale(.92); }
 .sbtn.on { background: linear-gradient(180deg, #fff3b0, #ffd23f); }
 #vPuzzle { background: linear-gradient(180deg, #f1e8ff, #dccbff); }
@@ -230,7 +233,8 @@ b { font-weight: 800; }
 }
 #meterBox[hidden] { display: none; }
 #meterBox small { display: block; font-size: 11px; font-weight: 800; color: #b9c2e0; text-transform: uppercase; letter-spacing: .05em; }
-#meterBox b { display: block; font-size: 20px; color: #9effc1; font-variant-numeric: tabular-nums; }
+#meterBox > b { display: block; font-size: 20px; color: #9effc1; font-variant-numeric: tabular-nums; }
+#meterBox em b { color: #ffe27a; }
 #meterBox em { display: block; font-style: normal; font-size: 12px; font-weight: 700; color: #dfe4f5; max-width: 220px; line-height: 1.3; }
 
 /* ---------- tacka ---------- */
@@ -327,7 +331,7 @@ body.at-home #top, body.at-home #tray, body.at-home #side, body.at-home #legend,
 #stickers { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
 .sticker { border-radius: 18px; background: #f3f6fd; padding: 10px 6px; text-align: center; border: 3px dashed #d5dcec; }
 .sticker span { font-size: 38px; display: block; filter: grayscale(1); opacity: .5; }
-.sticker small { font-size: 11.5px; font-weight: 700; color: var(--ink2); }
+.sticker small { display: block; line-height: 1.2; margin-top: 4px; font-size: 11.5px; font-weight: 700; color: var(--ink2); }
 .sticker.got { background: #fff; border: 3px solid #ffd23f; box-shadow: 0 3px 0 #f0c419; }
 .sticker.got span { filter: none; opacity: 1; animation: pop .5s; }
 #badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
@@ -419,7 +423,7 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
   .titem .ico { width: 32px; height: 32px; }
   #tray.many .titem .ico { width: 28px; height: 28px; }
   .titem span { font-size: 10.5px; }
-  #tray.many .titem span { font-size: 9px; letter-spacing: -.02em; }
+  #tray.many .titem span { font-size: clamp(9px, 2.6vw, 11px); letter-spacing: -.02em; }
   .titem kbd, .tsep { display: none; }
   .titem.sel { transform: none; }
 
@@ -433,7 +437,11 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
   #missionCard.min .mc-mini { display: grid; place-items: center; }
   #mcChecks { margin: 6px 0; gap: 4px; }
   #mcChecks li { font-size: 13.5px; padding: 5px 6px; }
-  #puzCard { max-height: 52%; overflow: auto; }
+  #puzCard { max-height: 62%; overflow: auto; }
+  .pz-res { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 4px 0 0; }
+  .pz-res .big-e { font-size: 30px; display: inline-block; }
+  #meterBox { top: auto; bottom: 66px; left: 50%; transform: translateX(-50%) !important; }
+  .modal-btns .mbtn { flex: 1 1 100%; }
   .pz-q { font-size: 14.5px; margin: 8px 0; }
   .pz-opts button { min-height: 46px; font-size: 14px; }
   .pz-exp { font-size: 13.5px; }
@@ -467,8 +475,9 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
   .binfo { display: none; }
   #bubble.more .binfo { display: block; }
 
-  #toasts { top: 72px; }
-  .toast { padding: 6px 12px 6px 8px; }
+  #toasts { position: fixed; top: calc(6px + env(safe-area-inset-top)); left: 64px; right: 8px; transform: none; z-index: 30; align-items: flex-start; }
+  .toast { padding: 4px 12px 4px 6px; border-width: 2px; border-radius: 14px; height: 44px; }
+  .toast small { display: none; }
   .toast .te { font-size: 26px; }
   .toast b { font-size: 14px; }
 
@@ -489,6 +498,10 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
   .mtile .memo { font-size: 34px; height: 40px; }
   .mtile b { font-size: 14px; }
 }
+@media (max-height: 700px) and (max-width: 640px) and (orientation: portrait) {
+  .pz-steps { display: none; }
+  .pz-opts button { min-height: 44px; }
+}
 @media (max-width: 380px) and (orientation: portrait) {
   .big small { display: none; }
   .tbtn { min-width: 40px; padding: 0 8px; }
@@ -504,8 +517,11 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
 
   /* tacka w kolumnie z lewej */
   #tray { flex-direction: column; justify-content: safe center; overflow-x: hidden; overflow-y: auto; touch-action: pan-y; border-top: 0; border-right: 1px solid var(--line); padding: 6px; padding-left: max(6px, env(safe-area-inset-left)); gap: 5px; }
-  #tray.many { display: grid; grid-template-columns: repeat(2, 54px); grid-auto-rows: 52px; align-content: center; }
+  #tray.many { display: grid; grid-template-columns: repeat(2, 54px); grid-auto-rows: 44px; gap: 4px; align-content: safe center; }
   .titem, #tray.many .titem { width: 54px; height: 52px; border-radius: 13px; touch-action: pan-y; }
+  #tray.many .titem { height: 44px; }
+  #tray.many .titem .ico { width: 24px; height: 24px; }
+  .titem .cnt { top: 1px; right: 3px; font-size: 10px; }
   .titem .ico { width: 28px; height: 28px; }
   .titem span { font-size: 9.5px; }
   .titem kbd, .tsep { display: none; }
@@ -520,7 +536,12 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
   .sbtn span { font-size: 18px; }
   .sbtn small { font-size: 9px; }
 
-  #missionCard, #puzCard { top: 6px; left: 6px; width: 300px; padding: 6px 8px; max-height: calc(100% - 12px); overflow: auto; }
+  #missionCard, #puzCard { top: 6px; left: 6px; width: 340px; padding: 6px 8px; max-height: calc(100% - 12px); overflow: auto; }
+  .mc-ttl small { white-space: nowrap; }
+  #missionCard.min .mc-prog { display: none; }
+  .pz-steps { display: none; }
+  .pz-res { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 2px 0 0; }
+  .pz-res .big-e { font-size: 28px; display: inline-block; }
   #puzCard { width: 300px; }
   #missionCard.min .mc-ttl b { display: none; }
   #missionCard.min .mc-ttl em { display: block; }
@@ -537,12 +558,13 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
   #say { left: auto; right: 58px; bottom: 6px; width: min(380px, 52vw); max-height: calc(100vh - 70px); border-radius: 20px 20px 6px 20px; padding: 10px 12px 8px; }
   #sayText { font-size: 14.5px; }
 
-  #bubble { width: 280px; max-height: calc(100% - 12px); overflow: auto; }
+  #bubble { left: auto !important; right: 58px; top: 6px; bottom: 6px; width: 290px; transform: none !important; overflow: auto; }
   .binfo { display: none; }
   #bubble.more .binfo { display: block; }
 
-  #toasts { top: 6px; }
-  .toast { padding: 5px 10px 5px 8px; } .toast .te { font-size: 24px; } .toast b { font-size: 14px; }
+  #toasts { position: fixed; top: 3px; left: 60px; transform: none; z-index: 30; align-items: flex-start; }
+  .toast small { display: none; }
+  .toast { padding: 3px 10px 3px 6px; height: 38px; border-width: 2px; } .toast .te { font-size: 24px; } .toast b { font-size: 14px; }
 
   #home { align-items: center; padding: 8px; }
   #home .home-card { padding: 10px 14px; max-width: 760px; }
@@ -560,6 +582,11 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
   .mtile { min-height: 108px; padding: 8px 6px; } .mtile .memo { font-size: 30px; height: 36px; } .mtile b { font-size: 13.5px; }
   .win-sticker { font-size: 40px; } .bigstar { font-size: 36px; } .win h2 { font-size: 22px; margin: 0; }
   .modal-btns { position: sticky; bottom: -12px; background: #fff; padding: 8px 0; margin-top: 8px; }
+  .win-panel { width: min(840px, 100%); }
+  .win-panel .win { display: grid; grid-template-columns: 220px 1fr; column-gap: 18px; align-items: start; }
+  .win-panel .win > :not(.explain):not(.unlock) { grid-column: 1; }
+  .win-panel .explain { grid-column: 2; grid-row: 1 / span 5; margin-top: 0; }
+  .win-panel .unlock { grid-column: 2; }
   .mbtn { min-height: 44px; }
   .lesson-panel { width: min(860px, 100%); display: grid; grid-template-columns: 1.1fr 1fr; column-gap: 16px; align-items: start; }
   .lesson-panel .panel-head { grid-column: 1 / -1; }
@@ -571,6 +598,9 @@ body.dark #legend span, body.dark .sbtn { background: rgba(255, 255, 255, .92); 
 
 @media (pointer: coarse) {
   .titem kbd { display: none; }
+  #top, #tray, #home .home-card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  #top { background: rgba(255, 255, 255, .95); }
+  #tray { background: rgba(255, 255, 255, .96); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

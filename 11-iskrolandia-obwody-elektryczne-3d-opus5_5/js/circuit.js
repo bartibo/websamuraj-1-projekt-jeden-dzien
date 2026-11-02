@@ -28,7 +28,7 @@ window.Iskry = window.Iskry || {};
     { e: '🥄', n: 'metalowa łyżka', R: 0.05 },
     { e: '✏️', n: 'ołówek (grafit w środku)', R: 8 },
     { e: '🧂', n: 'słona woda', R: 12 },
-    { e: '🦆', n: 'gumowa kaczuszka', R: Infinity },
+    { e: '🐤', n: 'gumowa kaczuszka', R: Infinity },
     { e: '🥢', n: 'drewniane pałeczki', R: Infinity },
     { e: '📄', n: 'kartka papieru', R: Infinity },
     { e: '🧸', n: 'pluszowy miś', R: Infinity },

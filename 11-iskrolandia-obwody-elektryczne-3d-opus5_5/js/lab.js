@@ -48,7 +48,7 @@ window.Iskry = window.Iskry || {};
   };
 
   const OPT = {
-    bulb: { off: ['🌑', 'zgaśnie'], down: ['🔅', 'ciemniej'], up: ['🔆', 'jaśniej'], same: ['⚖️', 'tak samo'] },
+    bulb: { off: ['⚫', 'zgaśnie'], down: ['🔅', 'ciemniej'], up: ['🔆', 'jaśniej'], same: ['⚖️', 'tak samo'] },
     motor: { off: ['⏹️', 'stanie'], down: ['🐢', 'wolniej'], up: ['🚀', 'szybciej'], reverse: ['🔄', 'w drugą stronę'], same: ['⚖️', 'tak samo'] },
     buzzer: { off: ['🤫', 'ucichnie'], down: ['🔉', 'ciszej'], up: ['🔊', 'głośniej'], same: ['⚖️', 'tak samo'] },
     battery: { less: ['📉', 'mniej iskierek'], more: ['📈', 'więcej iskierek'], same: ['⚖️', 'tyle samo'] },
@@ -96,7 +96,7 @@ window.Iskry = window.Iskry || {};
   const ACC = { bulb: 'żarówkę', led: 'diodę', motor: 'silniczek', buzzer: 'brzęczyk', battery: 'baterię', switch: 'wyłącznik', resistor: 'opornik', dimmer: 'ściemniacz', wire: 'kabel', button: 'przycisk', tester: 'stolik badacza' };
   L.ACC = ACC;
   function movePhrase(mv, p) {
-    const o = '<span class="mk mk-o">pomarańczowym kółku</span>';
+    const o = '<span class="mk mk-o">pomarańczowej ramce</span>';
     switch (mv.do) {
       case 'remove': return `zabierzesz ${ACC[p.type]} w ${o}`;
       case 'toggle': return `${p.on ? 'wyłączysz' : 'włączysz'} wyłącznik w ${o}`;
@@ -111,18 +111,18 @@ window.Iskry = window.Iskry || {};
     const t = pieces.find(p => p.id === pz.target);
     const m = pieces.find(p => p.id === pz.move.id) || {};
     const many = pieces.filter(p => p.type === t.type).length > 1;
-    const who = t.type === 'battery' ? 'baterią – ile iskierek wypuści' : INS[t.type] + (many ? ' w <span class="mk mk-b">niebieskim kółku</span>' : '');
+    const who = t.type === 'battery' ? 'baterią – ile iskierek wypuści' : INS[t.type] + (many ? ' w <span class="mk mk-b">niebieskiej ramce</span>' : '');
     return `Co się stanie z ${who}, jeśli ${movePhrase(pz.move, m)}?`;
   };
   L.task = function (mv, pieces) {
     const p = pieces.find(x => x.id === mv.id) || {};
     switch (mv.do) {
-      case 'remove': return 'Wybierz 🧽 <b>Gumkę</b> i dotknij elementu w pomarańczowym kółku.';
-      case 'toggle': return 'Dotknij <b>wyłącznika</b> w pomarańczowym kółku.';
-      case 'flip': return `Dotknij ${p.type === 'led' ? 'diody' : p.type === 'motor' ? 'silniczka' : 'baterii'} w pomarańczowym kółku i wybierz <b>⇄ Odwróć</b>.`;
+      case 'remove': return 'Wybierz 🧽 <b>Gumkę</b> i dotknij elementu w pomarańczowej ramce.';
+      case 'toggle': return 'Dotknij <b>wyłącznika</b> w pomarańczowej ramce.';
+      case 'flip': return `Dotknij ${p.type === 'led' ? 'diody' : p.type === 'motor' ? 'silniczka' : 'baterii'} w pomarańczowej ramce i wybierz <b>⇄ Odwróć</b>.`;
       case 'dial': return 'Dotknij <b>ściemniacza</b> i przesuń suwak do końca.';
       case 'add': return mv.type === 'wire' ? 'Narysuj <b>kabel</b> w zielonym miejscu.' : `Postaw <b>${ACC[mv.type]}</b> w zielonym miejscu.`;
-      case 'inspect': return 'Dotknij <b>kabla w niebieskim kółku</b> i przeczytaj licznik.';
+      case 'inspect': return 'Dotknij <b>kabla w niebieskiej ramce</b> i przeczytaj licznik.';
     }
     return '';
   };
@@ -140,7 +140,8 @@ window.Iskry = window.Iskry || {};
         const kind = L.kindOf(t);
         const b = L.measure(t, res.pieces[t.id]);
         const a = L.measure(t, after.pieces[t.id]);
-        if (kind !== 'battery' && !b.on && !(mv.do === 'toggle')) continue;
+        // bez oczywistości: urządzenie, które nie działa, i tak nie zgaśnie po wyłączeniu
+        if (kind !== 'battery' && !b.on && !(mv.do === 'toggle' && !mv.from)) continue;
         if (L.fuzzy(kind, b, a)) continue;
         if (Object.values(after.pieces).some(x => x.burnNow) || after.short) continue;
         const out = L.classify(kind, b, a);
@@ -160,7 +161,7 @@ window.Iskry = window.Iskry || {};
     }
     // ile iskierek wypuszcza bateria
     const bats = pieces.filter(p => p.type === 'battery' && Math.abs(res.pieces[p.id].I) > 1e-3);
-    if (bats.length) for (const d of devs.filter(d => !d.locked)) consider({ do: 'remove', id: d.id }, [bats[0]]);
+    if (bats.length) for (const d of devs.filter(d => !d.locked && Math.abs(res.pieces[d.id].I) > 1e-3)) consider({ do: 'remove', id: d.id }, [bats[0]]);
     if (!cands.length) return null;
     // najpierw rodzaj wyniku (żeby nie było ciągle „tak samo”), potem konkretna zagadka
     const groups = {};
@@ -183,7 +184,7 @@ window.Iskry = window.Iskry || {};
     {
       id: 'e2', emoji: '🏁', title: 'Czy żarówka zjada iskierki?', lesson: 1, kind: 'cmpI',
       setup: [el('battery', [3, 4], [3, 3]), el('bulb', [7, 3], [7, 4]), ...wires([[3, 3], [6, 3]]), el('wire', [6, 3], [7, 3], { tag: 'r' }), ...wires([[3, 4], [6, 4]]), el('wire', [6, 4], [7, 4], { tag: 't' })],
-      ask: 'Kablem <b>przed żarówką</b> (żółte kółko) jedzie tyle iskierek, ile pokazuje licznik. A ile pojedzie kablem <b>za żarówką</b> (<span class="mk mk-b">niebieskie kółko</span>)?',
+      ask: 'Kablem <b>przed żarówką</b> (<span class="mk mk-y">żółta ramka</span>) jedzie <b>{ref}</b>. A ile iskierek pojedzie kablem <b>za żarówką</b> (<span class="mk mk-b">niebieska ramka</span>)?',
       move: { do: 'inspect' },
       explain: 'Tyle samo! Iskierki <b>nie znikają</b> w żarówce – zostawiają w niej tylko swoje klocki energii i wracają do baterii pustymi wózkami. Prąd jest taki sam w każdym miejscu jednego toru.',
     },
@@ -196,7 +197,7 @@ window.Iskry = window.Iskry || {};
     {
       id: 'e4', emoji: '🧱', title: 'Klocki przed i za żarówką', lesson: 3, kind: 'cmpV', stacks: true,
       setup: [el('battery', [3, 4], [3, 3]), el('bulb', [7, 3], [7, 4]), ...wires([[3, 3], [6, 3]]), el('wire', [6, 3], [7, 3], { tag: 'r' }), ...wires([[3, 4], [6, 4]]), el('wire', [6, 4], [7, 4], { tag: 't' })],
-      ask: 'Przed żarówką (żółte kółko) iskierki wiozą cały klocek. Ile klocków mają <b>za żarówką</b> (<span class="mk mk-b">niebieskie kółko</span>)?',
+      ask: 'Przed żarówką (<span class="mk mk-y">żółta ramka</span>) każda iskierka wiezie <b>{ref}</b>. Ile klocków ma <b>za żarówką</b> (<span class="mk mk-b">niebieska ramka</span>)?',
       move: { do: 'inspect' },
       explain: 'Za żarówką wieże są <b>płaskie</b>: iskierki oddały klocki drucikowi i z tej energii zrobiło się światło. Napięcie to właśnie różnica wysokości wież przed i za elementem.',
     },
@@ -278,6 +279,7 @@ window.Iskry = window.Iskry || {};
       const ri = res.pieces[ref.id], ti = res.pieces[t.id];
       const val = exp.kind === 'cmpI' ? [Math.abs(ri.I), Math.abs(ti.I)] : [Math.max(ri.Va, ri.Vb), Math.max(ti.Va, ti.Vb)];
       pz.before = { on: true, v: val[0] };
+      pz.ask = exp.ask.replace('{ref}', exp.kind === 'cmpI' ? C.sparksText(val[0]) : C.blocksText(val[0]));
       const q = val[1] / Math.max(1e-9, val[0]);
       pz.answer = q > 1.1 ? 'more' : q < 0.9 ? 'less' : 'same';
       return pz;

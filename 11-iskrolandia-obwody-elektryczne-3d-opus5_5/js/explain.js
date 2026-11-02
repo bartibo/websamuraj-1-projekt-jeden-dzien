@@ -73,10 +73,12 @@ window.Iskry = window.Iskry || {};
     return [...isl.nodes].filter(n => deg.get(n) === 1);
   }
 
-  const listNames = arr => {
+  const INS = { bulb: ['żarówką', 'żarówkami'], motor: ['silniczkiem', 'silniczkami'], buzzer: ['brzęczykiem', 'brzęczykami'], led: ['diodą', 'diodami'],
+    resistor: ['opornikiem', 'opornikami'], dimmer: ['ściemniaczem', 'ściemniaczami'] };
+  const listNames = (arr, ins) => {
     const counts = {};
     arr.forEach(p => { counts[p.type] = (counts[p.type] || 0) + 1; });
-    return Object.entries(counts).map(([t, n]) => (n > 1 ? n + '× ' : '') + E.name(t)).join(', ');
+    return Object.entries(counts).map(([t, n]) => ins && INS[t] ? (n > 1 ? n + ' ' + INS[t][1] : INS[t][0]) : (n > 1 ? n + '× ' : '') + E.name(t)).join(', ');
   };
 
   // Urządzenia, które gasną, gdy zabraknie elementu x (czyli leżą z nim na jednym torze)
@@ -198,7 +200,7 @@ window.Iskry = window.Iskry || {};
     if (p.type === 'led') bits.push('Bramka jest otwarta: plus diody patrzy w stronę plusa baterii.');
     bits.push(each + '.');
     if (mates.length) {
-      bits.push(`Dzieli się klockiem z: ${listNames(mates)} – leżą na jednym torze, jeden za drugim (<b>szeregowo</b>). Usuń jeden, a zgaśnie cały tor.`);
+      bits.push(`Dzieli się klockiem z ${listNames(mates, true)} – leżą na jednym torze, jedno za drugim (<b>szeregowo</b>). Zabierz jedno, a stanie cały tor.`);
       mates.forEach(x => marks.push({ piece: x.id, kind: 'rel' }));
     } else if (batI > I * 1.35) {
       bits.push('Ma <b>własny tor</b> obok innych (równolegle), więc dostaje cały klocek.');
@@ -248,6 +250,7 @@ window.Iskry = window.Iskry || {};
       if (Math.abs(r.I) < 1e-3) return { tone: 'info', marks: [], text: 'Teraz nikt tędy nie jedzie. Opór działa dopiero, gdy iskierki płyną przez tor.' };
       const L = copy(pieces); const me = L.find(x => x.id === id); me.type = 'wire';
       const I2 = Math.abs(C.solve(L).pieces[id].I);
+      if (I2 < Math.abs(r.I) * 1.1) return { tone: 'info', marks: [], text: `Ścieżka jest <b>szeroka</b> – prawie nie robi korka, przejeżdża ${C.sparksText(r.I)}. ${p.type === 'dimmer' ? 'Przesuń suwak w stronę „wąsko”!' : ''}` };
       return { tone: 'info', marks: [], text: `Wąska ścieżka robi <b>korek</b>: przejeżdża tu ${C.sparksText(r.I)}. Bez ${p.type === 'dimmer' ? 'ściemniacza' : 'opornika'} jechałoby ${C.sparksText(I2)}.` };
     }
     if (p.type === 'tester') {

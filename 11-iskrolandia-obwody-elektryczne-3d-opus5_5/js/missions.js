@@ -234,7 +234,7 @@ window.Iskry = window.Iskry || {};
     },
     {
       title: 'Napięcie = wielkość klocka',
-      svg: `${battery(40, 60)}<path d="M70,60 H340" stroke="#c9d6ea" stroke-width="26"/>${dots('M70,60 H340', 5, 4, 14, '#ffe14d')}${battery(26, 150)}${battery(56, 150)}<path d="M86,150 H340" stroke="#c9d6ea" stroke-width="36"/>${dots('M86,150 H340', 5, 4, 26, '#ff9f1c')}<text x="345" y="30" font-size="15" font-weight="800" fill="#555" text-anchor="end">1 bateria = 1 klocek</text><text x="345" y="118" font-size="15" font-weight="800" fill="#555" text-anchor="end">2 baterie = 2 klocki</text>`,
+      svg: `${battery(40, 60)}<path d="M70,60 H340" stroke="#c9d6ea" stroke-width="26"/>${dots('M70,60 H340', 5, 4, 14, '#ffe14d')}<g transform="translate(0,150) scale(.62) translate(0,-150)">${battery(40, 112)}${battery(40, 188)}</g><path d="M50,150 H340" stroke="#c9d6ea" stroke-width="36"/>${dots('M50,150 H340', 5, 4, 26, '#ff9f1c')}<text x="345" y="30" font-size="15" font-weight="800" fill="#555" text-anchor="end">1 bateria = 1 klocek</text><text x="345" y="118" font-size="15" font-weight="800" fill="#555" text-anchor="end">2 baterie = 2 klocki</text>`,
       text: 'Bateria jest jak winda: każda iskierka, która przez nią przejedzie, dostaje <b>klocek energii</b>. Dwie baterie jedna za drugą dają dwa razy większy klocek. Wielkość klocka to <b>napięcie</b> – mierzy się je w <b>woltach (V)</b>. Jedna bateria AA to 1,5 V.',
     },
     {

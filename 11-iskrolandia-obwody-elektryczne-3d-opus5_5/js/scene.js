@@ -11,7 +11,12 @@ window.Iskry = window.Iskry || {};
 
   let renderer, scene, camera, canvas, stageEl;
   let dpr = 1, frameNo = 0, shadowDirty = true, slowEma = 0, slowFrames = 0;
-  let viewW = 1, viewH = 1; // rozmiar płótna w px CSS (zapamiętany, żeby nie czytać układu strony co klatkę)
+  let viewW = 1, viewH = 1;
+  const MOBILE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+  // rysowanie na żądanie: wake = ile klatek jeszcze narysować po zmianie
+  let wake = 30, sparksMoving = false, animating = false;
+  S.wake = n => { wake = Math.max(wake, n || 30); };
+  const calm = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); // rozmiar płótna w px CSS (zapamiętany, żeby nie czytać układu strony co klatkę)
   let boardMat, matMat, pegMesh;
   const objs = new Map();      // id -> { group, path, update, light, sig, world:{pts,cum,len}, offset, state }
   let results = null;
@@ -37,13 +42,13 @@ window.Iskry = window.Iskry || {};
   S.init = function (cv, stage) {
     canvas = cv; stageEl = stage;
     try {
-      renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+      renderer = new T.WebGLRenderer({ canvas, antialias: !(MOBILE && (window.devicePixelRatio || 1) >= 2), alpha: true, powerPreference: 'high-performance' });
     } catch (e) { return false; }
     if (!renderer.getContext()) return false;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(dpr);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = T.PCFSoftShadowMap;
+    renderer.shadowMap.type = MOBILE ? T.PCFShadowMap : T.PCFSoftShadowMap;
     renderer.shadowMap.autoUpdate = false; // cienie przeliczane rzadziej (patrz S.render)
     renderer.outputColorSpace = T.SRGBColorSpace;
     renderer.toneMapping = T.NoToneMapping;
@@ -72,7 +77,7 @@ window.Iskry = window.Iskry || {};
     const sun = new T.DirectionalLight(0xfff4e2, 1.7);
     sun.position.set(4, 10, 6);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
     const sc = sun.shadow.camera;
     sc.left = -8; sc.right = 8; sc.top = 7; sc.bottom = -7; sc.near = 1; sc.far = 30;
     sun.shadow.bias = -0.0008;
@@ -80,7 +85,7 @@ window.Iskry = window.Iskry || {};
     sun.shadow.radius = 4;
     scene.add(sun);
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < (MOBILE ? 1 : 4); i++) {
       const l = new T.PointLight(0xffc46b, 0, 3.5, 2);
       scene.add(l);
       lights.push(l);
@@ -145,7 +150,7 @@ window.Iskry = window.Iskry || {};
   function buildInstanced() {
     const MAX = 1600;
     const sg = new T.BoxGeometry(1, 1, 1);
-    sparks = new T.InstancedMesh(sg, new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, emissive: 0x2a1c00 }), MAX);
+    sparks = new T.InstancedMesh(sg, new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, emissive: 0x2a1c00, transparent: true }), MAX);
     sparks.instanceMatrix.setUsage(T.DynamicDrawUsage);
     sparks.setColorAt(0, new T.Color(1, 1, 1));
     sparks.count = 0;
@@ -169,6 +174,7 @@ window.Iskry = window.Iskry || {};
 
   S.setTheme = function (th) {
     if (!boardMat) return;
+    S.wake();
     boardMat.color.setHex(th.board);
     matMat.color.setHex(th.mat);
   };
@@ -188,6 +194,7 @@ window.Iskry = window.Iskry || {};
   }
 
   S.sync = function (pieces) {
+    S.wake();
     piecesRef = pieces;
     const seen = new Set();
     for (const p of pieces) {
@@ -216,6 +223,7 @@ window.Iskry = window.Iskry || {};
   };
 
   S.setResults = function (res) {
+    S.wake(60);
     results = res;
     rebuildStacks();
   };
@@ -224,9 +232,10 @@ window.Iskry = window.Iskry || {};
     showStacks = v; rebuildStacks();
     // przy wieżach kamera schodzi niżej (widać wysokość), a iskierki bledną
     cam.tPhi = v ? Math.max(cam.tPhi, 1.02) : Math.min(cam.tPhi, cam.defPhi || 0.78);
-    sparks.material.transparent = v; sparks.material.opacity = v ? 0.4 : 1; sparks.material.needsUpdate = true;
+    sparks.material.opacity = v ? 0.4 : 1;
+    S.wake();
   };
-  S.setShowSparks = v => { showSparks = v; };
+  S.setShowSparks = v => { showSparks = v; S.wake(); };
 
   function rebuildStacks() {
     let k = 0;
@@ -236,14 +245,14 @@ window.Iskry = window.Iskry || {};
         const pos = S.nodePos(n, tmpV);
         const blocks = V / C.BLOCK_V;
         const full = Math.floor(blocks + 1e-6);
-        const H = 0.17, G = 0.025;
+        const H = 0.22, G = 0.025;
         const hs = [];
         for (let i = 0; i < full; i++) hs.push(H);
         if (blocks - full > 0.08) hs.push(H * (blocks - full));
         let y = 0.09;
         hs.forEach((h, i) => {
           if (k >= stacks.instanceMatrix.count) return;
-          const col = PAL[Math.min(i, PAL.length - 1)];
+          const col = PAL[Math.min(i + 1, PAL.length - 1)]; // od pomarańczowego – żółte są iskierki
           tmpM.compose(tmpS.set(pos.x, y + h / 2, pos.z), tmpQ.identity(), new T.Vector3(0.22, h, 0.22));
           stacks.setMatrixAt(k, tmpM);
           stacks.setColorAt(k, tmpC.setHex(col));
@@ -274,6 +283,7 @@ window.Iskry = window.Iskry || {};
 
   function updateSparks(dt, t) {
     let k = 0;
+    sparksMoving = false;
     const max = sparks.instanceMatrix.count;
     if (showSparks && results) {
       for (const [id, o] of objs) {
@@ -281,6 +291,7 @@ window.Iskry = window.Iskry || {};
         if (!r || !o.world) continue;
         const I = r.I, Va = r.Va || 0, Vb = r.Vb || 0;
         const moving = Math.abs(I) > 1e-4;
+        if (moving) sparksMoving = true;
         if (!moving && Math.max(Va, Vb) < 0.03) continue;
         const w = o.world;
         const speed = moving ? Math.sign(I) * Math.min(9, 4 * Math.sqrt(Math.abs(I))) : 0;
@@ -303,7 +314,7 @@ window.Iskry = window.Iskry || {};
           tmpQ.setFromAxisAngle(tmpS.set(0, 1, 0), o.group.rotation.y);
           tmpM.compose(tmpV, tmpQ, tmpS.set(size, size, size));
           sparks.setMatrixAt(k, tmpM);
-          sparks.setColorAt(k, tmpC.setHex(hot ? (Math.sin(t * 20 + i) > 0 ? 0xff2d2d : 0xff8a00) : blockColor(blocks)));
+          sparks.setColorAt(k, tmpC.setHex(hot ? (!calm && Math.sin(t * 20 + i) > 0 ? 0xff8a00 : 0xff2d2d) : blockColor(blocks)));
           k++;
         }
       }
@@ -316,7 +327,8 @@ window.Iskry = window.Iskry || {};
   // ---------- efekty ----------
   let fxTex = null;
   S.fx = function (kind, pos, n) {
-    if (!scene) return;
+    if (!scene || fx.length > 200) return;
+    S.wake(90);
     if (!fxTex) fxTex = P.glowTex();
     for (let i = 0; i < (n || 8); i++) {
       const m = new T.SpriteMaterial({
@@ -350,9 +362,10 @@ window.Iskry = window.Iskry || {};
 
   // ---------- duch i zaznaczenie ----------
   S.showGhost = function (type, a, b, ok) {
+    S.wake(2);
     if (!type) { if (ghost) ghost.visible = false; return; }
     if (ghostType !== type) {
-      if (ghost) scene.remove(ghost);
+      if (ghost) { scene.remove(ghost); P.dispose(ghost); }
       ghost = P.ghost(type);
       ghostType = type;
       scene.add(ghost);
@@ -364,6 +377,7 @@ window.Iskry = window.Iskry || {};
     ghost.userData.ghostMat.color.setHex(ok ? 0x4cd964 : 0xff4d5e);
   };
   S.select = function (id) {
+    S.wake();
     selId = id;
     selRing.visible = !!id;
   };
@@ -372,13 +386,14 @@ window.Iskry = window.Iskry || {};
   // Plansza mieści się w „wolnym” prostokącie sceny (bez kart i pasków).
   // frames = kandydaci { l, t, r, b } (marginesy w pikselach); wygrywa ten, w którym plansza jest największa.
   let frames = [{ l: 0, t: 0, r: 0, b: 0 }];
-  S.setFrames = list => { frames = list && list.length ? list : [{ l: 0, t: 0, r: 0, b: 0 }]; cam.fitKey = ''; };
+  S.setFrames = list => { frames = list && list.length ? list : [{ l: 0, t: 0, r: 0, b: 0 }]; cam.fitKey = ''; S.wake(); };
   S.cam = cam;
   cam.pan = new T.Vector3();
   cam.tPan = new T.Vector3();
   S.rotate = d => { cam.tTheta += d; };
-  S.zoomBy = f => { cam.tZoom = Math.max(0.35, Math.min(1.6, cam.tZoom * f)); clampPan(); };
+  S.zoomBy = f => { cam.tZoom = Math.max(0.35, Math.min(2.6, cam.tZoom * f)); clampPan(); };
   S.orbit = (dx, dy) => {
+    S.wake(10);
     cam.tTheta -= dx * 0.008; cam.tPhi = Math.max(0.12, Math.min(1.25, cam.tPhi - dy * 0.006));
   };
   // przesuwanie widoku palcami: punkt planszy pod palcem jedzie razem z palcem
@@ -403,8 +418,20 @@ window.Iskry = window.Iskry || {};
   S.setAuto = v => { cam.auto = v; if (!v) S.resetView(); };
 
   const fitV = new T.Vector3();
-  const HX = (C.COLS - 1) / 2 + 0.55, HZ = (C.ROWS - 1) / 2 + 0.55;
-  const CORNERS = [[-HX, -HZ], [HX, -HZ], [-HX, HZ], [HX, HZ]];
+  // kadrowany obszar: cała plansza albo prostokąt obwodu (kolumny c0..c1, rzędy r0..r1)
+  let CORNERS = [], regionKey = '';
+  cam.tTarget = cam.target.clone();
+  S.setRegion = function (r, lockBase) {
+    const g = r || { c0: 0, c1: C.COLS - 1, r0: 0, r1: C.ROWS - 1 };
+    const ox = (C.COLS - 1) / 2, oz = (C.ROWS - 1) / 2, pad = 0.55;
+    const x0 = g.c0 - ox - pad, x1 = g.c1 - ox + pad, z0 = g.r0 - oz - pad, z1 = g.r1 - oz + pad;
+    CORNERS = [[x0, z0], [x1, z0], [x0, z1], [x1, z1]];
+    cam.tTarget.set((x0 + x1) / 2, 0, (z0 + z1) / 2 + 0.1);
+    const key = [g.c0, g.c1, g.r0, g.r1].map(v => v.toFixed(2)).join(',');
+    if (key !== regionKey) { regionKey = key; cam.fitKey = ''; S.wake(); }
+    cam.lockBase = !!lockBase;
+  };
+  S.setRegion(null);
   function extents() {
     let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
     for (const [x, z] of CORNERS) {
@@ -433,15 +460,19 @@ window.Iskry = window.Iskry || {};
     cam.phi += (cam.tPhi - cam.phi) * k;
     cam.zoom += (cam.tZoom - cam.zoom) * k;
     cam.pan.lerp(cam.tPan, k);
+    cam.target.lerp(cam.tTarget, k);
     const w = viewW, h = viewH;
     camera.aspect = w / h;
 
     // wybór prostokąta i orientacji planszy (tylko gdy zmienił się ekran albo karty)
-    const key = w + 'x' + h + ':' + frames.map(f => [f.l, f.t, f.r, f.b].map(Math.round).join(',')).join('|');
+    const key = w + 'x' + h + ':' + regionKey + ':' + frames.map(f => [f.l, f.t, f.r, f.b].map(Math.round).join(',')).join('|');
     if (cam.fitKey !== key) {
       cam.fitKey = key;
       let best = null;
-      for (const fr of frames) for (const base of [0, Math.PI / 2]) {
+      // podczas budowania orientacja planszy się nie przewraca (zmienia się tylko przy obrocie ekranu)
+      const keep = cam.lockBase && cam.lastWH === w + 'x' + h && cam.baseT !== undefined;
+      cam.lastWH = w + 'x' + h;
+      for (const fr of frames) for (const base of keep ? [cam.baseT] : [0, Math.PI / 2]) {
         const d = fitDist(fr, w, h, base, 0.78) * (base === cam.baseT ? 0.93 : 1); // premia za obecną orientację
         if (!best || d < best.d) best = { d, fr, base };
       }
@@ -479,7 +510,7 @@ window.Iskry = window.Iskry || {};
     placeCam(cam.fd * cam.zoom, th, cam.phi, cam.pan);
   }
   function placeCam(dist, th, phi, pan) {
-    const t = cam.target;
+    const t = pan ? cam.target : cam.tTarget; // dopasowanie kadru liczymy dla docelowego środka
     const px = pan ? pan.x : 0, pz = pan ? pan.z : 0;
     camera.position.set(
       t.x + px + dist * Math.sin(phi) * Math.sin(th),
@@ -494,6 +525,7 @@ window.Iskry = window.Iskry || {};
   }
 
   S.resize = function () {
+    S.wake();
     if (!renderer) return;
     const w = stageEl.clientWidth, h = stageEl.clientHeight;
     viewW = w || 1; viewH = h || 1;
@@ -545,9 +577,12 @@ window.Iskry = window.Iskry || {};
   S.render = function (dt, t) {
     if (!renderer) return;
     updateCamera(dt);
-    const glows = [];
+    const glows = glowList;
+    glows.length = 0;
+    let moving = false;
     for (const [id, o] of objs) {
       if (o.pop < 1) {
+        moving = true;
         o.pop = Math.min(1, o.pop + dt * 5);
         const e = o.pop, s = 1 + Math.sin(e * Math.PI) * 0.25 * (1 - e) + 0;
         o.group.scale.setScalar(Math.max(0.01, e < 1 ? (1 - Math.pow(1 - e, 3)) * s : 1));
@@ -560,6 +595,7 @@ window.Iskry = window.Iskry || {};
       const r = results ? results.pieces[id] : null;
       const st = o.update(r, dt, t, o.p) || {};
       o.state = st;
+      if (Math.abs(st.spin || 0) > 0.05 || (st.level || 0) > 0.05) moving = true;
       if (st.glow > 0.02 && o.light) glows.push({ o, g: st.glow });
       if (st.heat > 0.6 && Math.random() < dt * 6) S.fx('smoke', tmpV.copy(o.group.position).setY(0.4), 1);
     }
@@ -580,16 +616,34 @@ window.Iskry = window.Iskry || {};
     updateSparks(dt, t);
     updateFx(dt);
     updateMarks(t);
-    // cienie: od razu po zmianie planszy, a poza tym co trzecia klatka (śmigła, dźwignie)
+    // cienie: od razu po zmianie planszy, a gdy coś rzucającego cień się rusza – co trzecia klatka
     frameNo++;
-    if (shadowDirty || frameNo % 3 === 0) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; }
+    animating = moving;
+    const shadowEvery = cpuEma > 0.012 ? 6 : 3;
+    if (shadowDirty || ((moving || wake > 0) && frameNo % shadowEvery === 0)) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; }
+    const c0 = performance.now();
     renderer.render(scene, camera);
-    // słabszy telefon: gdy przez dłuższą chwilę jest poniżej ~36 klatek, zmniejszamy rozdzielczość
+    const cpu = (performance.now() - c0) / 1000;
+    if (wake > 0) wake--;
+    // słabszy telefon: rozdzielczość obniżamy tylko wtedy, gdy hamuje karta graficzna (klatka długa, a procesor ma zapas)
+    cpuEma += (cpu - cpuEma) * 0.05;
     slowEma += (dt - slowEma) * 0.05;
-    if (frameNo > 120 && slowEma > 0.028 && dpr > 1) {
+    if (frameNo > 120 && slowEma > 0.028 && cpuEma < slowEma * 0.45 && dpr > 1) {
       if (++slowFrames > 90) { dpr = Math.max(1, dpr - 0.25); renderer.setPixelRatio(dpr); S.resize(); slowFrames = 0; slowEma = 1 / 60; }
     } else slowFrames = 0;
   };
+  const glowList = [];
+  let cpuEma = 0;
+  // czy trzeba rysować: kamera w ruchu, iskierki płyną, coś się kręci, efekty, znaczniki, zaznaczenie albo świeża zmiana
+  S.isBusy = () => wake > 0 || cam.auto || animating || sparksMoving || fx.length > 0 || marks.length > 0 || !!selId ||
+    Math.abs(cam.tTheta - cam.theta) > 1e-3 || Math.abs(cam.tPhi - cam.phi) > 1e-3 || Math.abs(cam.tZoom - cam.zoom) > 1e-3 ||
+    cam.pan.distanceToSquared(cam.tPan) > 1e-6 || cam.target.distanceToSquared(cam.tTarget) > 1e-6 ||
+    (cam.fd !== undefined && cam.fit && Math.abs(cam.fd - cam.fit.d) > 1e-3);
+  // kompilacja shaderów w tle przed pierwszą klatką (z bezpiecznikiem czasowym)
+  S.warm = () => Promise.race([
+    renderer && renderer.compileAsync ? renderer.compileAsync(scene, camera).catch(() => {}) : Promise.resolve(),
+    new Promise(r => setTimeout(r, 1500)),
+  ]);
 
   // ---------- znaczniki na planszy ----------
   // kind: cause/act (pomarańczowy – przyczyna albo „to zmieniasz”), rel/look (niebieski – patrz tutaj), ref (żółty),
@@ -614,6 +668,7 @@ window.Iskry = window.Iskry || {};
     return (markPool[i] = { g, frame, fill, ring, bang, mat });
   }
   S.setMarks = function (list) {
+    S.wake();
     marks = list || [];
     markPool.forEach(m => { m.g.visible = false; });
   };
@@ -638,7 +693,7 @@ window.Iskry = window.Iskry || {};
       const col = MARK_COL[mk.kind] || 0xffffff;
       m.mat.color.setHex(col);
       m.fill.material.color.setHex(col);
-      const pulse = 0.5 + 0.5 * Math.sin(t * 6 + i);
+      const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 6 + i);
       m.frame.visible = edge; m.fill.visible = edge && mk.kind === 'spot';
       m.ring.visible = !edge; m.bang.visible = mk.kind === 'end';
       m.mat.opacity = 0.55 + pulse * 0.45;
@@ -652,6 +707,7 @@ window.Iskry = window.Iskry || {};
   // sondy miernika: czerwona i czarna szpilka na kropkach
   let probes = null;
   S.setProbes = function (a, b) {
+    S.wake();
     if (!probes) {
       probes = [0xff3b4f, 0x2d3142].map(c => {
         const g = new T.Group();

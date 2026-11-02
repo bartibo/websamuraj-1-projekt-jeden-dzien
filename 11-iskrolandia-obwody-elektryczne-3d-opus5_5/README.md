@@ -73,6 +73,28 @@ Działa myszką, palcem (telefon, tablet) i klawiaturą. Na telefonie są osobne
 - **Misje:** w misji 2 punkt „wyłączony – ciemno” nie zalicza się sam; okno wygranej pojawia się po 2,2 s, żeby było widać efekt; ważne wskazówki po akcji nie giną.
 - **Inne:** dźwięk cichnie, gdy karta jest w tle; `prefers-reduced-motion`; cele dotyku min. 44 px; link „← Wszystkie projekty”; tagi `og:` (bez obrazka); naprawiony stan elementów po cofnięciu ruchu i zwalnianie materiałów; szybsza klatka (ok. 25% przy 78 elementach) i samoczynne obniżanie rozdzielczości na słabym telefonie.
 
+## Rozwój po eksperymencie: runda 2
+
+Druga ocena tych samych agentów: UX telefon 8/10 i komputer 9/10, wygląd 6,5/10, wydajność telefon 6/10. Wspólny wniosek: w kluczowych chwilach (wynik eksperymentu, wygrana, pomiar) planszę zasłaniały nakładki, a kamera pokazywała całą planszę zamiast obwodu. Wdrożone zmiany:
+
+- **Kamera kadruje obwód:** prostokąt zajętych kropek z marginesem jednej kratki rośnie razem z obwodem, a orientacja planszy nie przewraca się w trakcie budowania. Przycisk „Plansza” przełącza na całą planszę. Na telefonie kropki są ok. 2 razy dalej od siebie.
+- **Nic nie zasłania wyniku:** po ruchu w eksperymencie i przy wygranej misji dymek się zamyka. Pstryknięcie wyłącznika na telefonie nie otwiera dymka. Karta wyniku ma przyklejone przyciski i linię „Przed → po” (np. „47% jasności → 47% jasności”, „14 → 0 iskierek/s”). Pytania eksperymentów 2 i 4 podają zmierzoną wartość odniesienia. W poziomie dymek jest panelem z prawej, a plansza odsuwa się w lewo. Miernik na telefonie stoi nad dolnym rzędem.
+- **Toasty odznak** pokazują się po kolei, jako pigułka w górnym pasku. Są wstrzymane, gdy dziecko czyta pytanie zagadki.
+- **Uczciwa podpowiedź:** pierwsza jest zawsze za darmo. Gdy obwód działa, ale misja nie, wskazuje brakujący punkt i miga wyłącznikami. Płatna ma oznaczenie „(−⭐)”.
+- **Zagadki bez oczywistości** (np. wyłączanie urządzenia, które i tak stoi). W wyniku zagadki plansza pokazuje znaczniki „dlaczego”.
+- **Wygląd:** przedmiot na stoliku badacza jest żetonem na drewnianym blacie, ściemniacz ma łuk zwężający się z zielonego na czerwony i wyraźny wskaźnik, wieże klocków zaczynają się od pomarańczowego (żółte są iskierki) i są wyższe. Kable powrotne w zestawach są niebieskie. Lekcja 3 pokazuje baterie jedna za drugą. Znaczniki nazywają się „ramkami”. Okno wygranej w poziomie ma dwie kolumny. Tacka w poziomie mieści wszystko.
+- **Detektyw:** poprawna odmiana („dzieli się klockiem z żarówką”). Ściemniacz ustawiony szeroko mówi, że prawie nie robi korka.
+- **Wydajność:**
+  - nieruchome części modeli złączone w jedną siatkę na materiał, wspólne materiały naklejek;
+  - rysowanie na żądanie: plansza w spoczynku nie rysuje się wcale, a na telefonie bez dotyku 30 kl/s;
+  - kompilacja shaderów w tle przed pierwszą klatką (pierwszy obraz po ok. 0,9 s zamiast 2–4 s);
+  - na telefonie: lżejsze cienie (1024, PCF), jedno światło punktowe, bez MSAA przy gęstym ekranie, bez rozmycia pod paskami;
+  - cienie przeliczane tylko, gdy coś się rusza;
+  - rozdzielczość spada tylko wtedy, gdy hamuje karta graficzna;
+  - limit efektów.
+  Duży obwód (78 elementów) przy procesorze 4 razy wolniejszym: z 12–14 ms do ok. 5 ms JS na klatkę.
+- **Inne:** wskazówki pokazane raz nie wracają w kolejnych sesjach, zapis postępu przy zamknięciu karty, tacka działa z klawiatury, `prefers-reduced-motion` wyłącza konfetti, pulsowanie znaczników i miganie przy zwarciu.
+
 ## Bezpieczeństwo
 
 - Brak internetu, reklam, kont, zakupów i linków na zewnątrz. Postęp zapisuje się tylko na tym urządzeniu (localStorage).

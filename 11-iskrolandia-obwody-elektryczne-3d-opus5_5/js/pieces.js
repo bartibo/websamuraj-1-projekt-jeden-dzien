@@ -24,7 +24,7 @@ window.Iskry = window.Iskry || {};
   ];
   P.PLATE = {
     battery: 0xcfdcff, bulb: 0xfff0c2, motor: 0xffd9c9, switch: 0xc6f3ec, button: 0xffd3e2,
-    led: 0xe6dcff, buzzer: 0xd9deea, resistor: 0xe0f2cc, dimmer: 0xffe3b8, tester: 0xd8f0ff,
+    led: 0xe6dcff, buzzer: 0xd9deea, resistor: 0xe0f2cc, dimmer: 0xffe3b8, tester: 0xe9d2a8,
   };
 
   const metal = () => std('metal', { color: 0xdfe4ec, metalness: 0.9, roughness: 0.28 });
@@ -112,9 +112,11 @@ window.Iskry = window.Iskry || {};
     const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace;
     return (texCache.diode = t);
   }
+  const decalMats = new Map();
   function decal(parent, tex, w, h, x, y, z, rotY) {
-    const m = new T.Mesh(geo('pl' + w + h, () => new T.PlaneGeometry(w, h)),
-      new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    let dm = decalMats.get(tex);
+    if (!dm) { dm = new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }); decalMats.set(tex, dm); shared.add(dm); }
+    const m = new T.Mesh(geo('pl' + w + h, () => new T.PlaneGeometry(w, h)), dm);
     m.rotation.x = -Math.PI / 2;
     if (rotY) m.rotation.z = rotY;
     m.position.set(x, y, z);
@@ -444,11 +446,10 @@ window.Iskry = window.Iskry || {};
     // łuk ścieżki oporowej i skala od „szeroko” do „wąsko”
     const arc = geo('dimArc', () => new T.TorusGeometry(0.15, 0.022, 8, 40, Math.PI * 1.5).rotateX(Math.PI / 2).rotateY(-Math.PI * 0.25));
     add(g, arc, plastic(0x3a2f2a, 0.7), 0, 0.06, 0, false);
-    for (let i = 0; i < 7; i++) {
-      const a = -Math.PI * 0.75 + (i / 6) * Math.PI * 1.5;
-      const w = 0.012 + i * 0.006;
-      add(g, box(w, 0.012, 0.04), plastic(i < 3 ? 0x2ecc71 : i < 5 ? 0xffc93c : 0xff4d5e, 0.5), Math.sin(a) * 0.23, 0.058, -Math.cos(a) * 0.23, false).rotation.y = -a;
-    }
+    [[0x2ecc71, 0.012], [0xffc93c, 0.02], [0xff4d5e, 0.03]].forEach(([c, r], i) => {
+      const seg = add(g, geo('dimSeg' + i, () => new T.TorusGeometry(0.205, r, 8, 16, Math.PI * 0.46).rotateX(Math.PI / 2)), plastic(c, 0.45), 0, 0.062, 0, false);
+      seg.rotation.y = Math.PI * 0.25 + i * Math.PI * 0.5 - Math.PI * 0.02;
+    });
     const knob = dyn(new T.Group());
     knob.position.set(0, 0.06, 0);
     g.add(knob);
@@ -458,7 +459,7 @@ window.Iskry = window.Iskry || {};
       const a = (i / 12) * Math.PI * 2;
       add(knob, box(0.018, 0.11, 0.022), plastic(0xe0700a, 0.4), Math.sin(a) * 0.112, 0.075, Math.cos(a) * 0.112, false).rotation.y = a;
     }
-    add(knob, box(0.022, 0.012, 0.07), plastic(0xffffff, 0.3), 0, 0.165, -0.04, false);
+    add(knob, box(0.03, 0.016, 0.1), plastic(0x2d3142, 0.3), 0, 0.167, -0.04, false);
     let ang = 0;
     return {
       path: curvePath([[-0.5, 0.07], [-0.3, 0.2], [0, 0.3], [0.3, 0.2], [0.5, 0.07]], 20),
@@ -477,8 +478,10 @@ window.Iskry = window.Iskry || {};
     if (texCache[k]) return texCache[k];
     const cv = document.createElement('canvas'); cv.width = cv.height = 128;
     const g = cv.getContext('2d');
+    g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2);
+    g.fillStyle = '#fff'; g.fill(); g.lineWidth = 6; g.strokeStyle = '#2d3142'; g.stroke();
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = '96px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+    g.font = '76px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
     g.fillText(e, 64, 70);
     const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace;
     return (texCache[k] = t);
@@ -496,8 +499,8 @@ window.Iskry = window.Iskry || {};
     add(g, cyl(0.12, 0.13, 0.05, 24), plastic(0xffffff, 0.5), 0, 0.05, 0);
     const itemMat = new T.SpriteMaterial({ map: P.emojiTex('🔑'), transparent: true, depthWrite: false });
     const item = dyn(new T.Sprite(itemMat));
-    item.scale.set(0.3, 0.3, 0.3);
-    item.position.set(0, 0.26, 0);
+    item.scale.set(0.42, 0.42, 0.42);
+    item.position.set(0, 0.3, 0);
     g.add(item);
     const halo = dyn(glowSprite(0xffe14d));
     halo.position.set(0, 0.26, 0);
@@ -513,7 +516,7 @@ window.Iskry = window.Iskry || {};
         glow += (target - glow) * Math.min(1, dt * 8);
         halo.material.opacity = glow * 0.6;
         halo.scale.setScalar(0.3 + glow * 0.3);
-        item.position.y = 0.26 + Math.sin(t * 2) * 0.008;
+        item.position.y = 0.3 + Math.sin(t * 2) * 0.008;
       },
     };
   };
@@ -529,11 +532,49 @@ window.Iskry = window.Iskry || {};
     });
   };
 
+  // Nieruchome części ze wspólnym materiałem łączymy w jedną siatkę (mniej wywołań rysowania –
+  // to główny koszt na telefonie). Złączona geometria jest wspólna dla wszystkich elementów danego typu.
+  function bakeStatic(g, type) {
+    g.updateMatrixWorld(true);
+    const byMat = new Map();
+    g.traverse(o => {
+      if (!o.isMesh || o.userData.dyn || !shared.has(o.material)) return;
+      for (let up = o.parent; up && up !== g; up = up.parent) if (up.userData.dyn) return;
+      if (!byMat.has(o.material)) byMat.set(o.material, []);
+      byMat.get(o.material).push(o);
+    });
+    for (const [m, list] of byMat) {
+      if (list.length < 2) continue;
+      const geom = geo('bake:' + type + ':' + m.uuid + ':' + list.length, () => mergeList(list));
+      list.forEach(o => o.parent.remove(o));
+      const mm = new T.Mesh(geom, m);
+      mm.castShadow = list.some(o => o.castShadow);
+      mm.receiveShadow = true;
+      mm.renderOrder = Math.max(...list.map(o => o.renderOrder));
+      g.add(mm);
+    }
+  }
+  function mergeList(list) {
+    const parts = list.map(o => (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld));
+    const out = new T.BufferGeometry();
+    for (const n of ['position', 'normal', 'uv']) {
+      if (!parts.every(q => q.attributes[n])) continue;
+      const arr = new Float32Array(parts.reduce((a, q) => a + q.attributes[n].array.length, 0));
+      let off = 0;
+      for (const q of parts) { arr.set(q.attributes[n].array, off); off += q.attributes[n].array.length; }
+      out.setAttribute(n, new T.BufferAttribute(arr, parts[0].attributes[n].itemSize));
+    }
+    parts.forEach(q => q.dispose());
+    out.computeBoundingSphere();
+    return out;
+  }
+
   // Buduje element; zwraca { group, path (punkty lokalne), update, light }
   P.build = function (p) {
     const g = new T.Group();
     const res = B[p.type](g, p);
     res.group = g;
+    bakeStatic(g, p.type);
     // dzieci części ruchomej też mają stałą macierz lokalną – świat liczy się od rodzica
     g.traverse(o => {
       if (o === g || o.userData.dyn) return;

@@ -79,14 +79,22 @@ window.Iskry = window.Iskry || {};
   };
 
   // ---------- toasty ----------
-  U.toast = function (html, cls) {
+  // toasty po kolei (jeden naraz), wstrzymane, gdy dziecko czyta pytanie zagadki
+  const toastQ = [];
+  let toastBusy = false, toastHeld = false;
+  U.toastHold = v => { toastHeld = v; if (!v) nextToast(); };
+  U.toast = function (html, cls) { toastQ.push([html, cls]); nextToast(); };
+  function nextToast() {
+    if (toastBusy || toastHeld || !toastQ.length) return;
+    toastBusy = true;
+    const [html, cls] = toastQ.shift();
     const t = document.createElement('div');
     t.className = 'toast ' + (cls || '');
     t.innerHTML = html;
     $('toasts').appendChild(t);
-    setTimeout(() => t.classList.add('out'), 3600);
-    setTimeout(() => t.remove(), 4200);
-  };
+    setTimeout(() => t.classList.add('out'), 2600);
+    setTimeout(() => { t.remove(); toastBusy = false; nextToast(); }, 3100);
+  }
 
   // ---------- ekrany i okna ----------
   U.show = function (id) { $(id).hidden = false; requestAnimationFrame(() => $(id).classList.add('open')); };
@@ -109,6 +117,7 @@ window.Iskry = window.Iskry || {};
   // ---------- konfetti ----------
   let conf = [], confOn = false;
   U.confetti = function (n) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const cv = $('confetti');
     cv.width = innerWidth; cv.height = innerHeight;
     const cols = ['#ffe14d', '#ff9f1c', '#ff4d6d', '#a970ff', '#3db2ff', '#2ecc71'];
