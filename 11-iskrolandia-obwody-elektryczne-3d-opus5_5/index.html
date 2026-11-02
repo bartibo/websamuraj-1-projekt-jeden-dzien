@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#bfe3ff">
+  <title>Iskrolandia – warsztat obwodów 3D</title>
+  <meta name="description" content="Kolorowa piaskownica 3D dla dzieci: buduj obwody z bateriami, żarówkami, silniczkami, wyłącznikami, diodami i brzęczykami. Prąd to wyścig iskierek, napięcie to wielkość klocków. 12 misji z nagrodami, odznaki, działa myszką i dotykiem, bez internetu.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233d7bfd'/%3E%3Cpath d='M36 6 L16 36 h14 l-4 22 L48 26 H34 z' fill='%23ffd23f' stroke='%23ff9f1c' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+  <header id="top">
+    <button class="tbtn home" id="btnHome" aria-label="Menu główne">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M36 6 L16 36 h14 l-4 22 L48 26 H34 z" fill="#ffd23f" stroke="#ff9f1c" stroke-width="4" stroke-linejoin="round"/></svg>
+      <span>Iskrolandia</span>
+    </button>
+    <div id="modeLabel">Piaskownica</div>
+    <div class="tright">
+      <button class="tbtn" id="btnLearn" aria-label="Jak to działa?"><span class="ti">📖</span><span class="tl">Jak to działa?</span></button>
+      <button class="tbtn" id="btnMap" aria-label="Misje"><span class="ti">🎯</span><span class="tl">Misje</span></button>
+      <button class="tbtn stars" id="btnAlbum" aria-label="Nagrody"><span class="ti">⭐</span><b id="starCount">0</b></button>
+      <button class="tbtn" id="btnSound" aria-label="Dźwięk"><span class="ti" id="soundIcon">🔊</span></button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="c"></canvas>
+
+    <section id="missionCard" hidden>
+      <div class="mc-head"><span class="mc-emoji" id="mcEmoji">💡</span><div><small id="mcNum">Misja 1</small><b id="mcTitle">…</b></div></div>
+      <ul id="mcChecks"></ul>
+      <div class="mc-btns">
+        <button id="mcHint">💡 Podpowiedź</button>
+        <button id="mcRestart" aria-label="Od nowa">↺</button>
+      </div>
+    </section>
+
+    <div id="legend">
+      <span><i class="lg-race"></i> szybkość iskierek = <b>prąd</b></span>
+      <span><i class="lg-block"></i> wielkość klocka = <b>napięcie</b></span>
+    </div>
+
+    <aside id="side">
+      <button class="sbtn" id="vStacks" aria-label="Klocki napięcia" title="Wieże klocków napięcia"><span>🧱</span><small>Klocki</small></button>
+      <button class="sbtn on" id="vSparks" aria-label="Iskierki" title="Iskierki prądu"><span>✨</span><small>Iskierki</small></button>
+      <div class="sgap"></div>
+      <button class="sbtn" id="vRotL" aria-label="Obróć w lewo"><span>⟲</span></button>
+      <button class="sbtn" id="vRotR" aria-label="Obróć w prawo"><span>⟳</span></button>
+      <button class="sbtn" id="vZoomIn" aria-label="Przybliż"><span>＋</span></button>
+      <button class="sbtn" id="vZoomOut" aria-label="Oddal"><span>－</span></button>
+      <button class="sbtn" id="vTop" aria-label="Widok z góry"><span>⬇</span><small>Z góry</small></button>
+      <div class="sgap"></div>
+      <button class="sbtn" id="vUndo" aria-label="Cofnij"><span>↶</span><small>Cofnij</small></button>
+      <button class="sbtn" id="vClear" aria-label="Wyczyść"><span>🧹</span><small>Wyczyść</small></button>
+    </aside>
+
+    <div id="mascot">
+      <div id="say" hidden>
+        <p id="sayText"></p>
+        <div class="say-btns"><button id="sayRead" aria-label="Przeczytaj na głos">🔊 Przeczytaj</button><button id="sayOk">OK!</button></div>
+      </div>
+      <button id="wolcik" aria-label="Wolcik – pomocnik">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <path class="w-bolt" d="M62 2 L48 26 h10 l-6 16 L74 16 H62 z" fill="#ffd23f" stroke="#ff9f1c" stroke-width="3" stroke-linejoin="round"/>
+          <ellipse cx="60" cy="112" rx="30" ry="5" fill="rgba(0,0,0,.15)"/>
+          <circle cx="60" cy="70" r="38" fill="#ffd23f" stroke="#ff9f1c" stroke-width="4"/>
+          <ellipse cx="44" cy="48" rx="12" ry="7" fill="#fff" opacity=".55" transform="rotate(-30 44 48)"/>
+          <g class="w-eyes"><ellipse cx="46" cy="66" rx="9" ry="11" fill="#fff"/><ellipse cx="74" cy="66" rx="9" ry="11" fill="#fff"/><circle class="w-pupil" cx="48" cy="68" r="5" fill="#2d3142"/><circle class="w-pupil" cx="76" cy="68" r="5" fill="#2d3142"/></g>
+          <circle cx="36" cy="84" r="6" fill="#ff8fa3" opacity=".7"/><circle cx="84" cy="84" r="6" fill="#ff8fa3" opacity=".7"/>
+          <path class="w-mouth" d="M48 86 Q60 98 72 86" fill="none" stroke="#2d3142" stroke-width="4" stroke-linecap="round"/>
+          <path class="w-mouth-o" d="M54 88 a6 7 0 1 0 12 0 a6 7 0 1 0 -12 0" fill="#2d3142"/>
+          <path class="w-arm l" d="M24 76 q-12 -4 -14 -16" fill="none" stroke="#ff9f1c" stroke-width="5" stroke-linecap="round"/>
+          <path class="w-arm r" d="M96 76 q12 -4 14 -16" fill="none" stroke="#ff9f1c" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="bubble" hidden></div>
+    <div id="toasts"></div>
+    <div id="hintTip" hidden></div>
+  </main>
+
+  <nav id="tray" aria-label="Narzędzia i elementy"></nav>
+</div>
+
+<!-- Ekran startowy -->
+<section class="screen" id="home">
+  <div class="home-card">
+    <div class="logo-big">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M36 6 L16 36 h14 l-4 22 L48 26 H34 z" fill="#ffd23f" stroke="#ff9f1c" stroke-width="3" stroke-linejoin="round"/></svg>
+      <h1>Iskrolandia</h1>
+    </div>
+    <p class="tag">Warsztat obwodów 3D. Buduj, pstrykaj, zapalaj!</p>
+    <div class="home-btns">
+      <button class="big b-miss" id="goMissions"><span>🎯</span><b>Misje</b><small>12 zadań z nagrodami</small></button>
+      <button class="big b-sand" id="goSandbox"><span>🧪</span><b>Piaskownica</b><small>buduj, co chcesz</small></button>
+      <button class="big b-learn" id="goLearn"><span>📖</span><b>Jak działa prąd?</b><small>wyścigi i klocki</small></button>
+    </div>
+    <div class="home-small">
+      <button id="goAlbum">🏆 Nagrody i odznaki</button>
+      <button id="goParents">👪 Dla rodziców</button>
+    </div>
+  </div>
+</section>
+
+<!-- Mapa misji -->
+<section class="screen" id="map" hidden>
+  <div class="panel">
+    <div class="panel-head"><h2>🎯 Misje</h2><button class="close" data-close aria-label="Zamknij">✕</button></div>
+    <p class="panel-sub">Zdobywaj gwiazdki! Każda misja daje do 3 ⭐ (mniej, jeśli skorzystasz z podpowiedzi).</p>
+    <div id="mapGrid"></div>
+  </div>
+</section>
+
+<!-- Album nagród -->
+<section class="screen" id="album" hidden>
+  <div class="panel">
+    <div class="panel-head"><h2>🏆 Nagrody</h2><button class="close" data-close aria-label="Zamknij">✕</button></div>
+    <h3>Naklejki z misji</h3>
+    <div id="stickers"></div>
+    <h3>Odznaki odkrywcy</h3>
+    <div id="badges"></div>
+    <h3>Plansze do odblokowania</h3>
+    <div id="themes"></div>
+  </div>
+</section>
+
+<!-- Lekcje -->
+<section class="screen" id="lessons" hidden>
+  <div class="panel lesson-panel">
+    <div class="panel-head"><h2 id="lsTitle">…</h2><button class="close" data-close aria-label="Zamknij">✕</button></div>
+    <div class="ls-art"><svg id="lsSvg" viewBox="0 0 360 200"></svg></div>
+    <p id="lsText"></p>
+    <div class="ls-nav">
+      <button id="lsPrev" aria-label="Poprzednia">◀</button>
+      <div id="lsDots"></div>
+      <button id="lsRead" aria-label="Przeczytaj na głos">🔊</button>
+      <button id="lsNext" aria-label="Następna">▶</button>
+    </div>
+  </div>
+</section>
+
+<!-- Okno ogólne -->
+<section class="screen" id="modal" hidden>
+  <div class="panel modal-panel" id="modalBox"></div>
+</section>
+
+<canvas id="confetti"></canvas>
+
+<div id="nogl" hidden>
+  <div class="panel"><h2>Ojej!</h2><p>Ta przeglądarka nie pokazuje grafiki 3D (WebGL). Spróbuj otworzyć Iskrolandię w Chrome, Edge, Firefoksie albo Safari, albo włącz przyspieszanie sprzętowe w ustawieniach przeglądarki.</p></div>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="js/circuit.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/pieces.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/missions.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
