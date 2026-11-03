@@ -23,6 +23,7 @@ Strona z projektami: **[projekty.vibemaster.pl](https://projekty.vibemaster.pl)*
 | 9 | [Gumowy czas](9-teoria-wzglednosci-sandbox-opus5_5/) | [jeden-prompt/9-teoria-wzglednosci-sandbox-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/9-teoria-wzglednosci-sandbox-opus5_5) |
 | 10 | [Nurt](10-nurt-generator-dzwiekow-tla-opus5_5/) | [jeden-prompt/10-nurt-generator-dzwiekow-tla-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/10-nurt-generator-dzwiekow-tla-opus5_5) |
 | 11 | [Iskrolandia](11-iskrolandia-obwody-elektryczne-3d-opus5_5/) | [jeden-prompt/11-iskrolandia-obwody-elektryczne-3d-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/11-iskrolandia-obwody-elektryczne-3d-opus5_5) |
+| 12 | [Epicentrum](12-epicentrum-symulator-wybuchow-3d-opus5_5/) | [jeden-prompt/12-epicentrum-symulator-wybuchow-3d-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/12-epicentrum-symulator-wybuchow-3d-opus5_5) |
 
 ## Jak to działa
 
