@@ -28,13 +28,14 @@
   };
 
   // Strumień energii cieplnej (J/m²) w odległości d
-  Ph.thermal = (d, Y4pi) => (Y4pi > 0 ? Y4pi * Math.exp(-d / LAMBDA) / (d * d) : 0);
-  Ph.radiusForQ = function (q, Y4pi) {
+  // lambda: droga tłumienia w powietrzu (przejrzystość): ok. 80 km w czystym powietrzu, kilka km we mgle
+  Ph.thermal = (d, Y4pi, lambda) => (Y4pi > 0 ? Y4pi * Math.exp(-d / (lambda || LAMBDA)) / (d * d) : 0);
+  Ph.radiusForQ = function (q, Y4pi, lambda) {
     if (Y4pi <= 0) return 0;
     let lo = 1, hi = 2e6;
     for (let i = 0; i < 80; i++) {
       const mid = Math.sqrt(lo * hi);
-      if (Ph.thermal(mid, Y4pi) > q) lo = mid; else hi = mid;
+      if (Ph.thermal(mid, Y4pi, lambda) > q) lo = mid; else hi = mid;
     }
     return lo;
   };
@@ -88,7 +89,8 @@
   Ph.derive = function (w, opts) {
     opts = opts || {};
     const nuke = !!w.kt;
-    const ground = nuke ? !!opts.ground : true;
+    const cosmic = !!w.cosmic;             // rozbłysk ciała kosmicznego: żar i fala, bez promieniowania i opadu
+    const ground = nuke ? !!opts.ground && !cosmic : true;
     const kt = nuke ? w.kt : w.tnt / 1e6;
     const Wtnt = nuke ? w.kt * 1e6 : w.tnt;      // kg TNT
     const hob = nuke ? (ground ? Math.max(1, (w.groundHob || 1)) : w.hob) : (opts.hob || 0);
@@ -96,7 +98,7 @@
     const Weff = nuke ? Wtnt * (ground ? 0.9 : 2.2) : Wtnt * (w.shaped ? 1.2 : 1.8);
     const cbrtW = Math.cbrt(Weff);
     const E = Wtnt * 4.184e6;                     // energia całkowita, J
-    const Eth = nuke ? E * 0.35 * (ground ? 0.7 : 1) : 0;
+    const Eth = nuke ? E * (cosmic ? 0.3 : 0.35) * (ground ? 0.7 : 1) : 0;
     const Y4pi = Eth / (4 * Math.PI);
     const ktS = Math.max(kt, 1);
     const burn3 = Ph.TH.burn3 * Math.pow(ktS / 15, 0.08);
@@ -119,7 +121,11 @@
 
     // Chmura / słup dymu
     let Htop, capR, tRise;
-    if (nuke) {
+    if (cosmic) {
+      Htop = hob + fbR * 2.5;
+      capR = fbR * 1.2;
+      tRise = 150 * Math.pow(kt, 0.12);
+    } else if (nuke) {
       Htop = 5500 * Math.pow(kt, 0.23);
       Htop = Math.max(Htop, hob + fbR * 4);
       capR = Htop * (kt > 1000 ? 0.62 : 0.42);
@@ -132,7 +138,8 @@
 
     const slantToGround = (R) => (R > hob ? Math.sqrt(R * R - hob * hob) : 0);
     const rP = (p) => slantToGround(Ph.radiusForP(p, cbrtW));
-    const rQ = (q) => slantToGround(Ph.radiusForQ(q, Y4pi));
+    const lambda = opts.lambda || LAMBDA;
+    const rQ = (q) => slantToGround(Ph.radiusForQ(q, Y4pi, lambda));
     const radii = {
       fireball: slantToGround(fbR) || 0,
       fireballAir: fbR,
@@ -140,10 +147,11 @@
       moderate: rP(Ph.TH.moderate),
       light: rP(14),          // 14 kPa: poważne uszkodzenia domów
       glass: rP(Ph.TH.glass),
+      glass3: rP(3),
       burn3: rQ(burn3),
       burn1: rQ(Ph.TH.burn1),
       ignite: rQ(ignite),
-      rad: nuke ? slantToGround(720 * Math.pow(kt, 0.19)) : 0,
+      rad: nuke && !cosmic ? slantToGround(720 * Math.pow(kt, 0.19)) : 0,
       frag: w.frag ? w.frag : 0
     };
     const Rmax = Math.max(Ph.radiusForP(1.2, cbrtW), fbR * 3, 10) * 1.05;
@@ -153,7 +161,7 @@
     const fallout = nuke && ground ? { len: 4500 * Math.pow(kt, 0.45), wid: 900 * Math.pow(kt, 0.35) } : null;
 
     return {
-      nuke, ground, kt, Wtnt, Weff, cbrtW, hob, E, Eth, Y4pi, burn3, ignite,
+      nuke, cosmic, ground, kt, lambda, Wtnt, Weff, cbrtW, hob, E, Eth, Y4pi, burn3, ignite,
       fbR, tfb, tpulse, craterR, scorchR, Htop, capR, tRise, radii, front, Rmax, fallout,
       tShockGlass: Ph.arrival(front, Math.max(Ph.radiusForP(Ph.TH.glass, cbrtW), hob + 1))
     };

@@ -78,8 +78,63 @@
       delivery: 'parachute', icon: 'tsar',
       facts: [['Data', '30 października 1961, Nowa Ziemia'], ['Moc', '≈ 50 Mt TNT'], ['Wysokość wybuchu', '4000 m'], ['Masa', '27 t, spadochron 800 kg']],
       desc: 'Najpotężniejszy wybuch wywołany przez człowieka, 3300 razy silniejszy od bomby z Hiroszimy. Bombę zrzucono na spadochronie, by samolot zdążył uciec. Kula ognia miała 8 km średnicy, grzyb urósł do 67 km, a szyby pękały w odległości 900 km.'
+    },
+    {
+      id: 'bejrut', name: 'Wybuch w porcie w Bejrucie', short: 'Port w Bejrucie', group: 'hist', tnt: 800000, crater: 0.68, groundHob: 3,
+      delivery: 'warehouse', icon: 'warehouse', wilson: true, cloudCol: [0.56, 0.3, 0.2],
+      facts: [['Data', '4 sierpnia 2020, Liban'], ['Ładunek', '2750 t saletry amonowej'], ['Równoważnik', '0,5–1,1 kt TNT (tu 0,8 kt)'], ['Lej', 'ok. 140 m średnicy']],
+      desc: 'Jeden z najsilniejszych wybuchów niejądrowych w historii. Saletra amonowa leżała latami w portowym magazynie. Najpierw wybuchł pożar i składowane obok fajerwerki, po kilkudziesięciu sekundach zdetonował cały ładunek. Falę otoczyła biała kopuła kondensacji, szyby pękały w większości miasta, a rudy dym to tlenki azotu.'
+    },
+    {
+      id: 'czelabinsk', name: 'Meteor czelabiński', short: 'Meteor czelabiński', group: 'hist', kt: 500, hob: 27000, cosmic: true,
+      delivery: 'meteor', entry: 18, speed: 19000, icon: 'meteor',
+      facts: [['Data', '15 lutego 2013, Rosja'], ['Obiekt', 'kamienna planetoida, ok. 19 m'], ['Prędkość', '≈ 19 km/s'], ['Rozpad', '25–30 km nad ziemią'], ['Moc', '≈ 400–500 kt TNT']],
+      desc: 'Planetoida weszła w atmosferę pod małym kątem i rozpadła się ok. 27 km nad ziemią, rozbłyskując jaśniej niż Słońce. Energia była 30 razy większa niż w Hiroszimie, ale do ziemi doszła już słaba fala: po ok. 2 minutach wybiła szyby w tysiącach budynków, a szkło zraniło ok. 1500 osób. Naprawdę rozbłysk nastąpił ok. 40 km od miasta, tu nad wskazanym celem.'
+    },
+    {
+      id: 'tunguska', name: 'Katastrofa tunguska', short: 'Katastrofa tunguska', group: 'hist', kt: 12000, hob: 8000, cosmic: true,
+      delivery: 'meteor', entry: 35, speed: 15000, icon: 'tunguska',
+      facts: [['Data', '30 czerwca 1908, Syberia'], ['Obiekt', 'planetoida lub kometa, 50–60 m'], ['Wysokość wybuchu', '5–10 km'], ['Moc', '3–15 Mt TNT (tu 12 Mt)'], ['Skutki', '2150 km² powalonej tajgi']],
+      desc: 'Ciało kosmiczne eksplodowało kilka kilometrów nad tajgą i nie doleciało do ziemi, więc nie zostawiło krateru. Fala powaliła ok. 80 milionów drzew ułożonych promieniście od epicentrum, a żar podpalił las. Huk słyszano 1000 km dalej. Nad miastem zniszczyłby wszystko w promieniu kilkunastu kilometrów.'
+    },
+    {
+      id: 'custom', name: 'Własny ładunek', short: 'Własny ładunek', group: 'custom', custom: true, icon: 'custom',
+      ck: 'chem', clog: 3, chob: -1, crater: 0.9, groundHob: 2, facts: [], desc: ''
     }
   ];
+
+  // Własny ładunek: moc z suwaka (log10 kg TNT), rodzaj i wysokość wybuchu
+  const REF = [
+    [0.2, 'laska dynamitu'], [3, 'pocisk czołgowy'], [450, 'pocisk manewrujący'], [11000, 'bomba MOAB'],
+    [8e5, 'wybuch w Bejrucie'], [1.5e7, 'bomba z Hiroszimy'], [2.1e7, 'bomba z Nagasaki'], [4.75e8, 'głowica ICBM'],
+    [5e8, 'meteor czelabiński'], [1.2e10, 'katastrofa tunguska'], [1.5e10, 'Castle Bravo (największy test USA)'], [5e10, 'Car-bomba']
+  ];
+  W.optHob = (kt) => Math.round(215 * Math.cbrt(kt));
+  W.applyCustom = function (w) {
+    const kg = Math.pow(10, w.clog);
+    const nuke = w.ck === 'nuke';
+    delete w.kt; delete w.tnt; delete w.hob;
+    if (nuke) {
+      w.kt = kg / 1e6;
+      w.hob = w.chob < 0 ? W.optHob(w.kt) : w.chob;
+      w.delivery = 'nukedrop';
+    } else {
+      w.tnt = kg;
+      w.delivery = 'charge';
+    }
+    w.group = 'custom';
+    let best = REF[0], bd = 1e9;
+    for (const r of REF) { const d = Math.abs(Math.log10(r[0] / kg)); if (d < bd) { bd = d; best = r; } }
+    const ratio = kg / best[0];
+    const k = ratio > 1 ? ratio : 1 / ratio;
+    const near = bd < 0.04 ? 'tyle co ' + best[1] : EP.util.num(k, k < 10 ? 1 : 0) + '× ' + (ratio > 1 ? 'więcej' : 'mniej') + ' niż ' + best[1];
+    w.facts = [['Rodzaj', nuke ? 'jądrowy' : 'chemiczny (trotyl)'], ['Porównanie', near]];
+    if (nuke) w.facts.push(['Wysokość', w.hob < 5 ? 'przy ziemi' : EP.util.dist(w.hob) + (w.chob < 0 ? ' (optymalna)' : '')]);
+    w.desc = nuke
+      ? 'Ustaw dowolną moc i wysokość wybuchu. Wysokość optymalna to taka, przy której fala o nadciśnieniu ok. 35 kPa obejmuje największy obszar. Wybuch przy ziemi daje krater i opad promieniotwórczy.'
+      : 'Ustaw dowolną masę trotylu, od petardy po kilotonę. Wybuchy chemiczne nie dają błysku cieplnego ani promieniowania, ich siłą jest sama fala uderzeniowa i odłamki.';
+  };
+  W.applyCustom(W[W.length - 1]);
 
   W.byId = (id) => W.find((w) => w.id === id);
 
@@ -97,6 +152,10 @@
     mini: '<ellipse cx="30" cy="30" rx="13" ry="16" fill="#9aa27e"/><rect x="27" y="44" width="6" height="12" fill="#6f7656"/><path d="M22 52 L38 52" stroke="#6f7656" stroke-width="4"/><circle cx="30" cy="28" r="6" fill="none" stroke="#ffd34d" stroke-width="2.5"/><path d="M30 22 v12 M24 28 h12" stroke="#ffd34d" stroke-width="2.5"/>',
     nuke: '<path d="M30 8 C46 8 48 18 44 24 C52 24 52 34 44 34 H16 C8 34 8 24 16 24 C12 18 14 8 30 8z" fill="#f0a24a"/><path d="M25 34 Q27 46 22 56 H38 Q33 46 35 34z" fill="#c9784a"/><ellipse cx="30" cy="56" rx="16" ry="3" fill="#8a5a3c"/>',
     icbm: '<path d="M30 4 L38 30 Q30 36 22 30z" fill="#ffd9a0"/><path d="M30 4 L34 30 Q30 33 26 30z" fill="#fff4dc"/><path d="M26 33 L30 58 L34 33" fill="#ff8a3d" opacity=".75"/>',
+    warehouse: '<path d="M8 30 L30 16 L52 30 V54 H8z" fill="#8b8f86"/><rect x="14" y="36" width="32" height="18" fill="#5d615a"/><path d="M14 40H46M14 45H46M14 50H46" stroke="#73776f" stroke-width="1.5"/><path d="M40 16 Q36 8 42 4 Q40 10 46 10 Q50 14 44 18z" fill="#ff8a3d"/><circle cx="24" cy="10" r="5" fill="#b07a62" opacity=".8"/><circle cx="31" cy="7" r="4" fill="#c49478" opacity=".7"/>',
+    meteor: '<path d="M10 8 L40 40" stroke="#ffd9a0" stroke-width="6" stroke-linecap="round" opacity=".45"/><path d="M18 14 L40 40" stroke="#fff4dc" stroke-width="3" stroke-linecap="round"/><circle cx="42" cy="42" r="8" fill="#fff4dc"/><circle cx="42" cy="42" r="12" fill="#ffb347" opacity=".35"/>',
+    tunguska: '<g stroke="#7a5a3a" stroke-width="3" stroke-linecap="round"><path d="M30 46 L10 52"/><path d="M30 46 L50 52"/><path d="M30 46 L14 38"/><path d="M30 46 L46 38"/><path d="M30 46 L30 30"/></g><circle cx="30" cy="16" r="9" fill="#ffd9a0"/><circle cx="30" cy="16" r="14" fill="#ff9e3d" opacity=".3"/>',
+    custom: '<circle cx="30" cy="30" r="20" fill="none" stroke="#9aa3ad" stroke-width="3"/><path d="M30 30 L42 18" stroke="#ffd23f" stroke-width="4" stroke-linecap="round"/><circle cx="30" cy="30" r="4" fill="#ffd23f"/><path d="M14 38 A18 18 0 0 1 14 22" stroke="#4dc6ff" stroke-width="3" fill="none"/><path d="M46 22 A18 18 0 0 1 46 38" stroke="#ff3b30" stroke-width="3" fill="none"/>',
     tsar: '<path d="M30 6 C50 6 54 16 50 22 C58 23 58 32 50 33 H10 C2 32 2 23 10 22 C6 16 10 6 30 6z" fill="#ff7a3d"/><path d="M30 10 C42 10 44 16 42 20 H18 C16 16 18 10 30 10z" fill="#ffc46b"/><path d="M24 33 Q26 46 20 56 H40 Q34 46 36 33z" fill="#d06a3a"/><ellipse cx="30" cy="56" rx="20" ry="3.5" fill="#8a4a2c"/>'
   };
   W.icon = (w) => '<svg viewBox="0 0 60 60" aria-hidden="true">' + (ic[w.icon] || '') + '</svg>';

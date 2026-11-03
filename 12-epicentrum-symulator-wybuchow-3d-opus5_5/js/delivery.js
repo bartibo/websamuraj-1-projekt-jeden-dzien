@@ -74,6 +74,33 @@
       fins(g, 1.05, -3.2, 1.0, 1.4, mat(0xbab6aa));
       return g;
     },
+    crate() {
+      const g = new T.Group();
+      const m = mat(0x7a5a36, { roughness: 0.9, metalness: 0 });
+      const c = box(0.6, 0.45, 0.4, m); c.position.y = 0.225; g.add(c);
+      const st = box(0.62, 0.05, 0.42, mat(0x3a2a1a)); st.position.y = 0.3; g.add(st);
+      const led = new T.Mesh(new T.SphereGeometry(0.025, 8, 6), new T.MeshBasicMaterial({ color: 0xff2a1a })); led.position.set(0.18, 0.46, 0.12); g.add(led);
+      g.userData.led = led;
+      return g;
+    },
+    warehouse() {
+      const g = new T.Group();
+      const wall = mat(0x9a9c94, { roughness: 0.85, metalness: 0.1 }), roof = mat(0x5f6a72, { roughness: 0.6, metalness: 0.4 });
+      const b = box(36, 9, 18, wall); b.position.y = 4.5; g.add(b);
+      const r = box(37, 0.6, 19, roof); r.position.y = 9.3; g.add(r);
+      for (let i = -2; i <= 2; i++) { const d = box(5, 6, 0.3, mat(0x45494c)); d.position.set(i * 7, 3, 9.05); g.add(d); }
+      return g;
+    },
+    rock(r) {
+      const g = new T.Group();
+      const geo = new T.IcosahedronGeometry(1, 1);
+      const p = geo.attributes.position;
+      for (let i = 0; i < p.count; i++) { const k = 0.75 + 0.5 * Ut.hash2(i * 7, 3); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k); }
+      geo.computeVertexNormals();
+      const m = new T.Mesh(geo, new T.MeshStandardMaterial({ color: 0x2b2420, roughness: 1, emissive: 0xff7a2a, emissiveIntensity: 0.9 }));
+      m.scale.setScalar(r); g.add(m);
+      return g;
+    },
     chute() {
       const g = new T.Group();
       const c = new T.Mesh(new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.42), new T.MeshStandardMaterial({ color: 0xe8e2d0, roughness: 0.9, side: T.DoubleSide }));
@@ -87,6 +114,12 @@
   };
 
   function place(obj) { Wd.scene.add(obj); return obj; }
+  Dl.dispose = function (objs) {
+    for (const o of objs) {
+      Wd.scene.remove(o);
+      o.traverse((m) => { if (m.geometry) m.geometry.dispose(); if (m.material) m.material.dispose(); });
+    }
+  };
   const v3 = (x, y, z) => new T.Vector3(x, y, z);
 
   // Kierunek nadlotu: od strony kamery, lekko z boku, żeby lot był widoczny
@@ -106,7 +139,8 @@
     const dir = approachDir(P);
     const add = (o) => { D.objs.push(place(o)); return o; };
     const camSet = (pos, look) => { D.cam.pos.copy(pos); D.cam.look.copy(look); };
-    const finish = () => { D.done = true; for (const o of D.objs) Wd.scene.remove(o); };
+    const finish = () => { D.done = true; Dl.dispose(D.objs); D.objs = []; };
+    D.abort = finish;
     const kind = w.delivery;
     const look = new T.Vector3();
 
@@ -177,10 +211,10 @@
           shell.lookAt(P);
           F.trail(shell.position.x, shell.position.y, shell.position.z, 0.15, 'fire');
           camSet(back, shell.position.clone().lerp(P, 0.6));
-          if (s >= dist) { burst(P.clone(), fwd, 0); shell.visible = false; D.done = true; D.keep = tank; }
+          if (s >= dist) { burst(P.clone(), fwd, 0); shell.visible = false; D.done = true; D.keep = tank; Dl.dispose([shell]); D.objs = [tank]; }
         } else camSet(back, P);
       };
-      D.cleanupLater = () => { Wd.scene.remove(tank); };
+      D.cleanupLater = () => { Dl.dispose([tank]); };
     } else if (kind === 'rpg') {
       const m = add(MODELS.rpg());
       const start = P.clone().addScaledVector(dir, 75); start.y = Math.max(P.y, 0) + 1.6;
@@ -281,13 +315,13 @@
         camSet(camP, P);
         if (!left) finish();
       };
-    } else if (kind === 'bombfall' || kind === 'bombhigh' || kind === 'recoilless') {
-      const mname = kind === 'bombfall' ? 'moab' : kind === 'bombhigh' ? 'littleboy' : 'davy';
+    } else if (kind === 'bombfall' || kind === 'bombhigh' || kind === 'recoilless' || kind === 'nukedrop') {
+      const mname = kind === 'bombfall' ? 'moab' : kind === 'recoilless' ? 'davy' : 'littleboy';
       const m = add(MODELS[mname]());
       const end = burstPos.clone();
       let start, dur;
       if (kind === 'bombfall') { start = end.clone().addScaledVector(dir, 260); start.y = end.y + 620; dur = 11.2; }
-      else if (kind === 'bombhigh') { start = end.clone().addScaledVector(dir, 400); start.y = end.y + 1500; dur = 6.0; }
+      else if (kind === 'bombhigh' || kind === 'nukedrop') { start = end.clone().addScaledVector(dir, 400); start.y = end.y + 1500; dur = 6.0; }
       else { start = P.clone().addScaledVector(dir, 1900); start.y = Wd.groundY(start.x, start.z) + 1.5; dur = 7.5; }
       // rzut ukośny dokładnie do punktu wybuchu
       const g = 9.81;
@@ -295,7 +329,7 @@
       const pos = (t) => v3(start.x + v0.x * t, start.y + v0.y * t - 0.5 * g * t * t, start.z + v0.z * t);
       if (kind === 'recoilless') { F.muzzle(start.x, start.y, start.z, v0.clone().normalize(), 0.8); if (EP.audio) EP.audio.cannon(); }
       else if (EP.audio) EP.audio.whistle(dur);
-      D.ts = () => (kind === 'bombfall' ? 2.2 : kind === 'bombhigh' ? 1.2 : 1.6);
+      D.ts = () => (kind === 'bombfall' ? 2.2 : kind === 'recoilless' ? 1.6 : 1.2);
       D.update = function (dt) {
         D.t += dt;
         const t = Math.min(D.t, dur);
@@ -309,6 +343,91 @@
         const gy = Wd.groundY(cp.x, cp.z) + 2; if (cp.y < gy) cp.y = gy;
         camSet(cp, p.clone().addScaledVector(fwd, back * 3).lerp(end, 0.3));
         if (D.t >= dur) { burst(end.clone(), fwd, 0); finish(); }
+      };
+    } else if (kind === 'charge') {
+      // własny ładunek chemiczny: skrzynka z zapalnikiem czasowym
+      const m = add(MODELS.crate());
+      const sc = Ut.clamp(Math.cbrt(w.tnt) * 0.6, 0.5, 40);
+      m.scale.setScalar(sc);
+      m.position.copy(P); m.position.y = Math.max(P.y, Wd.groundY(P.x, P.z));
+      m.rotation.y = Math.atan2(dir.x, dir.z);
+      const FUSE = 3.0;
+      const R = Math.max(2.5, sc * 3.5);
+      let beep = -1;
+      D.update = function (dt) {
+        D.t += dt;
+        const n = Math.floor(D.t * (D.t > 2 ? 4 : 1));
+        if (n !== beep) { beep = n; if (EP.audio) EP.audio.beep(D.t > 2 ? 1400 : 1000); }
+        m.userData.led.visible = (D.t * (D.t > 2 ? 8 : 2)) % 1 < 0.5;
+        const ang = Math.atan2(dir.z, dir.x) + D.t * 0.12;
+        camSet(v3(P.x + Math.cos(ang) * R, m.position.y + R * 0.35, P.z + Math.sin(ang) * R), m.position.clone().add(v3(0, sc * 0.25, 0)));
+        if (D.t >= FUSE) { burst(m.position.clone().add(v3(0, sc * 0.2, 0)), null, 0); finish(); }
+      };
+    } else if (kind === 'warehouse') {
+      // Bejrut: pożar magazynu i fajerwerków, potem detonacja saletry
+      const m = add(MODELS.warehouse());
+      const gy = Wd.groundY(P.x, P.z);
+      m.position.set(P.x, gy, P.z);
+      m.rotation.y = Math.atan2(dir.x, dir.z);
+      const DUR = 9;
+      const camP = P.clone().addScaledVector(dir, 900); camP.y = gy + 140;
+      const side = v3(-dir.z, 0, dir.x);
+      let acc = 0, pop = 0;
+      D.update = function (dt) {
+        D.t += dt;
+        const k = Math.min(1, D.t / DUR);
+        acc += dt * (14 + 30 * k);
+        while (acc > 1) {
+          acc -= 1;
+          const ox = (Math.random() - 0.5) * 30, oz = (Math.random() - 0.5) * 14;
+          const p = v3(ox, 9.5, oz).applyAxisAngle(v3(0, 1, 0), m.rotation.y).add(m.position);
+          F.trail(p.x, p.y, p.z, 6 + 4 * k, 'fireSmoke');
+          if (Math.random() < 0.5) F.trail(p.x, p.y, p.z, 2.2, 'fire');
+          if (D.t > 3 && Math.random() < 0.35 + k * 0.4) F.trail(p.x, p.y + 2, p.z, 2.5, 'firework');
+        }
+        if (D.t > 3) { pop -= dt; if (pop < 0) { pop = 0.08 + Math.random() * 0.3; if (EP.audio) EP.audio.crackle(); } }
+        const cp = camP.clone().addScaledVector(side, 120 * k).addScaledVector(dir, -250 * k);
+        camSet(cp, P.clone().add(v3(0, 60 + 40 * k, 0)));
+        if (D.t >= DUR) { burst(m.position.clone().add(v3(0, 3, 0)), null, 0); finish(); }
+      };
+    } else if (kind === 'meteor') {
+      // ciało kosmiczne: wejście w atmosferę pod małym kątem, widziane z ziemi jak na nagraniach z Czelabińska
+      const end = burstPos.clone();
+      const ang = (w.entry || 20) * Math.PI / 180;
+      const hdir = dir.clone();
+      const L = (95000 - end.y) / Math.sin(ang);
+      const start = end.clone().addScaledVector(hdir, L * Math.cos(ang)); start.y = end.y + L * Math.sin(ang);
+      const speed = w.speed || 18000;
+      const dur = L / speed;
+      const head = add(MODELS.rock(Math.max(40, w.kt > 1000 ? 150 : 60)));
+      const fwd = end.clone().sub(start).normalize();
+      const side = v3(-hdir.z, 0, hdir.x);
+      const camP = end.clone().addScaledVector(side, end.y * 1.6).addScaledVector(hdir, -end.y * 0.7);
+      camP.y = Wd.groundY(camP.x, camP.z) + 400;
+      let lastS = 0;
+      // meteor leci w ciszy: huk przychodzi dopiero z falą, nieraz po kilku minutach
+      D.ts = () => 0.7;
+      D.glow = { pos: v3(0, 0, 0), k: 0 };
+      D.update = function (dt) {
+        D.t += dt;
+        const k = Math.min(1, D.t / dur);
+        const p = start.clone().lerp(end, k);
+        head.position.copy(p);
+        const hs = Ut.clamp(p.distanceTo(camP) * 0.007, 60, 900) * (0.4 + 0.6 * Ut.smooth(0, 0.3, k));
+        for (let i = 0; i < 3; i++) {
+          const q = p.clone().addScaledVector(fwd, -i * speed * dt / 3);
+          F.trail(q.x, q.y, q.z, hs, 'meteor');
+        }
+        const sNow = L * k;
+        while (lastS + 900 < sNow) {
+          lastS += 900;
+          const q = start.clone().addScaledVector(fwd, lastS);
+          if (q.y < 70000) F.trail(q.x, q.y, q.z, Ut.clamp(q.distanceTo(camP) * 0.02, 300, 1800), 'meteorSmoke');
+        }
+        look.copy(p).lerp(end, 0.25);
+        camSet(camP, look);
+        D.glow.pos.copy(p); D.glow.k = Ut.smooth(0.1, 0.95, k) * (w.kt > 1000 ? 1.4 : 1);
+        if (k >= 1) { burst(end.clone(), fwd, 0); finish(); }
       };
     } else if (kind === 'parachute') {
       const bomb = add(MODELS.tsar());

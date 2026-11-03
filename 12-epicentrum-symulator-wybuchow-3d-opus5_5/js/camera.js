@@ -1,4 +1,5 @@
-// Kamera orbitalna: obrót, przesuwanie, przybliżanie (mysz i dotyk), płynne przeloty i tryb filmowy
+// Kamera orbitalna: obrót, przesuwanie, przybliżanie (mysz i dotyk), płynne przeloty i tryb filmowy.
+// Tryb świadka: kamera na wysokości oczu w wybranym miejscu, przeciąganie obraca głową.
 (function () {
   const T = THREE;
   const Ut = EP.util;
@@ -6,7 +7,7 @@
   const K = EP.cam = {
     target: new T.Vector3(0, 0, 0), dist: 2600, theta: 0.9, phi: 1.0,
     tTarget: new T.Vector3(0, 0, 0), tDist: 2600, tTheta: 0.9, tPhi: 1.0,
-    mode: 'orbit', userActive: 0, shake: 0, autoSpin: 0,
+    mode: 'orbit', userActive: 0, shake: 0, autoSpin: 0, eye: null,
     film: { pos: new T.Vector3(), look: new T.Vector3(), w: 0 }
   };
   const MIN_D = 1.2, MAX_D = 380000;
@@ -30,6 +31,18 @@
       drag.moved += Math.abs(dx) + Math.abs(dy);
       if (drag.moved < 4) return;
       K.interrupt();
+      if (K.eye) {
+        if (ptrs.size >= 2) {
+          const ps = pinchState();
+          if (drag.pinch) K.eye.tFov = Ut.clamp(K.eye.tFov * drag.pinch.d / Math.max(10, ps.d), 8, 80);
+          drag.pinch = ps;
+          return;
+        }
+        const f = K.eye.fov / 50;
+        K.eye.tYaw += dx * 0.0042 * f;
+        K.eye.tPitch = Ut.clamp(K.eye.tPitch + dy * 0.0036 * f, -0.6, 1.45);
+        return;
+      }
       if (ptrs.size >= 2) {
         const ps = pinchState();
         if (drag.pinch) {
@@ -59,6 +72,7 @@
     el.addEventListener('pointercancel', up);
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
+      if (K.eye) { K.eye.tFov = Ut.clamp(K.eye.tFov * Math.exp(Ut.clamp(e.deltaY, -200, 200) * 0.0012), 8, 80); return; }
       K.interrupt();
       const k = Math.exp(Ut.clamp(e.deltaY, -200, 200) * 0.0015);
       K.tDist = Ut.clamp(K.tDist * k, MIN_D, MAX_D);
@@ -97,8 +111,43 @@
     K.phi = K.tPhi = Ut.clamp(Math.acos(Ut.clamp(d.y / K.dist, -1, 1)), 0.05, 1.53);
   };
 
+  // Świadek: stoi w punkcie pos (oczy 1,7 m nad ziemią lub dachem) i patrzy na look
+  K.enterEye = function (pos, look) {
+    const d = look.clone().sub(pos);
+    const yaw = Math.atan2(d.x, d.z), pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
+    K.eye = { pos: pos.clone(), yaw, pitch: Ut.clamp(pitch, -0.6, 1.45), tYaw: yaw, tPitch: Ut.clamp(pitch, -0.6, 1.45), fov: 50, tFov: 50 };
+    K.fly = null; K.autoSpin = 0; K.mode = 'orbit';
+  };
+  K.lookEye = function (look, fov) {
+    if (!K.eye) return;
+    const d = look.clone().sub(K.eye.pos);
+    let yaw = Math.atan2(d.x, d.z);
+    let dy = yaw - K.eye.tYaw; while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
+    K.eye.tYaw += dy;
+    K.eye.tPitch = Ut.clamp(Math.atan2(d.y, Math.hypot(d.x, d.z)), -0.6, 1.45);
+    if (fov) K.eye.tFov = fov;
+  };
+  K.exitEye = function (camera) { K.eye = null; if (camera) { camera.fov = 50; camera.updateProjectionMatrix(); } };
+
   const _p = new T.Vector3(), _l = new T.Vector3();
   K.update = function (dtR, camera) {
+    if (K.eye) {
+      const e = K.eye, a = 1 - Math.exp(-dtR * 8);
+      e.yaw = Ut.lerp(e.yaw, e.tYaw, a); e.pitch = Ut.lerp(e.pitch, e.tPitch, a);
+      e.fov = Ut.lerp(e.fov, e.tFov, a);
+      if (Math.abs(camera.fov - e.fov) > 0.01) { camera.fov = e.fov; camera.updateProjectionMatrix(); }
+      camera.position.copy(e.pos);
+      if (K.shake > 0.0001) {
+        const s = K.shake * 0.35;
+        camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s * 0.6; camera.position.z += (Math.random() - 0.5) * s;
+        K.shake *= Math.exp(-dtR * 2.5);
+      }
+      const cp = Math.cos(e.pitch);
+      _l.set(e.pos.x + Math.sin(e.yaw) * cp * 100, e.pos.y + Math.sin(e.pitch) * 100, e.pos.z + Math.cos(e.yaw) * cp * 100);
+      camera.lookAt(_l);
+      K.viewDist = 100;
+      return;
+    }
     if (K.fly) {
       const f = K.fly;
       f.t += dtR;
@@ -109,7 +158,8 @@
       K.tTheta = Ut.lerp(f.a.th, f.b.th, k);
       if (f.t >= f.dur) K.fly = null;
     }
-    if (K.autoSpin) K.tTheta += K.autoSpin * dtR;
+    // powolny obrót po wybuchu, ale tylko o kawałek, żeby nie kręcić bez końca
+    if (K.autoSpin) { const d = K.autoSpin * dtR; K.tTheta += d; K.spinLeft = (K.spinLeft || 0) - Math.abs(d); if (K.spinLeft <= 0) K.autoSpin = 0; }
     const a = 1 - Math.exp(-dtR * 7);
     K.target.lerp(K.tTarget, a);
     K.dist = Math.exp(Ut.lerp(Math.log(K.dist), Math.log(K.tDist), a));

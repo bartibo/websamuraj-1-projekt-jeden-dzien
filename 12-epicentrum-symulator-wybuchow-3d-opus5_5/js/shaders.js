@@ -17,6 +17,8 @@
     uTime: { value: 0 },
     uNight: { value: 0 },
     uBlackout: { value: 0 },
+    uBlack: { value: vec4s().slice(0, 4) },   // strefy bez prądu: x, z, promień
+    uFire: { value: null },                   // mapa łuny pożarów 64×64 (kwartały 120 m)
     uSkyRef: { value: new T.Color(0.55, 0.65, 0.78) },
     uHob: { value: vec4s() },  // x wysokość wybuchu nad ziemią, y promień zeszklenia ziemi
     uRingC: { value: new T.Vector3() },
@@ -42,6 +44,22 @@ uniform int uNE;
 uniform float uTime;
 uniform float uNight;
 uniform float uBlackout;
+uniform vec4 uBlack[4];
+uniform sampler2D uFire;
+// 1 tam, gdzie po wybuchu zgasło zasilanie (kaskada od strefy zniszczeń)
+float epBlk(vec2 p){
+  float k = 0.0;
+  for (int i = 0; i < 4; i++){
+    vec4 b = uBlack[i];
+    if (b.z <= 0.0) continue;
+    k = max(k, 1.0 - smoothstep(b.z*0.85, b.z*1.05, length(p - b.xy)));
+  }
+  return k*uBlackout;
+}
+float epFire(vec2 p){
+  float f = texture2D(uFire, (p/120.0 + 32.0)/64.0).r;
+  return f*f;
+}
 float epKG(float Z){
   Z = max(Z, 0.06);
   float a = Z/4.5, b = Z/0.048, c = Z/0.32, d = Z/1.35;
@@ -73,14 +91,14 @@ EPB epBlast(vec3 wp, vec3 n, float useN){
     vec3 dv = wp - e0.xyz;
     float d = max(length(dv), 0.05);
     if (d < e0.w) b.p = max(b.p, epKG(d/e1.x));
-    if (e1.y > 0.0){
+    if (e1.y > 0.0 && e1.z < e2.w*400.0 + 600.0){
       float f = clamp(e1.z/e2.w, 0.0, 1.0);
       float face = mix(1.0, clamp(dot(n, -dv/d)*1.3 + 0.12, 0.0, 1.0), useN);
-      float q = e1.y*exp(-d/80000.0)/(d*d)*f*face;
+      float q = e1.y*exp(-d/uHob[i].z)/(d*d)*f*face;
       if (q > b.q){ b.q = q; b.age = e1.z; }
     }
-    if (e2.z > 0.0) b.scorch = max(b.scorch, 1.0 - smoothstep(e2.z*0.25, e2.z, d));
-    b.heat = max(b.heat, exp(-e1.z/(e2.w*3.0 + 0.05)) * (1.0 - smoothstep(e1.w*0.8, e1.w*3.0, d)));
+    if (d < e2.z) b.scorch = max(b.scorch, 1.0 - smoothstep(e2.z*0.25, e2.z, d));
+    if (d < e1.w*3.0 && e1.z < e2.w*30.0) b.heat = max(b.heat, exp(-e1.z/(e2.w*3.0 + 0.05)) * (1.0 - smoothstep(e1.w*0.8, e1.w*3.0, d)));
     if (e2.x > 1.5 && d < e0.w) b.frag = max(b.frag, 1.0 - smoothstep(4.0, 16.0, d));
   }
   return b;
@@ -218,10 +236,15 @@ vec3 epNW = vec3(0.0, 1.0, 0.0);
     float along = sideX > 0.5 ? p.y : p.x;
     float perp = sideX > 0.5 ? af.x - 50.0 : af.y - 50.0;
     float lamp = 1.0 - smoothstep(0.0, 7.0, length(vec2(fract(along/30.0)*30.0 - 15.0, perp)));
-    epEm += vec3(1.0,0.72,0.38)*lamp*0.35*uNight*(1.0 - uBlackout);
+    epEm += vec3(1.0,0.72,0.38)*lamp*0.35*uNight*(1.0 - epBlk(p));
   }
   if (uNight > 0.01 && road > 0.5 && kind > 0.5){
-    epEm += vec3(1.0,0.75,0.42)*0.05*uNight*(1.0 - uBlackout);
+    epEm += vec3(1.0,0.75,0.42)*0.05*uNight*(1.0 - epBlk(p));
+  }
+  // łuna pożarów: ulice w płonących kwartałach świecą na pomarańczowo
+  if (r < 4000.0){
+    float fg = epFire(p);
+    epEm += vec3(1.0,0.4,0.1)*fg*(0.06 + 0.5*uNight)*(0.75 + 0.25*sin(uTime*2.3 + epN(p*0.02)*9.0));
   }
 
   // --- skutki wybuchów ---
@@ -267,6 +290,16 @@ vec3 epNW = vec3(0.0, 1.0, 0.0);
       col = mix(col, soil, inside);
       col = mix(col, vec3(0.40,0.35,0.28), ejecta*0.75);
       epRough = mix(epRough, 0.97, inside);
+    }
+    // pył podrywany przez czoło fali biegnące po ziemi
+    if (uHob[i].w > 0.5){
+      float R = uE0[i].w, hb = uHob[i].x;
+      if (R > hb){
+        float Rg = sqrt(R*R - hb*hb);
+        float pf = epKG(R/uE1[i].x);
+        float band = exp(-pow((rr - Rg)/(Rg*0.015 + 2.0), 2.0))*smoothstep(3.0, 30.0, pf);
+        col = mix(col, vec3(0.75,0.7,0.62), band*0.5);
+      }
     }
     float vr = uHob[i].y;
     if (vr > 0.0 && rr < vr){
@@ -391,8 +424,11 @@ vec3 epEm = vec3(0.0);
   vec3 V = normalize(cameraPosition - vEpWP);
   float fres = pow(1.0 - clamp(dot(V, wn), 0.0, 1.0), 3.0);
   vec3 glassC = mix(vec3(0.17,0.21,0.25), pow(uSkyRef, vec3(0.4545)), 0.32 + 0.55*fres)*(0.85 + 0.3*ch);
-  vec3 winC = mix(glassC, vec3(0.018,0.016,0.014), broken);
-  float lit = mix(step(ch, 0.32), 0.32, lod)*uNight*(1.0 - uBlackout)*(1.0 - broken)*(1.0 - step(1.5, dmg));
+  // za wybitą szybą widać ciemne wnętrze, część szyb zostaje popękana
+  vec3 inside = mix(vec3(0.16,0.14,0.12), vec3(0.09,0.08,0.07), epH(cell*3.7 + seed*5.0));
+  vec3 brokenC = ch > 0.85 ? mix(glassC*0.6, inside, 0.5) : inside;
+  vec3 winC = mix(glassC, brokenC, broken);
+  float lit = mix(step(ch, 0.32), 0.32, lod)*uNight*(1.0 - epBlk(vEpWP.xz))*(1.0 - broken)*(1.0 - step(1.5, dmg));
   // ściana: pasy stropów, cegła, panele
   float fl = smoothstep(0.0, 0.06, fract(v/fh))*0.06;
   if (typ > 1.5 && typ < 2.5) col *= 0.94 + 0.06*step(0.5, fract(u/(cw*2.0)));
@@ -419,9 +455,11 @@ vec3 epEm = vec3(0.0);
     // ogień obejmuje dolne piętra (w wysokich budynkach) z nieregularną granicą
     float fireTop = 10.0 + 18.0*burn + sz.y*0.15*burn + 8.0*epN(vec2(u*0.08, seed*30.0));
     float fz = 1.0 - smoothstep(fireTop - 4.0, fireTop, v);
-    float lit2 = step(0.35, epH(cell*2.11 + seed*31.0));
+    float lit2 = smoothstep(0.3, 0.9, epN(vec2(cell.x*0.7 + seed*9.0, cell.y*0.7 + uTime*0.15)));
     float flick = 0.55 + 0.45*sin(uTime*9.0 + ch*40.0)*sin(uTime*5.3 + ch*13.0);
-    epEm += (win*1.3*lit2 + 0.05)*burn*fz*vec3(1.0,0.36,0.07)*flick*2.4;
+    epEm += (win*1.3*lit2 + 0.04)*burn*fz*vec3(1.0,0.36,0.07)*flick*2.4;
+    // sadza nad płonącymi oknami
+    col *= 1.0 - 0.7*burn*fz*lit2*smoothstep(wy1, 1.0, fr.y)*hasWin;
     col *= 1.0 - 0.6*burn*smoothstep(fireTop - 12.0, fireTop + 6.0, v)*(1.0 - smoothstep(fireTop + 6.0, fireTop + 30.0, v));
     epGlass *= 1.0 - burn*fz;
   }
@@ -447,6 +485,9 @@ vec3 epEm = vec3(0.0);
   }
   if (dmg > 3.5) col = vec3(0.035);
   epEm += vec3(1.0,0.5,0.2)*b.heat*0.4;
+  // ściany oświetlone łuną sąsiednich pożarów
+  float fgw = epFire(vEpWP.xz);
+  if (fgw > 0.001) epEm += vec3(1.0,0.38,0.1)*fgw*(1.0 - smoothstep(0.0, 70.0, v))*(0.05 + 0.35*uNight)*(0.8 + 0.2*sin(uTime*3.1 + seed*20.0));
   diffuseColor.rgb = pow(col, vec3(2.2));
 }
 `;
@@ -469,39 +510,31 @@ vec3 epEm = vec3(0.0);
   // ---------- DRZEWA (przewracane przez falę w shaderze wierzchołków) ----------
   const TREE_PARS = /* glsl */`
 attribute vec4 aFall;   // x,z kierunek, z stopień przewrócenia (zapisany), w zwęglenie (zapisane)
+attribute vec4 aHit;    // x slot wybuchu (-1 brak), y odległość, z docelowe przewrócenie, w docelowe zwęglenie
+attribute float aHitS;  // docelowe ogołocenie korony
 attribute float aPart;  // 0 pień, 1 korona
 attribute float aSeed;
 varying float vEpChar; varying float vEpBurn; varying float vEpPart; varying float vEpStrip;
 mat3 epR; float epStrip; float epCharV; float epBurnV;
 void epTree(){
   vec3 tb = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-  vec3 probe = tb + vec3(0.0, 4.0, 0.0);
-  float bestP = 0.0, since = 0.0, bq = 0.0, bage = 1e9;
+  float fall = 0.0;
   vec2 dir = vec2(1.0, 0.0);
-  for (int i = 0; i < MAXE; i++){
-    if (i >= uNE) break;
-    vec4 e0 = uE0[i]; vec4 e1 = uE1[i]; vec4 e2 = uE2[i];
-    if (e1.z < 0.0) continue;
-    vec3 dv = probe - e0.xyz;
-    float d = max(length(dv), 0.05);
-    if (d < e0.w){
-      float p = epKG(d/e1.x);
-      if (p > bestP){ bestP = p; dir = normalize(dv.xz + vec2(1e-4, 0.0)); since = (e0.w - d); }
-    }
-    if (e1.y > 0.0){
-      float q = e1.y*exp(-d/80000.0)/(d*d)*clamp(e1.z/e2.w, 0.0, 1.0);
-      if (q > bq){ bq = q; bage = e1.z; }
-    }
+  epStrip = 0.0; epCharV = 0.0; epBurnV = 0.0;
+  if (aHit.x > -0.5){
+    int s = int(aHit.x + 0.5);
+    float since = uE0[s].w - aHit.y;
+    float arrived = step(0.0, since);
+    fall = aHit.z*arrived*clamp(since/250.0 + 0.15, 0.0, 1.0);
+    epStrip = aHitS*arrived;
+    dir = normalize(tb.xz - uE0[s].xz + vec2(1e-4, 0.0));
+    float fq = clamp(uE1[s].z/uE2[s].w, 0.0, 1.0);
+    epCharV = aHit.w*fq;
+    epBurnV = epCharV*exp(-uE1[s].z/200.0);
   }
-  float thr = 22.0 + 20.0*aSeed;
-  float fall = smoothstep(thr, thr*1.35, bestP)*clamp(since/250.0 + 0.15, 0.0, 1.0);
-  fall = min(fall, 1.0);
-  epStrip = smoothstep(9.0 + 6.0*aSeed, 30.0, bestP);
   if (aFall.z > fall){ fall = aFall.z; dir = aFall.xy; }
   epStrip = max(epStrip, aFall.z);
-  float qthr = 350e3*(0.7 + 0.6*aSeed);
-  epCharV = max(smoothstep(qthr*0.5, qthr, bq), aFall.w);
-  epBurnV = smoothstep(qthr*0.5, qthr, bq)*exp(-bage/200.0);
+  epCharV = max(epCharV, aFall.w);
   // obrót wokół podstawy w kierunku od wybuchu
   vec3 ld = normalize(transpose(mat3(instanceMatrix))*vec3(dir.x, 0.0, dir.y));
   ld.y = 0.0; ld = normalize(ld + vec3(1e-4, 0.0, 0.0));

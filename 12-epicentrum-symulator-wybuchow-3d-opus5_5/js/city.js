@@ -78,8 +78,9 @@
   // ---------- DANE ----------
   const B = [];          // rekordy budynków
   const TREES = [];      // {x,y,z,s,mesh,idx,seed}
+  const TREES_BY = [];   // drzewa według siatki i indeksu instancji
   const CARS = [];
-  let meshes = {}, treeMeshes = [], carMesh;
+  let meshes = {}, treeMeshes = [], carMesh, treeMat = null, treeDepth = null;
   let cityTex;
   C.B = B; C.TREES = TREES; C.CARS = CARS;
 
@@ -91,7 +92,7 @@
       i: B.length, cls, k, shape, x, y, z, sx, sy, sz, rotY: opt.rotY || 0, color,
       seed: opt.seed !== undefined ? opt.seed : Math.random(), parent: opt.parent !== undefined ? opt.parent : -1, child: -1,
       dmg: 0, hf: 1, hf0: 1, hT: 1, tilt: 0, tilt0: 0, tiltT: 0, tdx: 1, tdz: 0, anim: 1, adur: 1,
-      glass: 0, burn: 0, burnT: -1, burnSim: 0, pop: 0, alive: 0, inst: -1, varF: 0.8 + Math.random() * 0.45
+      glass: 0, burn: 0, burnT: -1, burnSim: 0, pop: 0, alive: 0, inst: -1, varF: 0.8 + Math.random() * 0.45, rub: -1, burnBl: null, spreadT: 0
     };
     const floors = Math.max(1, Math.round(sy / 3.2));
     const area = sx * sz;
@@ -312,7 +313,14 @@
     C.treeList = treeList;
     C.blocks = blocks;
     buildMeshes();
+    buildRubble();
     buildBridges();
+    buildGrid();
+    fireData = new Uint8Array(64 * 64 * 4);
+    fireTex = new T.DataTexture(fireData, 64, 64, T.RGBAFormat);
+    fireTex.magFilter = T.LinearFilter; fireTex.minFilter = T.LinearFilter;
+    fireTex.needsUpdate = true;
+    S.uniforms.uFire.value = fireTex;
     C.totalPop = B.reduce((s, b) => s + b.pop, 0);
     C.rememberCars();
   };
@@ -356,29 +364,43 @@
 
     // Drzewa
     const trunkC = srgb(0.36, 0.26, 0.18);
+    // prostsze bryły (drzew jest ok. 60 tys.) i kafle 2 km, żeby kamera i cień pomijały niewidoczne
     const con = merge([
-      { g: new T.CylinderGeometry(0.16, 0.22, 2.2, 6).translate(0, 1.1, 0), c: trunkC, part: 0 },
-      { g: new T.ConeGeometry(1.7, 5.4, 8).translate(0, 4.2, 0), c: srgb(0.2, 0.36, 0.2), part: 1 }
+      { g: new T.CylinderGeometry(0.16, 0.22, 2.2, 5, 1, true).translate(0, 1.1, 0), c: trunkC, part: 0 },
+      { g: new T.ConeGeometry(1.7, 5.4, 7, 1, true).translate(0, 4.2, 0), c: srgb(0.2, 0.36, 0.2), part: 1 }
     ]);
+    const decCrown = new T.IcosahedronGeometry(2.2, 0);
+    decCrown.scale(1, 0.92, 1);
     const dec = merge([
-      { g: new T.CylinderGeometry(0.18, 0.26, 2.6, 6).translate(0, 1.3, 0), c: trunkC, part: 0 },
-      { g: new T.IcosahedronGeometry(2.2, 1).translate(0, 4.1, 0), c: srgb(0.3, 0.5, 0.22), part: 1 }
+      { g: new T.CylinderGeometry(0.18, 0.26, 2.6, 5, 1, true).translate(0, 1.3, 0), c: trunkC, part: 0 },
+      { g: decCrown.translate(0, 4.1, 0), c: srgb(0.3, 0.5, 0.22), part: 1 }
     ]);
-    const lists = [C.treeList.filter((t) => t.conifer), C.treeList.filter((t) => !t.conifer)];
-    [con, dec].forEach((g, gi) => {
+    const TILE = 2000, tiles = new Map();
+    for (const t of C.treeList) {
+      const key = (t.conifer ? 'c' : 'd') + Math.floor(t.x / TILE) + ',' + Math.floor(t.z / TILE);
+      if (!tiles.has(key)) tiles.set(key, { conifer: t.conifer, list: [] });
+      tiles.get(key).list.push(t);
+    }
+    const lists = [], tgeos = [];
+    for (const tl of tiles.values()) { lists.push(tl.list); tgeos.push(tl.conifer ? con : dec); TREES_BY.push([]); }
+    tgeos.forEach((g0, gi) => {
+      const g = g0.clone();
       const list = lists[gi];
       const n = Math.max(1, list.length);
-      const mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
-      S.patchTree(mat);
+      const mat = treeMat || (treeMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }));
+      if (!mat.userData.patched) { S.patchTree(mat); mat.userData.patched = true; }
       const m = new T.InstancedMesh(g, mat, n);
       m.count = list.length;
-      m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
-      const dm = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking });
-      S.patchTreeDepth(dm);
+      m.castShadow = true; m.receiveShadow = true;
+      const dm = treeDepth || (treeDepth = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking }));
+      if (!dm.userData.patched) { S.patchTreeDepth(dm); dm.userData.patched = true; }
       m.customDepthMaterial = dm;
       const aFall = new T.InstancedBufferAttribute(new Float32Array(n * 4), 4);
       const aSeed = new T.InstancedBufferAttribute(new Float32Array(n), 1);
-      g.setAttribute('aFall', aFall); g.setAttribute('aSeed', aSeed);
+      const aHit = new T.InstancedBufferAttribute(new Float32Array(n * 4), 4);
+      const aHitS = new T.InstancedBufferAttribute(new Float32Array(n), 1);
+      for (let i = 0; i < n; i++) aHit.array[i * 4] = -1;
+      g.setAttribute('aFall', aFall); g.setAttribute('aSeed', aSeed); g.setAttribute('aHit', aHit); g.setAttribute('aHitS', aHitS);
       const mt = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3(), up = new T.Vector3(0, 1, 0);
       list.forEach((t, i) => {
         q.setFromAxisAngle(up, t.seed * 6.283);
@@ -392,8 +414,11 @@
         m.setColorAt(i, col);
         t.mesh = gi; t.idx = i;
         TREES.push(t);
+        TREES_BY[gi][i] = t;
       });
-      m.userData = { aFall };
+      m.userData = { aFall, aHit, aHitS, gi };
+      m.computeBoundingSphere();
+      m.boundingSphere.radius += 16;
       treeMeshes.push(m);
       scene.add(m);
     });
@@ -412,6 +437,109 @@
     carMesh.instanceMatrix.needsUpdate = true;
     scene.add(carMesh);
     C.carMesh = carMesh;
+  }
+
+  // ---------- HAŁDY GRUZU ----------
+  // Zawalony budynek zostawia nieregularną górę gruzu w kolorze swoich ścian
+  let rubbleMesh, rubbleN = 0;
+  const RUB_MAX = 7000;
+  function buildRubble() {
+    const g = new T.IcosahedronGeometry(1, 2);
+    const p = g.attributes.position;
+    const cols = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) {
+      let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      if (y < 0) y = 0;
+      const n = Ut.noise(x * 2.3 + 5, z * 2.3 - 2) * 0.55 + Ut.noise(x * 6 + y * 3, z * 6) * 0.25;
+      const k = 0.75 + n * 0.6;
+      x *= 0.5 + 0.5 * k; z *= 0.5 + 0.5 * k; y = y * k * (0.6 + 0.4 * (1 - Math.hypot(x, z)));
+      p.setXYZ(i, x * 0.55, Math.max(0, y), z * 0.55);
+      const c = 0.6 + Ut.hash2(i, 77) * 0.55;
+      cols[i * 3] = c; cols[i * 3 + 1] = c * 0.97; cols[i * 3 + 2] = c * 0.93;
+    }
+    g.setAttribute('color', new T.BufferAttribute(cols, 3));
+    g.computeVertexNormals();
+    const mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: true });
+    rubbleMesh = new T.InstancedMesh(g, mat, RUB_MAX);
+    rubbleMesh.count = 0; rubbleMesh.frustumCulled = false; rubbleMesh.receiveShadow = true; rubbleMesh.castShadow = false;
+    rubbleMesh.instanceColor = new T.InstancedBufferAttribute(new Float32Array(RUB_MAX * 3), 3);
+    Wd.scene.add(rubbleMesh);
+  }
+  function addRubble(b) {
+    if (b.rub >= 0 || b.parent >= 0 || b.sy < 4) return;
+    const idx = rubbleN % RUB_MAX; rubbleN++;
+    rubbleMesh.count = Math.min(RUB_MAX, rubbleN);
+    b.rub = idx;
+    let vol = b.sx * b.sy * b.sz;
+    for (let c = b.child; c >= 0; c = B[c].child) vol += B[c].sx * B[c].sy * B[c].sz;
+    b.rubH = Ut.clamp(Math.pow(vol, 1 / 3) * 0.32, 1.4, Math.max(2, b.sy * 0.45));
+    const col = new T.Color().setRGB(b.color[0] * 0.55 + 0.12, b.color[1] * 0.53 + 0.11, b.color[2] * 0.5 + 0.1);
+    rubbleMesh.setColorAt(idx, col); rubbleMesh.instanceColor.needsUpdate = true;
+    setRubble(b, 0);
+  }
+  function setRubble(b, k) {
+    if (b.rub < 0) return;
+    _p.set(b.x + b.tdx * b.sx * 0.12 * k, b.y, b.z + b.tdz * b.sz * 0.12 * k);
+    _q.setFromAxisAngle(_up, b.rotY + b.seed * 0.6);
+    _s.set(b.sx * (0.85 + 0.45 * k), Math.max(0.01, b.rubH * k), b.sz * (0.85 + 0.45 * k));
+    _m.compose(_p, _q, _s);
+    rubbleMesh.setMatrixAt(b.rub, _m);
+    rubbleMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // ---------- SIATKA SĄSIEDZTWA (rozprzestrzenianie pożarów) ----------
+  const GC = 60, grid = new Map();
+  function buildGrid() {
+    for (const b of B) {
+      if (b.parent >= 0) continue;
+      const k = Math.floor(b.x / GC) + ',' + Math.floor(b.z / GC);
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push(b.i);
+    }
+  }
+  function neighbours(b) {
+    if (b.nb) return b.nb;
+    const out = [];
+    const ci = Math.floor(b.x / GC), cj = Math.floor(b.z / GC);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const arr = grid.get((ci + di) + ',' + (cj + dj));
+      if (!arr) continue;
+      for (const j of arr) {
+        if (j === b.i) continue;
+        const o = B[j];
+        const gx = Math.abs(o.x - b.x) - (o.sx + b.sx) / 2, gz = Math.abs(o.z - b.z) - (o.sz + b.sz) / 2;
+        const gap = Math.max(gx, gz, 0);
+        if (gap < 16) out.push([j, gap]);
+      }
+    }
+    b.nb = out;
+    return out;
+  }
+  const FLAM = { house: 1, vhouse: 1, tenement: 0.8, church: 0.6, ind: 0.7, slab: 0.4, office: 0.35, tower: 0.25, chimney: 0, tank: 0.5 };
+  let fireData, fireTex, fireT = 0;
+  function updateFireMap() {
+    const acc = new Float32Array(64 * 64);
+    for (const i of C.burning) {
+      const b = B[i];
+      if (b.burn <= 0.02) continue;
+      const ii = Math.floor(b.x / BL) + 32, jj = Math.floor(b.z / BL) + 32;
+      if (ii < 0 || ii > 63 || jj < 0 || jj > 63) continue;
+      acc[jj * 64 + ii] += b.burn * Math.min(1, (b.sx * b.sz) / 1800);
+    }
+    let any = false;
+    for (let j = 0; j < 64; j++) for (let i = 0; i < 64; i++) {
+      let v = 0;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const a = i + di, c = j + dj;
+        if (a < 0 || a > 63 || c < 0 || c > 63) continue;
+        v += acc[c * 64 + a] * (di === 0 && dj === 0 ? 0.5 : 0.0625);
+      }
+      const q = Math.min(255, Math.round(Math.sqrt(Math.min(1, v / 2.5)) * 255));
+      fireData[(j * 64 + i) * 4] = q;
+      if (q) any = true;
+    }
+    fireTex.needsUpdate = true;
+    return any;
   }
 
   function buildBridges() {
@@ -490,22 +618,17 @@
       const nx = Ut.clamp(bx, b.x - hx, b.x + hx), nz = Ut.clamp(bz, b.z - hz, b.z + hz), ny = Ut.clamp(by, by0, by0 + b.sy);
       const dNear = Math.hypot(nx - bx, ny - by, nz - bz);
       if (dNear > maxR) continue;
-      // nadciśnienie: mediana z pięciu punktów konstrukcji
-      const hy = by0 + Math.min(b.sy * 0.5, 8);
-      const pts = [[b.x, hy, b.z], [b.x - hx, hy, b.z - hz], [b.x + hx, hy, b.z - hz], [b.x - hx, hy, b.z + hz], [b.x + hx, hy, b.z + hz]];
-      for (let k = 0; k < 5; k++) sp[k] = Ph.overpressure(Math.max(0.3, Math.hypot(pts[k][0] - bx, pts[k][1] - by, pts[k][2] - bz)), D.cbrtW);
-      sp.sort((a, c) => a - c);
-      const p = sp[2];
-      const pMax = sp[4];
+      // nadciśnienie: mediana z pięciu punktów konstrukcji, a dla szyb także najbliższa ściana
+      const { p, pMax } = pressureOn(b, D, bx, by, bz, by0, dNear);
       const dC = Math.hypot(b.x - bx, by0 + b.sy * 0.5 - by, b.z - bz);
-      const q = Ph.thermal(Math.max(dC, 1), D.Y4pi);
+      const q = Ph.thermal(Math.max(dC, 1), D.Y4pi, D.lambda);
       const th = b.k.th, v = b.varF;
       let L = 0;
       if (p > th[0] * v) L = 1;
       if (p > th[1] * v) L = 2;
       if (p > th[2] * v) L = 3;
-      if (D.nuke && dNear < fbR * 0.85) L = 4;
-      const glass = pMax > 5 * (0.7 + b.seed * 0.7) || L >= 2;
+      if (D.nuke && !D.cosmic && dNear < fbR * 0.85) L = 4;
+      const glass = pMax > 2.8 + 3.5 * b.seed || L >= 2;
       let fire = 0;
       if (D.nuke && L < 4 && q > D.ignite * (0.6 + b.seed * 0.8)) fire = 1;
       if (D.nuke && L === 3 && Ut.hash2(b.i, 7) < 0.35) fire = 1;
@@ -518,7 +641,7 @@
       // ofiary (szacunkowo, ludzie w budynkach)
       if (b.alive > 0) {
         let dead = p > 140 ? 0.9 : p > 35 ? 0.15 + 0.45 * (p - 35) / 105 : p > 14 ? 0.02 + 0.1 * (p - 14) / 21 : p > 7 ? 0.003 : 0;
-        let inj = p > 140 ? 0.08 : p > 35 ? 0.4 : p > 14 ? 0.2 : p > 7 ? 0.06 : p > 3 ? 0.01 : 0;
+        let inj = p > 140 ? 0.08 : p > 35 ? 0.4 : p > 14 ? 0.2 : p > 7 ? 0.06 : p > 3 ? 0.01 : glass ? 0.004 : 0;
         // przy małych ładunkach dotknięta jest tylko część dużego budynku
         if (conv) { const f = Ut.clamp(D.radii.light / Math.max(b.sx, b.sz, b.sy), 0.08, 1); dead *= f; inj *= f; }
         if (L === 4) { dead = 1; inj = 0; }
@@ -539,23 +662,76 @@
       const d = Math.hypot(dx, c.y + 1 - by, dz);
       if (d > maxR) continue;
       const p = Ph.overpressure(Math.max(d, 0.3), D.cbrtW);
-      const q = Ph.thermal(Math.max(d, 1), D.Y4pi);
+      const q = Ph.thermal(Math.max(d, 1), D.Y4pi, D.lambda);
       const burn = q > 300e3 || (conv && d < fbR * 2.2 && D.Wtnt > 1) || (p > 200 && Ut.hash2(i, 9) < 0.4);
       if (p < 20 * (0.8 + c.seed * 0.5) && !burn) continue;
       ev.push({ t: Ph.arrival(D.front, d), kind: 'c', i, p, burn, dir: [dx, dz] });
     }
-    // drzewa (do statystyki; przewracanie robi GPU)
+    // drzewa: stan docelowy liczony raz, shader tylko odtwarza przewracanie w rytm czoła fali
     let trees = 0;
+    const tR = Math.max(Ph.radiusForP(9, D.cbrtW), D.nuke ? Ph.radiusForQ(175e3, D.Y4pi, D.lambda) : 0);
     for (const t of TREES) {
       const dx = t.x - bx, dz = t.z - bz;
-      if (Math.abs(dx) > maxR || Math.abs(dz) > maxR) continue;
+      if (Math.abs(dx) > tR || Math.abs(dz) > tR) continue;
       const d = Math.hypot(dx, t.y + 4 - by, dz);
-      if (Ph.overpressure(Math.max(d, 0.3), D.cbrtW) > 22 + 20 * t.seed) trees++;
+      if (d > tR) continue;
+      const pt = Ph.overpressure(Math.max(d, 0.3), D.cbrtW);
+      const thr = 22 + 20 * t.seed;
+      if (pt > thr) trees++;
+      const fall = Ut.smooth(thr, thr * 1.35, pt);
+      const strip = Ut.smooth(9 + 6 * t.seed, 30, pt);
+      const qthr = 350e3 * (0.7 + 0.6 * t.seed);
+      const ch = D.nuke ? Ut.smooth(qthr * 0.5, qthr, Ph.thermal(Math.max(d, 1), D.Y4pi, D.lambda)) : 0;
+      if (fall < 0.002 && strip < 0.002 && ch < 0.002) continue;
+      const u = treeMeshes[t.mesh].userData, a = u.aHit.array, k = t.idx * 4;
+      const cur = a[k] > -0.5 ? a[k + 2] + 0.5 * u.aHitS.array[t.idx] + a[k + 3] : -1;
+      if (cur >= fall + 0.5 * strip + ch) continue;
+      if (a[k] > -0.5) bakeTree(t, u);
+      a[k] = bl.slot; a[k + 1] = d; a[k + 2] = fall; a[k + 3] = ch; u.aHitS.array[t.idx] = strip;
+      u.dirtyHit = true;
     }
+    for (const m of treeMeshes) if (m.userData.dirtyHit) { m.userData.aHit.needsUpdate = true; m.userData.aHitS.needsUpdate = true; m.userData.dirtyHit = false; }
     stats.treesTotal = trees;
     ev.sort((a, b) => a.t - b.t);
     bl.events = ev; bl.evPtr = 0;
   };
+
+  const _sp = [0, 0, 0, 0, 0];
+  function pressureOn(b, D, bx, by, bz, by0, dNear) {
+    const hx = b.sx / 2, hz = b.sz / 2;
+    const hy = by0 + Math.min(b.sy * 0.5, 8);
+    const w = D.cbrtW, f = (x, z) => Ph.overpressure(Math.max(0.3, Math.hypot(x - bx, hy - by, z - bz)), w);
+    _sp[0] = f(b.x, b.z); _sp[1] = f(b.x - hx, b.z - hz); _sp[2] = f(b.x + hx, b.z - hz); _sp[3] = f(b.x - hx, b.z + hz); _sp[4] = f(b.x + hx, b.z + hz);
+    // mediana z pięciu: sortowanie przez wstawianie w miejscu, bez nowych tablic
+    for (let i = 1; i < 5; i++) { const v = _sp[i]; let j = i - 1; while (j >= 0 && _sp[j] > v) { _sp[j + 1] = _sp[j]; j--; } _sp[j + 1] = v; }
+    return { p: _sp[2], pMax: Math.max(_sp[4], Ph.overpressure(Math.max(0.3, dNear), w)) };
+  }
+  // Poziom zniszczeń budynku (wspólny dla podglądu i dla wyniku)
+  C.levelFor = function (b, D, pos) {
+    const bx = pos.x, by = pos.y, bz = pos.z;
+    const by0 = b.parent >= 0 ? B[b.parent].y + B[b.parent].sy : b.y;
+    const hx = b.sx / 2, hz = b.sz / 2;
+    const nx = Ut.clamp(bx, b.x - hx, b.x + hx), nz = Ut.clamp(bz, b.z - hz, b.z + hz), ny = Ut.clamp(by, by0, by0 + b.sy);
+    const dNear = Math.hypot(nx - bx, ny - by, nz - bz);
+    const { p } = pressureOn(b, D, bx, by, bz, by0, dNear);
+    const th = b.k.th, v = b.varF;
+    let L = 0;
+    if (p > th[0] * v) L = 1;
+    if (p > th[1] * v) L = 2;
+    if (p > th[2] * v) L = 3;
+    if (D.nuke && !D.cosmic && dNear < D.fbR * 0.85) L = 4;
+    return L;
+  };
+  function bakeTree(t, u) {
+    const a = u.aHit.array, k = t.idx * 4, f = u.aFall.array;
+    const s = a[k] | 0;
+    const e = EP.shaders.uniforms.uE0.value[s];
+    const dx = t.x - e.x, dz = t.z - e.z, l = Math.hypot(dx, dz) || 1;
+    if (a[k + 2] > f[k + 2]) { f[k] = dx / l; f[k + 1] = dz / l; f[k + 2] = a[k + 2]; }
+    f[k + 3] = Math.max(f[k + 3], a[k + 3]);
+    a[k] = -1;
+    u.dirtyFall = true;
+  }
 
   const DUST = [0.62, 0.58, 0.52];
   C.applyEvents = function (bl) {
@@ -582,7 +758,7 @@
         if (changed) setDmgAttr(b);
       } else if (e.kind === 'f') {
         const b = B[e.i];
-        if (b.burnT < 0 && b.dmg < 4) { b.burnT = bl.simNow; b.burnSim = 0; st.fires++; C.burning.push(b.i); }
+        if (b.burnT < 0 && b.dmg < 4) { b.burnT = bl.simNow; b.burnSim = 0; b.burnBl = bl; b.spreadT = 40 + 80 * b.seed; st.fires++; C.burning.push(b.i); }
       } else if (e.kind === 'c') {
         hitCar(e, bl);
       }
@@ -597,10 +773,11 @@
     b.hf0 = b.hf; b.tilt0 = b.tilt;
     if (L === 1) { b.hT = b.hf; b.tiltT = b.tilt; b.adur = 0.01; }
     else if (L === 2) { b.hT = Math.min(b.hf, 0.7 + 0.18 * r); b.tiltT = (0.03 + 0.05 * r) * (b.shape === 'cyl' ? 2 : 1); b.adur = 1.4 + b.sy / 50; }
-    else if (L === 3) { b.hT = Math.min(b.hf, Math.max(2.2 / b.sy, 0.07 + 0.15 * r)); b.tiltT = 0.04 + 0.12 * r; b.adur = 1.8 + b.sy / 35; if (b.shape === 'cyl' && b.sy > 40) { b.tiltT = 1.45; b.hT = 0.9; b.adur = 3.5; } }
+    else if (L === 3) { b.hT = Math.min(b.hf, Math.max(1.2 / b.sy, 0.04 + 0.12 * r)); b.tiltT = 0.04 + 0.12 * r; b.adur = 1.8 + b.sy / 35; if (b.shape === 'cyl' && b.sy > 40) { b.tiltT = 1.45; b.hT = 0.9; b.adur = 3.5; } }
     else { b.hT = 0.015; b.tiltT = 0; b.adur = 0.25; b.burnT = -1; b.burn = 0; }
     b.anim = 0;
-    if (!C.animating.includes(b.i)) C.animating.push(b.i);
+    if (L === 3) addRubble(b);
+    if (!b.inAnim) { b.inAnim = true; C.animating.push(b.i); }
     if (L >= 2 && EP.fx) EP.fx.collapseFx(b, bl, L);
   }
 
@@ -617,7 +794,7 @@
       c.wx += (c.seed - 0.5) * v * 0.5; c.wz += (Ut.hash2(e.i, 5) - 0.5) * v * 0.6;
       c.dyn = true; c.settled = false;
       if (!c.hit) { c.hit = 1; st.cars++; }
-      if (!C.carsMoving.includes(e.i)) C.carsMoving.push(e.i);
+      if (!c.inMove) { c.inMove = true; C.carsMoving.push(e.i); }
     }
     if (e.burn && !c.burned) {
       c.burned = 1;
@@ -643,9 +820,10 @@
         b.hf = b.hf0 + (b.hT - b.hf0) * kk;
         b.tilt = b.tilt0 + (b.tiltT - b.tilt0) * k;
         setMatrix(b);
+        if (b.rub >= 0) setRubble(b, Ut.smooth(0.15, 1, b.anim));
         if (b.child >= 0) setMatrix(B[b.child]);
         if (b.child >= 0 && B[b.child].child >= 0) setMatrix(B[B[b.child].child]);
-        if (b.anim < 1) still.push(i);
+        if (b.anim < 1) still.push(i); else b.inAnim = false;
         if (EP.fx && b.dmg >= 2 && b.anim < 0.85) EP.fx.collapseDust(b, dtA);
       }
       C.animating = still;
@@ -659,10 +837,32 @@
         const age = b.burnSim;
         const target = Ut.smooth(0, 25, age) * (1 - Ut.smooth(900, 1600, age));
         if (Math.abs(target - b.burn) > 0.01 || (target === 0 && b.burn > 0)) { b.burn = target; setDmgAttr(b); }
+        // ogień przeskakuje na sąsiednie budynki, łatwiej z wiatrem i między domami
+        if (b.burn > 0.55 && b.parent < 0 && age < 1100) {
+          b.spreadT -= dtSim;
+          if (b.spreadT <= 0) {
+            b.spreadT = 30 + 70 * Math.random();
+            const wind = EP.fx ? EP.fx.WIND : null, wl = wind ? Math.hypot(wind.x, wind.z) || 1 : 1;
+            for (const [j, gap] of neighbours(b)) {
+              const o = B[j];
+              if (o.burnT >= 0 || o.dmg >= 4) continue;
+              const fl = (FLAM[o.cls] || 0.4) * (o.dmg >= 2 ? 1.5 : 1);
+              let pr = fl * (1 - gap / 16) * 0.45;
+              if (wind) { const dx = o.x - b.x, dz = o.z - b.z, dl = Math.hypot(dx, dz) || 1; pr *= 1 + 0.8 * (dx * wind.x + dz * wind.z) / (dl * wl) * Math.min(1, wl / 4); }
+              if (Math.random() < pr) {
+                o.burnT = simNow; o.burnSim = 0; o.burnBl = b.burnBl; o.spreadT = 40 + 80 * o.seed;
+                if (o.burnBl) { o.burnBl.stats.fires++; o.burnBl.stats.spread = (o.burnBl.stats.spread || 0) + 1; }
+                still.push(j);
+              }
+            }
+          }
+        }
         if (age < 1600 && b.dmg < 4) still.push(i); else { b.burn = 0; setDmgAttr(b); }
       }
       C.burning = still;
     }
+    fireT -= dtA;
+    if (fireT <= 0 && fireTex && (C.burning.length || C._fireShown)) { fireT = 0.5; C._fireShown = updateFireMap(); }
     // samochody w locie
     if (C.carsMoving.length) {
       const still = [];
@@ -687,7 +887,7 @@
           }
         }
         setCarMatrix(c, i);
-        if (c.dyn) still.push(i);
+        if (c.dyn) still.push(i); else c.inMove = false;
       }
       carMesh.instanceMatrix.needsUpdate = true;
       C.carsMoving = still;
@@ -701,33 +901,23 @@
 
   // Zapisanie skutków wybuchu na drzewach, zanim zwolni się jego slot w shaderze
   C.bakeTrees = function (bl) {
-    const D = bl.d;
-    const bx = bl.pos.x, by = bl.pos.y, bz = bl.pos.z;
-    const maxR = Math.max(D.radii.moderate * 2.5, D.radii.burn1) + D.hob;
-    for (const t of TREES) {
-      const dx = t.x - bx, dz = t.z - bz;
-      if (Math.abs(dx) > maxR || Math.abs(dz) > maxR) continue;
-      const d = Math.hypot(dx, t.y + 4 - by, dz);
-      const p = Ph.overpressure(Math.max(d, 0.3), D.cbrtW);
-      const thr = 22 + 20 * t.seed;
-      const fall = Ut.smooth(thr, thr * 1.35, p);
-      const q = Ph.thermal(Math.max(d, 1), D.Y4pi);
-      const qthr = 350e3 * (0.7 + 0.6 * t.seed);
-      const ch = Ut.smooth(qthr * 0.5, qthr, q);
-      const a = treeMeshes[t.mesh].userData.aFall;
-      const cur = a.getZ(t.idx);
-      if (fall > cur) { const l = Math.hypot(dx, dz) || 1; a.setXYZW(t.idx, dx / l, dz / l, fall, Math.max(a.getW(t.idx), ch)); }
-      else if (ch > a.getW(t.idx)) a.setW(t.idx, ch);
+    for (const m of treeMeshes) {
+      const u = m.userData, a = u.aHit.array;
+      for (let i = 0; i < m.count; i++) if (a[i * 4] > -0.5 && (a[i * 4] | 0) === bl.slot) bakeTree(TREES_BY[m.userData.gi][i], u);
+      if (u.dirtyFall) { u.aFall.needsUpdate = true; u.aHit.needsUpdate = true; u.dirtyFall = false; }
     }
-    for (const m of treeMeshes) m.userData.aFall.needsUpdate = true;
   };
 
   // Odbudowa miasta
   C.reset = function () {
     for (const b of B) {
-      b.dmg = 0; b.hf = 1; b.hT = 1; b.tilt = 0; b.tiltT = 0; b.anim = 1; b.glass = 0; b.burn = 0; b.burnT = -1; b.alive = b.pop;
+      b.dmg = 0; b.hf = 1; b.hT = 1; b.tilt = 0; b.tiltT = 0; b.anim = 1; b.glass = 0; b.burn = 0; b.burnT = -1; b.alive = b.pop; b.rub = -1; b.burnBl = null;
       setMatrix(b); setDmgAttr(b);
     }
+    rubbleN = 0; rubbleMesh.count = 0;
+    fireData.fill(0); fireTex.needsUpdate = true; C._fireShown = false;
+    for (const i of C.animating) B[i].inAnim = false;
+    for (const i of C.carsMoving) CARS[i].inMove = false;
     C.animating = []; C.burning = []; C.carsMoving = [];
     const col = new T.Color();
     CARS.forEach((c, i) => {
@@ -736,7 +926,12 @@
       col.setRGB(c.col[0], c.col[1], c.col[2]); carMesh.setColorAt(i, col); setCarMatrix(c, i);
     });
     carMesh.instanceMatrix.needsUpdate = true; carMesh.instanceColor.needsUpdate = true;
-    for (const m of treeMeshes) { m.userData.aFall.array.fill(0); m.userData.aFall.needsUpdate = true; }
+    for (const m of treeMeshes) {
+      const u = m.userData;
+      u.aFall.array.fill(0); u.aFall.needsUpdate = true;
+      for (let i = 0; i < u.aHit.count; i++) u.aHit.array[i * 4] = -1;
+      u.aHit.needsUpdate = true;
+    }
     C.update(0, 0, 0);
   };
   C.rememberCars = function () { for (const c of CARS) { c.x0 = c.x; c.z0 = c.z; } };
@@ -767,14 +962,39 @@
     return best;
   };
 
+  // Czy odcinek a–b przecina stojący budynek (kamera nie powinna patrzeć przez ściany)
+  C.segBlocked = function (a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x), z0 = Math.min(a.z, b.z), z1 = Math.max(a.z, b.z);
+    for (const o of B) {
+      if (o.dmg >= 3) continue;
+      const hx = o.sx / 2, hz = o.sz / 2;
+      if (o.x + hx < x0 || o.x - hx > x1 || o.z + hz < z0 || o.z - hz > z1) continue;
+      const by0 = o.parent >= 0 ? B[o.parent].y + B[o.parent].sy : o.y, by1 = by0 + o.sy * o.hf;
+      let t0 = 0.02, t1 = 0.98;
+      const ax = [[a.x, dx, o.x - hx, o.x + hx], [a.y, dy, by0, by1], [a.z, dz, o.z - hz, o.z + hz]];
+      let hit = true;
+      for (const [p, d, lo, hi] of ax) {
+        if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) { hit = false; break; } continue; }
+        let ta = (lo - p) / d, tb = (hi - p) / d;
+        if (ta > tb) { const t = ta; ta = tb; tb = t; }
+        t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+        if (t0 > t1) { hit = false; break; }
+      }
+      if (hit) return true;
+    }
+    return false;
+  };
+
   // Liczba obiektów w strefie (do podglądu przed odpaleniem)
   C.exposure = function (pos, D) {
     let pop = 0, bld = 0;
     const R = D.radii.moderate + D.hob;
+    const c = new T.Vector3(pos.x, Wd.groundY(pos.x, pos.z) + (D.nuke ? D.hob : Math.max(0, pos.y - Wd.groundY(pos.x, pos.z))), pos.z);
     for (const b of B) {
-      if (Math.abs(b.x - pos.x) > R || Math.abs(b.z - pos.z) > R) continue;
-      const d = Math.hypot(b.x - pos.x, b.y + 4 - pos.y, b.z - pos.z);
-      if (Ph.overpressure(Math.max(d, 0.3), D.cbrtW) > 35) { pop += b.alive; bld++; }
+      const half = Math.max(b.sx, b.sz) * 0.75;
+      if (Math.abs(b.x - pos.x) - half > R || Math.abs(b.z - pos.z) - half > R) continue;
+      if (C.levelFor(b, D, c) >= 3) { pop += b.alive; bld++; }
     }
     return { pop, bld };
   };

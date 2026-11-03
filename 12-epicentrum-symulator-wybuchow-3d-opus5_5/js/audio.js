@@ -20,7 +20,10 @@
     for (let i = 0; i < n; i++) { a[i] = Math.random() * 2 - 1; last = (last + 0.02 * a[i]) / 1.02; b[i] = last * 3.5; }
     ambient();
   };
-  A.toggle = function () { on = !on; if (master) master.gain.setTargetAtTime(on ? 0.8 : 0, ctx.currentTime, 0.05); return on; };
+  // karta w tle: dźwięk wstrzymany
+  document.addEventListener('visibilitychange', () => { if (!ctx) return; if (document.hidden) ctx.suspend(); else if (on) ctx.resume(); });
+  A.setOn = function (v) { if (v !== on) A.toggle(); };
+  A.toggle = function () { on = !on; if (master && ctx) master.gain.setTargetAtTime(on ? 0.8 : 0, ctx.currentTime, 0.05); return on; };
 
   function noise(brown, dur, t0) {
     const s = ctx.createBufferSource();
@@ -131,6 +134,26 @@
     s.connect(f); f.connect(g); g.connect(master);
   };
   A.cannon = function () { A.boom(0.12, 30, 0); };
+  A.beep = function (f) {
+    if (!ctx || !on) return;
+    const t0 = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square'; o.frequency.value = f || 1000;
+    env(g, t0, 0.003, 0.05, 0.09);
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 0.12);
+  };
+  // trzask fajerwerków w płonącym magazynie
+  A.crackle = function () {
+    if (!ctx || !on) return;
+    const t0 = ctx.currentTime;
+    const n = 2 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const td = t0 + Math.random() * 0.15;
+      const s = noise(false, 0.05, td), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      f.type = 'bandpass'; f.frequency.value = 1500 + Math.random() * 3500; f.Q.value = 1.2;
+      env(g, td, 0.001, 0.05 + Math.random() * 0.08, 0.04);
+      s.connect(f); f.connect(g); g.connect(master);
+    }
+  };
   let glassT = 0;
   A.glass = function (dist) {
     if (!ctx || !on || dist > 400) return;

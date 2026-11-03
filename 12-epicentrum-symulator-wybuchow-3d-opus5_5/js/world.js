@@ -14,12 +14,16 @@
   const xLights = [];
 
   Wd.init = function (canvas) {
-    renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    // wygładzanie krawędzi robi bufor obróbki obrazu (post.js), więc płótno go nie potrzebuje
+    renderer = new T.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.toneMapping = T.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
+    // mapa cienia liczy się tylko wtedy, gdy coś się ruszyło (app.js ustawia Wd.shadowDirty)
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
     scene = new T.Scene();
     scene.fog = new T.FogExp2(0xb8c8d8, 0.00012);
     camera = new T.PerspectiveCamera(50, 1, 0.1, 50000);
@@ -252,8 +256,8 @@
       zen: [0.14, 0.18, 0.4], hor: [0.98, 0.56, 0.36], fog: [0.62, 0.46, 0.44], ref: [0.85, 0.55, 0.45], night: 0.55, exp: 1.1
     },
     night: {
-      el: 38, az: 140, sun: [0.55, 0.65, 1], sunI: 0.16, hemiS: [0.2, 0.24, 0.4], hemiG: [0.07, 0.07, 0.09], hemiI: 0.85,
-      zen: [0.004, 0.008, 0.025], hor: [0.035, 0.045, 0.08], fog: [0.03, 0.035, 0.06], ref: [0.05, 0.06, 0.1], night: 1, exp: 1.25
+      el: 38, az: 140, sun: [0.55, 0.65, 1], sunI: 0.3, hemiS: [0.24, 0.29, 0.46], hemiG: [0.09, 0.09, 0.11], hemiI: 1.5,
+      zen: [0.016, 0.026, 0.065], hor: [0.075, 0.085, 0.135], fog: [0.055, 0.062, 0.095], ref: [0.07, 0.08, 0.13], night: 1, exp: 1.3
     }
   };
   Wd.timeName = 'day';
@@ -278,12 +282,19 @@
     S.uniforms.uNight.value = P.night;
     renderer.toneMappingExposure = P.exp;
     Wd.baseExposure = P.exp;
+    Wd.shadowDirty = true;
   };
 
   // Dopasowanie kamery, mgły, cieni i nieba do odległości oglądania
-  Wd.frame = function (camDist, target) {
-    camera.near = Ut.clamp(camDist * 0.0025, 0.05, 60);
-    camera.far = Ut.clamp(camDist * 120, 20000, 1500000);
+  Wd.frame = function (camDist, target, eye) {
+    if (eye) {
+      // świadek: bliskie otoczenie i odległy wybuch naraz
+      camera.near = Ut.clamp(camDist * 0.00012, 0.4, 3);
+      camera.far = Ut.clamp(camDist * 80, 60000, 1500000);
+    } else {
+      camera.near = Ut.clamp(camDist * 0.0025, 0.05, 60);
+      camera.far = Ut.clamp(camDist * 120, 20000, 1500000);
+    }
     camera.updateProjectionMatrix();
     const d1 = 2.3 / (TR.R + camDist * 1.5);
     const d2 = 0.32 / (camDist * 25 + 2500);
@@ -291,7 +302,7 @@
     sky.position.copy(camera.position);
     sky.scale.setScalar(camera.far * 0.9);
     // cień podąża za punktem, na który patrzymy
-    const ext = Ut.clamp(camDist * 1.1, 30, 26000);
+    const ext = eye ? Ut.clamp(camDist * 0.35, 250, 2500) : Ut.clamp(camDist * 1.1, 30, 26000);
     const sc = sun.shadow.camera;
     sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext;
     sc.near = 1; sc.far = ext * 6 + 2000;
@@ -299,6 +310,8 @@
     // przyciąganie do siatki tekseli, żeby cienie nie migotały
     const texel = (2 * ext) / sun.shadow.mapSize.x;
     const tx = Math.round(target.x / texel) * texel, tz = Math.round(target.z / texel) * texel;
+    if (tx !== Wd._stx || tz !== Wd._stz || ext !== Wd._sext) { Wd._stx = tx; Wd._stz = tz; Wd._sext = ext; Wd.shadowDirty = true; }
+    if (Wd.shadowDirty) { renderer.shadowMap.needsUpdate = true; Wd.shadowDirty = false; }
     sun.target.position.set(tx, 0, tz);
     sun.position.set(tx, 0, tz).addScaledVector(Wd.sunDir, ext * 3 + 1000);
     sun.shadow.normalBias = ext / 2048 * 1.2;

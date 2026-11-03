@@ -1,6 +1,6 @@
 # Epicentrum
 
-Symulator wybuchów na makiecie miasta 3D. Do wyboru 13 ładunków, od **laski dynamitu** (200 g trotylu), przez granat, pocisk czołgowy, pięć rodzajów rakiet i bombę MOAB, po broń jądrową: mini-atomówkę Davy Crockett, bombę z Hiroszimy, głowicę rakiety międzykontynentalnej i **Car-bombę** (50 Mt). Car-bomba jest 250 miliardów razy silniejsza od dynamitu, więc jedna makieta musi działać w skali od centymetrów do setek kilometrów. Fala uderzeniowa liczona fizycznie wybija szyby okno po oknie, burzy budynki, przewraca drzewa i samochody, a błysk wybuchu jądrowego podpala miasto, zanim fala w ogóle do niego dotrze.
+Symulator wybuchów na makiecie miasta 3D. Do wyboru 13 ładunków (a po rozwoju także port w Bejrucie, meteor czelabiński, katastrofa tunguska i własny ładunek), od **laski dynamitu** (200 g trotylu), przez granat, pocisk czołgowy, pięć rodzajów rakiet i bombę MOAB, po broń jądrową: mini-atomówkę Davy Crockett, bombę z Hiroszimy, głowicę rakiety międzykontynentalnej i **Car-bombę** (50 Mt). Car-bomba jest 250 miliardów razy silniejsza od dynamitu, więc jedna makieta musi działać w skali od centymetrów do setek kilometrów. Fala uderzeniowa liczona fizycznie wybija szyby okno po oknie, burzy budynki, przewraca drzewa i samochody, a błysk wybuchu jądrowego podpala miasto, zanim fala w ogóle do niego dotrze.
 
 ## Jak powstał
 
@@ -41,6 +41,10 @@ Nie trzeba niczego instalować ani budować. Three.js leży w folderze `lib/`, a
 | Little Boy (Hiroszima) | 15 kt | spada z wysokości, wybuch 580 m nad ziemią |
 | Głowica ICBM | 475 kt | świecąca głowica wchodzi w atmosferę |
 | Car-bomba | 50 Mt | opada na spadochronie, wybuch na 4 km |
+| Port w Bejrucie (2020) | 0,8 kt | pożar magazynu i fajerwerków, potem detonacja saletry |
+| Meteor czelabiński (2013) | 500 kt | wejście w atmosferę pod kątem 18°, rozbłysk 27 km nad ziemią |
+| Katastrofa tunguska (1908) | 12 Mt | ciało kosmiczne eksploduje 8 km nad ziemią |
+| Własny ładunek | 100 g – 100 Mt | skrzynka z zapalnikiem albo bomba jądrowa o dowolnej wysokości wybuchu |
 
 Bomby jądrowe można zdetonować w powietrzu (na historycznej wysokości) albo przy ziemi: wtedy fala sięga mniej daleko, ale powstaje krater i strefa opadu promieniotwórczego niesiona wiatrem.
 
@@ -61,6 +65,31 @@ Bomby jądrowe można zdetonować w powietrzu (na historycznej wysokości) albo 
 
 **Panele.** Po prawej zasięgi skutków (rysowane też na makiecie jako pierścienie z podpisami) i raport na żywo: zawalone i uszkodzone budynki, szyby, pożary, drzewa, samochody i szacunkowe ofiary wśród mieszkańców makiety. Po najechaniu kursorem na dowolne miejsce widać odległość od epicentrum, nadciśnienie, czas dotarcia fali i jej skutek. Pora dnia: dzień, zmierzch, noc.
 
+## Rozwój po eksperymencie
+
+03.11.2026 projekt ocenili czterej agenci (`ocena-ux`, `ocena-design`, `ocena-optymalizacja`, `rozwoj-produktu`) na komputerze i telefonie. Wnioski: UX 6,5/10, wygląd 6,5/10 (interfejs 7,5, efekty 5,5), wydajność 5/10. Kula ognia wyglądała jak twarda bryła, grzyb jak łososiowa wata, dym MOAB jak atrament, fala Car-bomby jak bańka mydlana, a wybite szyby zamieniały wieżowce w czarne monolity. Pierwsze strzały w domyślnym miejscu dawały w raporcie same zera, bomb jądrowych nie było widać na liście, Car-bomba niszczyła miasto pod białym błyskiem, a na telefonie wybuch chował się za panelem. Drzewa liczyły w każdym wierzchołku wszystkie wybuchy, więc po salwie było 18–20 kl/s. Wdrożone zmiany:
+
+- **Nowe możliwości:**
+  - **Świadek** (`O`): kamera staje na ulicy albo dachu na wysokości oczu i patrzy na cel. Panel pokazuje odliczanie do fali, nadciśnienie, żar i to, co grozi człowiekowi w tym miejscu. Fala przychodzi z hukiem, wstrząsem i pyłem przelatującym przez kadr, a wzrok sam podnosi się za grzybem.
+  - **Laboratorium:** własny ładunek chemiczny (100 g – 1 kt) albo jądrowy (10 t – 100 Mt) z suwakiem wysokości wybuchu i zaznaczoną wysokością optymalną. Karta podaje, do czego ten wybuch jest podobny.
+  - **Katastrofy i kosmos:** port w Bejrucie z białą kopułą kondensacji i rudym dymem, meteor czelabiński (rozbłysk tak wysoko, że do ziemi dochodzi fala wybijająca tylko szyby, po ok. 2 minutach) i katastrofa tunguska (las powalony na kilkunastu kilometrach). Wybuchy kosmiczne nie mają promieniowania, opadu ani grzyba.
+  - **Warunki:** wiatr (cisza, słaby, silny, 8 kierunków) niesie dym, grzyb, opad i pożary. Mgła ogranicza widoczność i tłumi żar wybuchu jądrowego.
+  - **Powtórka** (`Z`), **zdjęcie kadru** do pliku PNG i **link do scenariusza** (broń, cel, wysokość, pora dnia, pogoda w adresie).
+  - **Karta „Co dalej?”** po wygaśnięciu fali: jeszcze raz, jako świadek, silniejszy ładunek, inne miejsce.
+  - **Skutki, które trwają:** pożary przechodzą na sąsiednie budynki (łatwiej z wiatrem i między domami), raport liczy je osobno. Prąd gaśnie tylko tam, dokąd doszła niszcząca fala, potem kaskadą dalej. Zawalone budynki zostawiają hałdy gruzu w kolorze ścian.
+- **Efekty:**
+  - Obraz przechodzi przez własną obróbkę (`js/post.js`): poświata jasnych miejsc, załamanie światła na czole fali uderzeniowej, drgające gorące powietrze nad kulą ognia, promienie światła od błysku, lekka aberracja przy wstrząsie, winieta. Wygładzanie krawędzi robi bufor z MSAA.
+  - Kula ognia kłębiasta, z miękkim brzegiem, poświatą i migoczącymi płomieniami na obrzeżu. Grzyb ma światłocień, ciemny spód, żar tylko we wnętrzu, cieńszy trzon u góry, czapę kondensacyjną i podświetlenie od pożarów nocą. Dym wybuchów konwencjonalnych jest szary w dwóch odcieniach. Płonące odłamki ciągną smugi ognia i dymu.
+  - Kopuła fali gaśnie po wyjściu z kuli ognia, a zamiast niej po ziemi biegnie jasny pas pyłu. Za wybitymi szybami widać wnętrza, a części szyb są popękane. Okna płonących budynków migoczą, nad nimi osiada sadza, płomienie buchają też z fasad.
+  - Łuna pożarów: płonące kwartały oświetlają ulice, ściany i dym od dołu. Noc jest jaśniejsza, więc widać, jak gaśnie miasto.
+- **Obsługa:**
+  - Na starcie MOAB nad kwartałem kamienic, więc pierwszy strzał daje wyraźne skutki. Arsenał ma zakładki (konwencjonalne, jądrowe, katastrofy, laboratorium), więc wszystko widać bez przewijania.
+  - Podgląd przed strzałem liczy zawalenia tą samą funkcją co wynik. Szyby liczą się także od najbliższej ściany.
+  - Przy wielkich wybuchach jądrowych fala przechodzi przez miasto co najmniej kilka sekund, a błysk z daleka jest słabszy. Kamera szuka kąta, z którego wieżowce nie zasłaniają wybuchu, i nie kręci się bez końca.
+  - Telefon: panel zwija się po odpaleniu, kadr przesuwa się nad panel, osobny układ poziomy, większe przyciski, lżejsze tła. Etykiety pierścieni rozłożone pod różnymi kątami, kula ognia na biało. Ikony SVG, fokus klawiatury, ciemne paski przewijania.
+  - Odbudowa w trakcie lotu sprząta pocisk. Ustawienia (pora dnia, dźwięk, pierścienie, kamera, pogoda) zostają w przeglądarce. `prefers-reduced-motion` słabszy błysk i bez wstrząsu. Car-bomba ma klawisz `]`, a Backspace nie burzy już miasta. Link „← Wszystkie projekty”, tagi `og:` (obrazek `galeria/projekt-12.jpg` dojdzie razem ze stroną główną).
+- **Wydajność:** drzewa liczą stan raz na wybuch na procesorze, a shader odtwarza tylko przewracanie w rytm czoła fali. Prostsze bryły drzew w kaflach 2 km z odrzucaniem poza kadrem i cieniem. Cień przeliczany tylko, gdy coś się rusza. Zakończone wybuchy liczą falę tylko w zasięgu kilku kPa, a dalekie sloty są pomijane. Shadery efektów kompilują się przy starcie, modele pocisków zwalniają geometrię. Rozdzielczość sama się obniża na słabym sprzęcie. Po salwie 60 kl/s zamiast 18–20 (RTX 5060 Ti, 1600×900).
+
 ## Fizyka
 
 - **Nadciśnienie**: wzór Kinneya–Grahama w funkcji odległości skalowanej Z = R / W^(1/3) (skalowanie Hopkinsona–Cranza). Wybuchy przy ziemi mają masę zwiększoną o odbicie od gruntu, a jądrowe w powietrzu także o wzmocnienie fali Macha (wynik zgodny z tablicami dla Hiroszimy: 35 kPa ok. 1,3 km od epicentrum).
@@ -69,7 +98,11 @@ Bomby jądrowe można zdetonować w powietrzu (na historycznej wysokości) albo 
 - **Kula ognia, krater, chmura, promieniowanie początkowe**: przybliżenia skalowania z „The Effects of Nuclear Weapons” (Glasstone i Dolan) i pomiarów wybuchów konwencjonalnych.
 - **Wytrzymałość**: każdy typ budynku ma własne progi (np. dom ok. 30 kPa do zawalenia, blok ok. 70 kPa, wieżowiec ze stali ok. 115 kPa), a szyby pękają przy 3–9 kPa. Nadciśnienie działające na budynek to mediana z pięciu punktów jego bryły, więc mały ładunek przy wielkim wieżowcu nie przewróci go, tylko zniszczy fasadę.
 
-Uproszczenia: budynki nie zasłaniają się przed falą, nie ma pogody wpływającej na zasięg ciepła ani skutków długofalowych. Liczby ofiar to szacunek dla ludzi w budynkach makiety.
+- **Wybuchy kosmiczne** (Czelabińsk, Tunguska): 30% energii jako żar, fala jak przy wybuchu w powietrzu, bez promieniowania i opadu.
+- **Pogoda**: przejrzystość powietrza zmienia drogę tłumienia żaru (80 km w czystym powietrzu, 22 km w zamgleniu, 5 km we mgle). Wiatr wydłuża albo skraca strefę opadu i niesie pożary.
+- **Wysokość optymalna** własnego ładunku: ok. 215 m × (moc w kt)^(1/3), czyli wysokość, przy której fala 35 kPa obejmuje największy obszar.
+
+Uproszczenia: budynki nie zasłaniają się przed falą, nie ma skutków długofalowych. Liczby ofiar to szacunek dla ludzi w budynkach makiety.
 
 ## Sterowanie
 
@@ -79,11 +112,14 @@ Uproszczenia: budynki nie zasłaniają się przed falą, nie ma pogody wpływaj�
 | Przeciąganie | obrót kamery |
 | Prawy przycisk / Shift + przeciąganie | przesuwanie |
 | Kółko / szczypanie | przybliżanie |
-| `1`–`0` | wybór broni |
+| `1`–`0`, `-`, `=`, `]` | wybór broni |
 | `Spacja` | odpal |
 | `P` | pauza |
 | `R` / `F` / `T` | pierścienie zasięgów / kamera filmowa / pora dnia |
+| `O` | świadek: kliknij ulicę albo dach, przeciągaj, żeby się rozglądać, kółkiem przybliżaj |
+| `Z` | powtórka: odbudowa i ten sam wybuch jeszcze raz |
 | `Delete` | odbudowa miasta |
+| `Esc` | wyjście z widoku świadka |
 
 ## Technika
 
@@ -91,7 +127,9 @@ Uproszczenia: budynki nie zasłaniają się przed falą, nie ma pogody wpływaj�
 - Miasto, drzewa i samochody to siatki instancjonowane. Uszkodzenia szyb, wyrwy w fasadach, zwęglenia, osmalenia i kratery liczy shader na podstawie 32 „slotów wybuchów” (środek, promień czoła fali, moc, czas), dzięki czemu każdy piksel sam wie, jakie nadciśnienie do niego dotarło. Drzewa przewraca shader wierzchołków (także w cieniach).
 - Dym, ogień i grzyb to instancjonowane billboardy sortowane kubełkowo, gruz to fizyczne bryły z odbiciami.
 - Zakres skal od 5 cm do 400 km obsługuje dynamiczna płaszczyzna bliska i daleka kamery, mgła i cienie dopasowane do odległości.
-- Dźwięki (huk zależny od mocy i odległości, echo, grzmot, lont, gwizd bomby, silnik rakiety, wystrzał, szkło, gruz, pożary) syntezowane w Web Audio, bez plików.
+- Dźwięki (huk zależny od mocy i odległości, echo, grzmot, lont, gwizd bomby, silnik rakiety, wystrzał, szkło, gruz, pożary, zapalnik, trzask fajerwerków) syntezowane w Web Audio, bez plików.
+- Scena renderuje się do bufora HDR z MSAA, potem przechodzi przez poświatę (5 poziomów rozmycia), soczewki czół fal i drgania powietrza rzutowane na ekran oraz promienie od błysku. Bez WebGL2 rysuje się wprost na ekran jak wcześniej.
+- Drzewa mają atrybut instancji ze slotem wybuchu, odległością i docelowym przewróceniem, więc shader nie przechodzi po wszystkich wybuchach. Łuna pożarów to tekstura 64×64 (kwartał na teksel), z której czytają ziemia, budynki i dym.
 
 ## Struktura
 
@@ -104,10 +142,11 @@ js/physics.js     – nadciśnienie, czoło fali, ciepło, kula ognia, krater, c
 js/weapons.js     – arsenał: dane, opisy, ikony
 js/shaders.js     – sloty wybuchów i shadery ziemi, budynków, drzew
 js/world.js       – renderer, niebo, teren z okolicą, mapa pokrycia, pory dnia
-js/city.js        – generowanie miasta i wsi, skutki wybuchów, ofiary
+js/post.js        – obróbka obrazu: poświata, czoło fali, gorące powietrze, promienie
+js/city.js        – generowanie miasta i wsi, skutki wybuchów, hałdy gruzu, pożary, ofiary
 js/fx.js          – cząsteczki, kula ognia, fala, pył, grzyb, gruz, pożary
-js/delivery.js    – modele pocisków i ich lot do celu
+js/delivery.js    – modele pocisków, meteory, magazyn w Bejrucie i ich lot do celu
 js/audio.js       – dźwięk
 js/camera.js      – kamera orbitalna i filmowa
-js/app.js         – pętla, odpalanie, tempo czasu, interfejs
+js/app.js         – pętla, odpalanie, tempo czasu, świadek, pogoda, powtórka, link, interfejs
 ```

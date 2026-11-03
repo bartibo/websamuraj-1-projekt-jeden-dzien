@@ -46,10 +46,16 @@
   // ---------- SYSTEM CZĄSTEK (instancjonowane billboardy) ----------
   const PVERT = `
 attribute vec3 iPos; attribute vec4 iCol; attribute vec3 iSRH;
-uniform float uFogD;
-varying vec2 vUv; varying vec4 vCol; varying float vHeat; varying float vFog;
+uniform float uFogD; uniform sampler2D uFire; uniform float uNight;
+varying vec2 vUv; varying vec4 vCol; varying float vHeat; varying float vFog; varying float vGlow;
 void main(){
   vUv = position.xy + 0.5;
+  // dym nisko nad płonącym kwartałem podświetlony od dołu
+  vGlow = 0.0;
+  if (iPos.y < 700.0 && abs(iPos.x) < 3800.0 && abs(iPos.z) < 3800.0){
+    float f = texture2D(uFire, (iPos.xz/120.0 + 32.0)/64.0).r;
+    vGlow = f*f*(1.0 - iPos.y/700.0)*(0.15 + 0.85*uNight);
+  }
   vec4 mv = modelViewMatrix * vec4(iPos, 1.0);
   float c = cos(iSRH.y), s = sin(iSRH.y);
   mv.xy += vec2(c*position.x - s*position.y, s*position.x + c*position.y) * iSRH.x;
@@ -61,19 +67,20 @@ void main(){
 }`;
   const PFRAG_SMOKE = `
 uniform sampler2D uTex; uniform vec3 uFogC;
-varying vec2 vUv; varying vec4 vCol; varying float vHeat; varying float vFog;
+varying vec2 vUv; varying vec4 vCol; varying float vHeat; varying float vFog; varying float vGlow;
 void main(){
   vec4 t = texture2D(uTex, vUv);
   float a = t.a * vCol.a;
   if (a < 0.003) discard;
   vec3 hc = mix(vec3(1.0,0.32,0.05), vec3(1.0,0.86,0.55), clamp(vHeat - 1.0, 0.0, 1.0));
   vec3 c = vCol.rgb*(0.62 + 0.5*t.r) + hc*vHeat*(0.5 + 0.7*t.r);
+  c += vec3(1.0,0.42,0.14)*vGlow*(0.55 + 0.45*(1.0 - vUv.y))*0.9;
   c = mix(c, uFogC, vFog*(1.0 - min(vHeat, 1.0)*0.8));
   gl_FragColor = vec4(c, a);
 }`;
   const PFRAG_ADD = `
 uniform sampler2D uTex;
-varying vec2 vUv; varying vec4 vCol; varying float vHeat; varying float vFog;
+varying vec2 vUv; varying vec4 vCol; varying float vHeat; varying float vFog; varying float vGlow;
 void main(){
   float a = texture2D(uTex, vUv).a * vCol.a;
   if (a < 0.003) discard;
@@ -104,7 +111,7 @@ void main(){
       g.instanceCount = 0;
       this.mat = new T.ShaderMaterial({
         vertexShader: PVERT, fragmentShader: additive ? PFRAG_ADD : PFRAG_SMOKE,
-        uniforms: { uTex: { value: tex }, uFogD: { value: 0 }, uFogC: { value: new T.Color() } },
+        uniforms: { uTex: { value: tex }, uFogD: { value: 0 }, uFogC: { value: new T.Color() }, uFire: EP.shaders.uniforms.uFire, uNight: EP.shaders.uniforms.uNight },
         transparent: true, depthWrite: false,
         blending: additive ? T.AdditiveBlending : T.NormalBlending
       });
@@ -236,11 +243,23 @@ void main(){
         it.vx *= k; it.vz *= k;
         it.x += it.vx * d; it.y += it.vy * d; it.z += it.vz * d;
         it.rx += it.wx * d; it.ry += it.wy * d; it.rz += it.wz * d;
+        // rozżarzone odłamki ciągną za sobą ogień i dym
+        if (it.hot > 0.02 && smoke) {
+          it.ta = (it.ta || 0) + d * (it.hot > 0.5 ? 40 : 18);
+          const sz = it.sx * 1.6 + 0.15;
+          while (it.ta > 1) {
+            it.ta -= 1;
+            add.spawn({ x: it.x, y: it.y, z: it.z, life: 0.25 + Math.random() * 0.25, s0: sz * 1.4 * it.hot, s1: sz * 0.3, c: [1, 0.55, 0.18], a: it.hot, heat: 1.7, heatT: 0.15, fin: 0 });
+            const g = 0.12 + Math.random() * 0.1;
+            smoke.spawn({ x: it.x, y: it.y, z: it.z, vx: it.vx * 0.05, vy: 0.4, vz: it.vz * 0.05, drag: 0.8, buoy: 0.3, life: 2.5 + Math.random() * 3, s0: sz, s1: sz * 5, c: [g, g * 0.95, g * 0.9], a: 0.5 * Math.min(1, it.hot * 1.5), fin: 0.05, lit: 1 });
+          }
+          it.hot *= Math.exp(-d * 0.7);
+        }
         const gy = Wd.groundY(it.x, it.z) + it.sy * 0.4;
         if (it.y < gy) {
           it.y = gy;
           if (it.vy < -3) { it.vy = -it.vy * 0.3; it.vx *= 0.5; it.vz *= 0.5; it.wx *= 0.5; it.wy *= 0.5; it.wz *= 0.5; }
-          else { it.vy = 0; it.vx *= 0.3; it.vz *= 0.3; if (Math.abs(it.vx) + Math.abs(it.vz) < 0.4) { it.moving = false; } }
+          else { it.vy = 0; it.vx *= 0.3; it.vz *= 0.3; it.hot *= 0.3; if (Math.abs(it.vx) + Math.abs(it.vz) < 0.4) { it.moving = false; } }
         }
         this.write(it);
       }
@@ -260,14 +279,15 @@ float f3(vec3 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ s += a*n3
   function fireballMat() {
     return new T.ShaderMaterial({
       uniforms: { uT: { value: 0 }, uTemp: { value: 1.5 }, uAlpha: { value: 1 }, uSeed: { value: 0 }, uFogD: { value: 0 }, uFogC: { value: new T.Color() }, uSmoke: { value: 0 } },
-      transparent: true, depthWrite: true,
+      transparent: true, depthWrite: false,
       vertexShader: NOISE3 + `
 uniform float uT, uSeed, uFogD;
 varying vec3 vP; varying vec3 vN; varying vec3 vV; varying float vFog;
 void main(){
   vP = position;
   float d = f3(position*2.2 + vec3(uSeed, uT*0.35, uSeed*0.7));
-  vec3 p = position*(0.9 + 0.22*d);
+  float d2 = f3(position*6.0 + vec3(uT*0.8, uSeed, -uT*0.5));
+  vec3 p = position*(0.76 + 0.42*d + 0.14*d2);
   vec4 wp = modelMatrix*vec4(p, 1.0);
   vN = normalize(mat3(modelMatrix)*normal);
   vV = normalize(cameraPosition - wp.xyz);
@@ -292,7 +312,7 @@ void main(){
   vec3 sm = vec3(0.28,0.24,0.21)*(0.6 + 0.6*n);
   c = mix(c, sm, uSmoke*(1.0 - smoothstep(0.5, 0.9, t)));
   c = mix(c, uFogC, vFog*0.6);
-  gl_FragColor = vec4(c, uAlpha*(0.75 + 0.25*limb));
+  gl_FragColor = vec4(c, uAlpha*smoothstep(0.0, 0.45, limb)*(0.62 + 0.38*n));
 }`
     });
   }
@@ -302,7 +322,7 @@ void main(){
       transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
       vertexShader: `varying vec3 vN; varying vec3 vV; void main(){ vec4 wp = modelMatrix*vec4(position,1.0); vN = normalize(mat3(modelMatrix)*normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix*viewMatrix*wp; }`,
       fragmentShader: `uniform float uS; uniform vec3 uCol; varying vec3 vN; varying vec3 vV;
-void main(){ float f = 1.0 - abs(dot(normalize(vN), normalize(vV))); float a = pow(f, 7.0)*uS + pow(f, 2.0)*uS*0.04; gl_FragColor = vec4(uCol*a, 1.0); }`
+void main(){ float f = 1.0 - abs(dot(normalize(vN), normalize(vV))); float a = pow(f, 9.0)*uS + pow(f, 2.0)*uS*0.008; gl_FragColor = vec4(uCol*a, 1.0); }`
     });
   }
   function wilsonMat() {
@@ -352,7 +372,7 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
     const P = Wd.preset, s = Wd.sunDir;
     const d = Math.max(0, nx * s.x + ny * s.y + nz * s.z);
     const day = P.night > 0.9 ? 0.12 : P.night > 0.4 ? 0.65 : 1;
-    return (0.42 + 0.58 * d) * day + (P.night > 0.9 ? 0.06 : 0);
+    return (0.28 + 0.72 * d) * day + (P.night > 0.9 ? 0.06 : 0);
   }
   F.litFor = litFor;
   const tint = () => (Wd.timeName === 'dusk' ? [1.0, 0.82, 0.7] : Wd.timeName === 'night' ? [0.55, 0.6, 0.75] : [1, 1, 1]);
@@ -368,6 +388,15 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
     fb.position.copy(P); fb.scale.setScalar(0.01);
     fb.renderOrder = 1;
     scene.add(fb); fx.fb = fb; fx.meshes.push(fb);
+    const gl = new T.Sprite(new T.SpriteMaterial({ map: tGlow, color: 0xffb060, blending: T.AdditiveBlending, transparent: true, depthWrite: false, fog: false }));
+    gl.position.copy(P); gl.scale.setScalar(0.01); gl.renderOrder = 3;
+    scene.add(gl); fx.glow = gl; fx.meshes.push(gl);
+    fx.rag = [];
+    for (let i = 0; i < (D.nuke ? 40 : 22); i++) {
+      const id = add.spawn({ x: 0, y: -1e6, z: 0, ctrl: true, s0: 1, c: [1, 0.6, 0.2] });
+      if (id < 0) break;
+      fx.rag.push({ id, u: randDir(false), k: 0.6 + Math.random() * 0.5, ph: Math.random() * 6.28 });
+    }
     // fala uderzeniowa
     const sh = new T.Mesh(shellG, shellMat());
     sh.position.copy(P); sh.scale.setScalar(0.01); sh.renderOrder = 4;
@@ -376,13 +405,13 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
     const dw = new T.Mesh(wallG, dustWallMat());
     dw.position.set(P.x, Wd.groundY(P.x, P.z) - 0.2, P.z); dw.visible = false; dw.renderOrder = 2;
     scene.add(dw); fx.wall = dw; fx.meshes.push(dw);
-    if (D.nuke) {
+    if (D.nuke || bl.w.wilson) {
       const wi = new T.Mesh(shellG, wilsonMat());
       wi.position.copy(P); wi.visible = false; wi.renderOrder = 3;
       scene.add(wi); fx.wilson = wi; fx.meshes.push(wi);
     }
     // grzyb / słup dymu
-    if (D.nuke || D.Wtnt >= 300) fx.cloud = makeCloud(bl);
+    if (!D.cosmic && (D.nuke || D.Wtnt >= 300)) fx.cloud = makeCloud(bl);
     if (!D.nuke) convBurst(bl);
     fx.fireT = 0;
   };
@@ -405,10 +434,12 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
     for (let i = 0; i < nSm; i++) {
       const u = randDir(D.hob < 1);
       const sp = s / D.tfb * (0.08 + Math.random() * 0.22);
-      const dark = 0.1 + Math.random() * 0.12;
+      const dark = 0.22 + Math.random() * 0.18;
+      const dusty = Math.random() < 0.3;
+      const sc = bl.w.cloudCol ? bl.w.cloudCol.map((c) => c * (0.7 + Math.random() * 0.5)) : dusty ? [0.55, 0.5, 0.44] : [dark, dark * 0.97, dark * 0.93];
       smoke.spawn({ x: P.x + u[0] * s * 0.4, y: P.y + Math.abs(u[1]) * s * 0.4 + s * 0.2, z: P.z + u[2] * s * 0.4, vx: u[0] * sp, vy: u[1] * sp * 0.6 + s * 0.3, vz: u[2] * sp,
         drag: 1.2, buoy: s * (0.25 + Math.random() * 0.3), life: smokeLife * (0.6 + Math.random() * 0.8), s0: s * 0.7, s1: s * (2.2 + Math.random() * 1.6),
-        c: [dark * tn[0], dark * tn[1], dark * 0.95 * tn[2]], a: 0.92, heat: 1.4, heatT: D.tfb * 2.5, fin: 0.03, lit: 1 });
+        c: [sc[0] * tn[0], sc[1] * tn[1], sc[2] * tn[2]], a: 0.75, heat: 1.4, heatT: D.tfb * 2.5, fin: 0.03, lit: litFor(u[0], Math.abs(u[1]) * 0.6 + 0.4, u[2]) / litFor(0, 1, 0) });
     }
     // pył z ziemi rozchodzący się pierścieniem
     if (D.hob < s * 2) {
@@ -430,7 +461,18 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       const nDeb = Math.min(110, Math.round(10 + 18 * cw));
       for (let i = 0; i < nDeb; i++) {
         const u = randDir(true), sp = (6 + Math.random() * 22) * Math.pow(D.Wtnt, 0.1);
-        debris.add({ x: P.x + u[0] * 0.3, y: P.y + 0.3, z: P.z + u[2] * 0.3, vx: u[0] * sp, vy: Math.abs(u[1]) * sp * 1.2 + 3, vz: u[2] * sp, s: Math.max(0.05, (D.craterR || 0.5) * 0.12 * (0.4 + Math.random())), c: [0.36, 0.3, 0.24] });
+        debris.add({ x: P.x + u[0] * 0.3, y: P.y + 0.3, z: P.z + u[2] * 0.3, vx: u[0] * sp, vy: Math.abs(u[1]) * sp * 1.2 + 3, vz: u[2] * sp, s: Math.max(0.05, (D.craterR || 0.5) * 0.12 * (0.4 + Math.random())), c: [0.36, 0.3, 0.24], hot: D.Wtnt > 2 && Math.random() < 0.35 ? 0.6 : 0 });
+      }
+    }
+    // płonące smugi: rozżarzone kawałki wyrzucone wysoko łukiem, każdy ciągnie ogon dymu
+    if (D.Wtnt >= 5) {
+      const nSt = Math.min(34, Math.round(6 + 4 * cw));
+      for (let i = 0; i < nSt; i++) {
+        const u = randDir(true);
+        const up = 0.45 + 0.55 * Math.abs(u[1]);
+        const sp = (12 + Math.random() * 26) * Math.pow(D.Wtnt, 0.13);
+        debris.add({ x: P.x + u[0] * s * 0.2, y: P.y + s * 0.2, z: P.z + u[2] * s * 0.2, vx: u[0] * sp * 0.8, vy: up * sp * 1.3, vz: u[2] * sp * 0.8,
+          s: Math.max(0.06, s * 0.012 * (0.5 + Math.random())), c: [0.2, 0.17, 0.14], hot: 1 });
       }
     }
     // odłamki granatu
@@ -478,6 +520,14 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       if (id < 0) break;
       cl.skirt.push({ id, th: Math.random() * 6.283, rho: 0.6 + Math.random() * 0.6, j: Math.random(), k: 0.6 + Math.random() * 0.8 });
     }
+    if (nuke && D.kt >= 5) {
+      cl.pil = [];
+      for (let i = 0; i < 90; i++) {
+        const id = smoke.spawn({ x: 0, y: -1e6, z: 0, ctrl: true, s0: 1 });
+        if (id < 0) break;
+        cl.pil.push({ id, th: Math.random() * 6.283, rho: Math.random(), k: Math.random() });
+      }
+    }
     return cl;
   }
   function updateCloud(cl, t) {
@@ -500,9 +550,12 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
     const sp = smoke.p, cur = smoke.cur, col = smoke.col;
     const s = Wd.sunDir;
     const ageRed = nuke ? Ut.smooth(D.tRise * 0.5, 0, t) : 0;
-    const base = nuke ? [1.0, 0.95, 0.9] : [0.2, 0.18, 0.17];
+    const base = nuke ? [0.86, 0.8, 0.74] : bl.w.cloudCol || [0.44, 0.41, 0.38];
     const day = Wd.preset.night > 0.9 ? 0.12 : Wd.preset.night > 0.4 ? 0.6 : 1;
     const night = Wd.preset.night;
+    // chmura dryfuje z wiatrem, im wyżej, tym bardziej
+    const drift = Math.min(t, D.tRise * 6) * (nuke ? 0.5 : 0.35);
+    const wx = WIND.x * drift, wz = WIND.z * drift;
     for (const c of cl.cap) {
       const ph = c.ph - roll * (0.7 + 0.6 * c.j);
       const cr = Math.cos(ph), sr = Math.sin(ph);
@@ -510,16 +563,19 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       const th = c.th + 0.15 * Math.sin(t * 0.05 + c.j * 6);
       const ct = Math.cos(th), st = Math.sin(th);
       const i = c.id;
-      sp[i * 3] = P.x + rad * ct; sp[i * 3 + 1] = zc + c.rho * rr * sr * flat + rr * 0.1 * (c.sh - 0.5); sp[i * 3 + 2] = P.z + rad * st;
+      sp[i * 3] = P.x + wx + rad * ct; sp[i * 3 + 1] = zc + c.rho * rr * sr * flat + rr * 0.1 * (c.sh - 0.5); sp[i * 3 + 2] = P.z + wz + rad * st;
       const nx = cr * ct, ny = sr, nz = cr * st;
       const l = Math.max(0, nx * s.x + ny * s.y + nz * s.z);
-      const lit = ((0.5 + 0.55 * l) * day + 0.05 * night) * (0.82 + 0.18 * (1 - c.rho));
-      const heat = 2.0 * Math.exp(-t / (D.tfb * (2.2 + 4.5 * (1 - c.rho)))) * (nuke ? 1 : 0.6);
+      let lit = ((0.3 + 0.8 * l) * day + 0.05 * night) * (0.82 + 0.18 * (1 - c.rho));
+      if (ny < 0) lit *= 0.55 + 0.45 * (1 + ny);
+      if (c.rho > 0.8) lit *= 1.22;
+      const under = night * 0.3 * Math.max(0, -ny) * (nuke ? 1 : 0.5);
+      const heat = 2.0 * Math.exp(-t / (D.tfb * (2.2 + 4.5 * (1 - c.rho)))) * (nuke ? 1 : 0.6) * (nuke ? Math.min(1, (1 - c.rho) * 1.6 + Ut.smooth(D.tfb * 3, 0, t)) : 1);
       cur[i * 4] = rr * (0.5 + 0.55 * c.k) * (0.45 + 0.55 * Ut.smooth(0, D.tfb * 3, t));
-      cur[i * 4 + 1] = 0.85 * fadeIn * late;
+      cur[i * 4 + 1] = (0.6 + 0.35 * c.k) * fadeIn * late;
       cur[i * 4 + 2] = heat + (nuke ? 0.12 * night * Math.exp(-t / (D.tRise * 0.6)) : 0);
-      const red = ageRed * 0.4;
-      col[i * 3] = base[0] * tn[0] * lit * (1 + red * 0.1); col[i * 3 + 1] = base[1] * tn[1] * lit * (1 - red * 0.4); col[i * 3 + 2] = base[2] * tn[2] * lit * (1 - red * 0.55);
+      const red = ageRed * 0.45;
+      col[i * 3] = base[0] * tn[0] * lit * (1 + red * 0.15) + under; col[i * 3 + 1] = base[1] * tn[1] * lit * (1 - red * 0.3) + under * 0.4; col[i * 3 + 2] = base[2] * tn[2] * lit * (1 - red * 0.5) + under * 0.12;
       smoke.lit[i] = 1;
     }
     const Htop = Math.max(0, zc - gy - rr * flat * 0.4);
@@ -530,16 +586,31 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       const i = c.id;
       const h = sfrac * Htop;
       const vis = h < Htop * stemVis ? 1 : 0;
-      const r = stemR * (0.5 + 0.7 * c.rho) * (1 + 1.8 * Math.pow(1 - sfrac, 7));
+      const r = stemR * (0.5 + 0.7 * c.rho) * (1 + 1.8 * Math.pow(1 - sfrac, 7)) * (0.6 + 0.6 * (1 - sfrac));
       const th = c.th + sfrac * 2.0;
-      sp[i * 3] = P.x + r * Math.cos(th); sp[i * 3 + 1] = gy + h + stemR * 0.3; sp[i * 3 + 2] = P.z + r * Math.sin(th);
+      const hk = h / Math.max(1, Htop);
+      sp[i * 3] = P.x + wx * hk + r * Math.cos(th); sp[i * 3 + 1] = gy + h + stemR * 0.3; sp[i * 3 + 2] = P.z + wz * hk + r * Math.sin(th);
       cur[i * 4] = stemR * (0.9 + 0.7 * c.k) * (1 + (1 - sfrac) * 0.5);
       cur[i * 4 + 1] = 0.7 * vis * Ut.smooth(0, 0.08, sfrac) * Ut.smooth(1, 0.82, sfrac) * fadeIn * late;
       cur[i * 4 + 2] = nuke ? 0.6 * Math.exp(-t / (D.tfb * 4)) * sfrac : 0;
       const lc = dl * (0.6 + 0.4 * Math.max(0, Math.cos(th) * s.x + Math.sin(th) * s.z));
-      const bc = nuke ? [0.8, 0.72, 0.64] : [0.24, 0.21, 0.19];
-      col[i * 3] = bc[0] * tn[0] * lc; col[i * 3 + 1] = bc[1] * tn[1] * lc; col[i * 3 + 2] = bc[2] * tn[2] * lc;
+      const bc = nuke ? [0.72, 0.66, 0.6] : bl.w.cloudCol ? bl.w.cloudCol.map((c) => c * 1.1) : [0.4, 0.37, 0.34];
+      const ug = night * 0.22 * (1 - sfrac) * (nuke ? 1 : 0.4);
+      col[i * 3] = bc[0] * tn[0] * lc + ug; col[i * 3 + 1] = bc[1] * tn[1] * lc + ug * 0.4; col[i * 3 + 2] = bc[2] * tn[2] * lc + ug * 0.12;
       smoke.lit[i] = 1;
+    }
+    // czapa kondensacyjna (pileus): cienki biały dysk nad wznoszącym się kapeluszem
+    if (cl.pil) {
+      const pa = Ut.smooth(D.tRise * 0.08, D.tRise * 0.2, t) * (1 - Ut.smooth(D.tRise * 0.45, D.tRise * 0.8, t));
+      const pR = (Rr + rr) * 1.25, py = zc + rr * flat * 1.35 + rr * 0.25 * Ut.smooth(D.tRise * 0.1, D.tRise * 0.7, t);
+      for (const c of cl.pil) {
+        const i = c.id;
+        const r = pR * Math.sqrt(c.rho);
+        sp[i * 3] = P.x + wx + r * Math.cos(c.th); sp[i * 3 + 1] = py - (1 - c.rho) * rr * 0.12; sp[i * 3 + 2] = P.z + wz + r * Math.sin(c.th);
+        cur[i * 4] = rr * (0.45 + 0.3 * c.k); cur[i * 4 + 1] = 0.32 * pa * (0.6 + 0.4 * c.rho); cur[i * 4 + 2] = 0;
+        const lw = (0.75 + 0.35 * Math.max(0, s.y)) * day + 0.05 * night;
+        col[i * 3] = 0.95 * tn[0] * lw; col[i * 3 + 1] = 0.96 * tn[1] * lw; col[i * 3 + 2] = 0.98 * tn[2] * lw;
+      }
     }
     const baseR = stemR * 1.6 + D.capR * 0.5 * grow;
     const skVis = Ut.smooth(D.tfb, D.tfb * 6, t) * (D.hob < D.fbR * 3 || nuke ? 1 : 0);
@@ -555,7 +626,7 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       smoke.lit[i] = 1;
     }
     cl.zc = zc; cl.rr = rr; cl.Rr = Rr;
-    if (late <= 0) { for (const g of [cl.cap, cl.stem, cl.skirt]) for (const c of g) smoke.kill(c.id); cl.dead = true; }
+    if (late <= 0) { for (const g of [cl.cap, cl.stem, cl.skirt, cl.pil || []]) for (const c of g) smoke.kill(c.id); cl.dead = true; }
   }
   F.cloudTop = (bl) => (bl.fx && bl.fx.cloud && bl.fx.cloud.zc ? bl.fx.cloud.zc + bl.fx.cloud.rr * 0.6 : 0);
 
@@ -587,25 +658,46 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       }
       u.uT.value = t / D.tfb * 2; u.uTemp.value = temp; u.uAlpha.value = alpha; u.uSmoke.value = smk;
       u.uFogD.value = fogD; u.uFogC.value.setRGB(fogC[0], fogC[1], fogC[2]);
-      if (alpha <= 0.001) { scene.remove(fb); fb.material.dispose(); fx.fb = null; }
+      const hot = Ut.clamp(temp / 1.7, 0, 1) * alpha;
+      if (fx.glow) {
+        fx.glow.position.copy(fb.position);
+        fx.glow.scale.setScalar(Math.max(R, 0.01) * (D.nuke ? 3.2 : 2.6));
+        fx.glow.material.opacity = Math.min(1, hot * 0.9);
+      }
+      // postrzępiony, migoczący brzeg kuli ognia
+      for (const r of fx.rag) {
+        const i = r.id, s = R * (0.82 + 0.18 * Math.sin(t / D.tfb * 3 + r.ph));
+        add.p[i * 3] = fb.position.x + r.u[0] * s; add.p[i * 3 + 1] = fb.position.y + r.u[1] * s * (fb.scale.y / Math.max(fb.scale.x, 1e-3)); add.p[i * 3 + 2] = fb.position.z + r.u[2] * s;
+        add.cur[i * 4] = R * 0.75 * r.k; add.cur[i * 4 + 1] = hot * 0.55; add.cur[i * 4 + 2] = 0.6 + hot * 1.4;
+      }
+      if (alpha <= 0.001) {
+        scene.remove(fb); fb.material.dispose(); fx.fb = null;
+        if (fx.glow) { scene.remove(fx.glow); fx.glow.material.dispose(); fx.glow = null; }
+        for (const r of fx.rag) add.kill(r.id);
+        fx.rag = [];
+      }
     }
     // fala uderzeniowa
     const R = Ph.frontAt(D.front, t);
     bl.frontR = R;
     const pF = Ph.overpressure(R, D.cbrtW);
     if (fx.shell) {
-      const str = Ut.smooth(1.5, 25, pF) * (R > D.fbR * 1.05 ? 1 : 0.15);
+      // kopułę widać tylko tuż za kulą ognia, dalej czoło fali pokazuje załamanie światła i pył przy ziemi
+      const str = Ut.smooth(1.5, 25, pF) * (R > D.fbR * 1.05 ? 1 : 0.15) * (1 - 0.85 * Ut.smooth(D.fbR * 2.5, D.fbR * 8, R));
       fx.shell.scale.setScalar(Math.max(R, 0.01));
       fx.shell.material.uniforms.uS.value = str * (D.nuke ? 0.9 : 0.7);
       if (pF < 1.2) { scene.remove(fx.shell); fx.shell.material.dispose(); fx.shell = null; }
     }
     if (fx.wilson) {
-      const a = Ut.smooth(D.tfb * 0.7, D.tfb * 1.4, t) * (1 - Ut.smooth(D.tfb * 2.2, D.tfb * 4, t));
+      // kopuła kondensacji: wilgoć skrapla się za czołem fali, gdy ciśnienie spada poniżej otoczenia
+      let a, tEnd;
+      if (D.nuke) { a = Ut.smooth(D.tfb * 0.7, D.tfb * 1.4, t) * (1 - Ut.smooth(D.tfb * 2.2, D.tfb * 4, t)); tEnd = D.tfb * 4.2; }
+      else { const k = Math.cbrt(D.Wtnt) / 93; a = Ut.smooth(0.03 * k, 0.12 * k, t) * (1 - Ut.smooth(0.5 * k, 1.3 * k, t)); tEnd = 1.4 * k; }
       fx.wilson.visible = a > 0.005;
       fx.wilson.scale.setScalar(Math.max(R * 0.98, D.fbR * 1.2));
-      fx.wilson.material.uniforms.uA.value = a * 0.55;
+      fx.wilson.material.uniforms.uA.value = a * (D.nuke ? 0.55 : 0.75);
       fx.wilson.material.uniforms.uT.value = t;
-      if (t > D.tfb * 4.2) { scene.remove(fx.wilson); fx.wilson.material.dispose(); fx.wilson = null; }
+      if (t > tEnd) { scene.remove(fx.wilson); fx.wilson.material.dispose(); fx.wilson = null; }
     }
     if (fx.wall) {
       const dy = P.y - gy;
@@ -649,7 +741,8 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
   F.removeBlast = function (bl) {
     if (!bl.fx) return;
     for (const m of bl.fx.meshes) { if (m.parent) scene.remove(m); m.material.dispose(); }
-    if (bl.fx.cloud && !bl.fx.cloud.dead) for (const g of [bl.fx.cloud.cap, bl.fx.cloud.stem, bl.fx.cloud.skirt]) for (const c of g) smoke.kill(c.id);
+    if (bl.fx.rag) for (const r of bl.fx.rag) add.kill(r.id);
+    if (bl.fx.cloud && !bl.fx.cloud.dead) for (const g of [bl.fx.cloud.cap, bl.fx.cloud.stem, bl.fx.cloud.skirt, bl.fx.cloud.pil || []]) for (const c of g) smoke.kill(c.id);
     bl.fx = null;
   };
 
@@ -741,8 +834,17 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       b._fa = (b._fa || 0) + dtA * rate;
       while (b._fa > 1) {
         b._fa -= 1;
-        const x = b.x + (Math.random() - 0.5) * b.sx * 0.8, z = b.z + (Math.random() - 0.5) * b.sz * 0.8;
-        add.spawn({ x, y: top + vis * 0.1, z, vx: 0, vy: vis * 0.8, vz: 0, drag: 0.8, buoy: vis * 0.5, life: 0.9 + Math.random() * 0.8, s0: vis * 0.7, s1: vis * 0.25, c: [1, 0.5, 0.12], a: 0.85, heat: 1.6, heatT: 0.6, fin: 0.12 });
+        let x = b.x + (Math.random() - 0.5) * b.sx * 0.8, z = b.z + (Math.random() - 0.5) * b.sz * 0.8, y = top + vis * 0.1, sz = vis;
+        if (Math.random() < 0.5 && b.sy > 8 && d < 2500) {
+          // płomień bucha z okna fasady zwróconej do kamery
+          const fireTop = Math.min(b.sy * b.hf, 10 + 18 * b.burn + b.sy * 0.15 * b.burn);
+          const dx = cam.position.x - b.x, dz = cam.position.z - b.z;
+          if (Math.abs(dx) * b.sz > Math.abs(dz) * b.sx) { x = b.x + Math.sign(dx) * (b.sx / 2 + 0.6); z = b.z + (Math.random() - 0.5) * b.sz * 0.9; }
+          else { z = b.z + Math.sign(dz) * (b.sz / 2 + 0.6); x = b.x + (Math.random() - 0.5) * b.sx * 0.9; }
+          y = b.y + 1.5 + Math.random() * Math.max(1, fireTop - 2);
+          sz = Math.min(vis, 2 + Math.random() * 2.5);
+        }
+        add.spawn({ x, y, z, vx: 0, vy: sz * 0.8, vz: 0, drag: 0.8, buoy: sz * 0.5, life: 0.9 + Math.random() * 0.8, s0: sz * 0.7, s1: sz * 0.25, c: [1, 0.5, 0.12], a: 0.85, heat: 1.6, heatT: 0.6, fin: 0.12 });
         if (Math.random() < 0.55) {
           const g = 0.08 + Math.random() * 0.1;
           smoke.spawn({ x, y: top + vis * 0.6, z, vx: 0, vy: vis * 0.6, vz: 0, drag: 0.35, buoy: vis * 0.2, life: 8 + Math.random() * 8, s0: vis * 0.8, s1: vis * 4, c: [g * tn[0], g * tn[1], g * tn[2]], a: 0.55, heat: 0.6, heatT: 1, fin: 0.06, lit: 1 });
@@ -761,9 +863,39 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       add.spawn({ x, y, z, vx: u[0] * 1.5, vy: u[1] * 1.5 + 1, vz: u[2] * 1.5, grav: 6, life: 0.2 + Math.random() * 0.35, s0: s, s1: s * 0.3, c: [1, 0.8, 0.4], a: 1, heat: 1.6, heatT: 0.2, fin: 0 });
     } else if (kind === 'plasma') {
       add.spawn({ x, y, z, life: 0.25 + Math.random() * 0.2, s0: s * 1.5, s1: s * 0.5, c: [1, 0.75, 0.45], a: 1, heat: 2.2, heatT: 0.2, fin: 0 });
+    } else if (kind === 'meteor') {
+      // rozżarzona głowa meteoru i krótki, gorący ogon
+      add.spawn({ x, y, z, life: 0.12 + Math.random() * 0.1, s0: s * 2.2, s1: s * 0.8, c: [1, 0.9, 0.75], a: 1, heat: 2.4, heatT: 0.1, fin: 0 });
+      add.spawn({ x, y, z, vx: (Math.random() - 0.5) * s, vy: (Math.random() - 0.5) * s, vz: (Math.random() - 0.5) * s, life: 0.6 + Math.random() * 0.6, s0: s * 1.1, s1: s * 0.3, c: [1, 0.55, 0.25], a: 0.8, heat: 1.6, heatT: 0.3, fin: 0 });
+    } else if (kind === 'meteorSmoke') {
+      // smuga pyłu po meteorze wisi na niebie wiele minut i powoli się rozmywa
+      const g = 0.7 + Math.random() * 0.15;
+      smoke.spawn({ x, y, z, vx: (Math.random() - 0.5) * s * 0.02, vy: (Math.random() - 0.5) * s * 0.01, vz: (Math.random() - 0.5) * s * 0.02, drag: 0.05, life: 160 + Math.random() * 80, s0: s * 0.5, s1: s * 2.6, c: [g * tn[0], g * 0.95 * tn[1], g * 0.9 * tn[2]], a: 0.6, heat: 1.2, heatT: 0.6, fin: 0.01, lit: litFor(0, 1, 0) });
+    } else if (kind === 'fireSmoke') {
+      // pożar magazynu przed wybuchem: gęsty, jasnoszary dym z rudym odcieniem
+      const g = 0.5 + Math.random() * 0.25;
+      smoke.spawn({ x, y, z, vx: (Math.random() - 0.5) * s * 0.3, vy: s * (0.8 + Math.random() * 0.6), vz: (Math.random() - 0.5) * s * 0.3, drag: 0.4, buoy: s * 0.4, life: 9 + Math.random() * 6, s0: s * 0.8, s1: s * 5, c: [g * 1.02 * tn[0], g * 0.86 * tn[1], g * 0.8 * tn[2]], a: 0.75, heat: 0.9, heatT: 0.8, fin: 0.05, lit: dl });
+    } else if (kind === 'firework') {
+      const u = randDir(true), sp = s * (6 + Math.random() * 14);
+      const cc = [[1, 0.85, 0.4], [1, 0.4, 0.3], [0.6, 0.85, 1], [1, 1, 0.9], [0.5, 1, 0.5]][Math.floor(Math.random() * 5)];
+      add.spawn({ x, y, z, vx: u[0] * sp, vy: u[1] * sp, vz: u[2] * sp, grav: 9.81, drag: 0.6, life: 0.5 + Math.random() * 1.1, s0: s * 0.5, s1: s * 0.15, c: cc, a: 1, heat: 0.15, heatT: 0.2, fin: 0 });
     } else {
       const g = kind === 'dark' ? 0.3 : 0.86;
       smoke.spawn({ x, y, z, vx: (Math.random() - 0.5) * s, vy: (Math.random() - 0.3) * s, vz: (Math.random() - 0.5) * s, drag: 0.5, buoy: 0.2, life: 3 + Math.random() * 4, s0: s * 0.8, s1: s * 3.5, c: [g * tn[0], g * tn[1], g * tn[2]], a: 0.55, fin: 0.04, lit: dl });
+    }
+  };
+  // Podmuch przechodzący przez świadka: pył i drobiny lecą obok kamery w kierunku fali
+  F.gust = function (pos, dir, k) {
+    const tn = tint(), dl = litFor(0, 1, 0);
+    const n = Math.round(10 + 50 * k);
+    for (let i = 0; i < n; i++) {
+      const a = (Math.random() - 0.5) * 2.4, dd = 4 + Math.random() * 30;
+      const sx = -dir.z, sz = dir.x;
+      const x = pos.x - dir.x * dd + sx * a * 14, z = pos.z - dir.z * dd + sz * a * 14;
+      const sp = 14 + 40 * k * Math.random();
+      const g = 0.5 + Math.random() * 0.2;
+      smoke.spawn({ x, y: Wd.groundY(x, z) + Math.random() * 4, z, vx: dir.x * sp, vy: 0.6 + Math.random(), vz: dir.z * sp, drag: 0.5, buoy: 0.2, life: 3 + Math.random() * 4, s0: 1.5 + k * 3, s1: 5 + k * 10, c: [g * tn[0], g * 0.94 * tn[1], g * 0.86 * tn[2]], a: 0.35 + 0.4 * k, fin: 0.05, lit: dl });
+      if (Math.random() < 0.5) add.spawn({ x, y: Wd.groundY(x, z) + 0.5 + Math.random() * 3, z, vx: dir.x * sp * 1.4, vy: Math.random() * 2, vz: dir.z * sp * 1.4, grav: 4, life: 0.6 + Math.random(), s0: 0.08, s1: 0.04, c: [0.8, 0.85, 0.9], a: 0.8, fin: 0 });
     }
   };
   F.muzzle = function (x, y, z, dir, s) {
@@ -779,12 +911,22 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
   };
 
   // ---------- PĘTLA ----------
-  F.update = function (dtA, dtSim, cam) {
+  // Rozgrzewka: materiały efektów kompilują się przy starcie, a nie w chwili pierwszego wybuchu
+  F.warmup = function () {
+    const g = new T.Group();
+    for (const m of [fireballMat(), shellMat(), wilsonMat(), dustWallMat()]) { const o = new T.Mesh(sphereG, m); o.position.set(0, -5000, 0); o.scale.setScalar(0.01); g.add(o); }
+    const sm = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshStandardMaterial({ color: 0x888888, emissive: 0x220000 }));
+    sm.position.set(0, -5000, 0); sm.castShadow = true; g.add(sm);
+    g.add(new T.LineSegments(new T.BufferGeometry().setFromPoints([new T.Vector3(0, -5000, 0), new T.Vector3(1, -5000, 0)]), new T.LineBasicMaterial({ color: 0x999999 })));
+    return g;
+  };
+  F.debrisMoving = () => debris.items.some((it) => it.moving);
+  F.update = function (dtA, dtSim, cam, dtP) {
     camPos.copy(cam.position);
     debrisBudget = 220; dustBudget = 140;
     updateFires(dtA, dtSim, cam);
     const fogD = Wd.scene.fog.density, fogC = Wd.fogDisplay;
-    smoke.update(dtA, cam, fogD, fogC);
+    smoke.update(dtP !== undefined ? dtP : dtA, cam, fogD, fogC);
     add.update(dtA, cam, fogD, fogC);
     debris.update(dtA);
   };
