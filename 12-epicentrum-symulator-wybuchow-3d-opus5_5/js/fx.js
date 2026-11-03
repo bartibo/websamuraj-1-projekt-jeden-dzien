@@ -504,7 +504,9 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
     const D = bl.d;
     const nuke = D.nuke;
     const cl = { cap: [], stem: [], skirt: [], bl };
-    const nCap = nuke ? 1500 : 320, nStem = nuke ? 520 : 130, nSkirt = nuke ? 260 : 70;
+    // przy kilku grzybach naraz każdy dostaje mniej cząstek, żeby starczyło dla wszystkich
+    const share = Ut.clamp(smoke.free.length / (nuke ? 4200 : 1400), 0.3, 1);
+    const nCap = Math.round((nuke ? 1500 : 320) * share), nStem = Math.round((nuke ? 520 : 130) * share), nSkirt = Math.round((nuke ? 260 : 70) * share);
     for (let i = 0; i < nCap; i++) {
       const id = smoke.spawn({ x: 0, y: -1e6, z: 0, ctrl: true, s0: 1 });
       if (id < 0) break;
@@ -793,6 +795,53 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
     }
     dustBudget -= nDust;
     if (EP.audio && nearEnough(b, 0.03)) EP.audio.crumble(Math.hypot(b.x - camPos.x, b.z - camPos.z), Math.cbrt(vol));
+  };
+  // Front zawalenia: przy każdym spadającym piętrze z obrysu buchają kłęby, odpadają płyty elewacji
+  F.collapseFront = function (b, y, k) {
+    if (!nearEnough(b, 0.005) || dustBudget <= 0) return;
+    const tn = tint(), dl = litFor(0, 1, 0);
+    const fp = Math.max(b.sx, b.sz);
+    const n = Math.min(dustBudget, Math.round(5 + 5 * k));
+    for (let i = 0; i < n; i++) {
+      const side = Math.floor(Math.random() * 4), t = Math.random() - 0.5;
+      const ox = side < 2 ? (side ? 1 : -1) : t * 2, oz = side < 2 ? t * 2 : (side === 2 ? 1 : -1);
+      const x = b.x + ox * b.sx * 0.5, z = b.z + oz * b.sz * 0.5;
+      const sp = 5 + Math.random() * 9 * (0.6 + k);
+      const g = 0.62 + Math.random() * 0.12;
+      smoke.spawn({ x, y: y - Math.random() * 3, z, vx: (side < 2 ? ox : 0) * sp + (Math.random() - 0.5) * 2, vy: -1 - Math.random() * 3, vz: (side < 2 ? 0 : oz) * sp + (Math.random() - 0.5) * 2,
+        drag: 0.7, buoy: 0.25, life: 7 + Math.random() * 7, s0: fp * 0.18 + 2, s1: fp * (0.55 + Math.random() * 0.4) + 4, c: [g * tn[0], g * 0.95 * tn[1], g * 0.88 * tn[2]], a: 0.55, fin: 0.05, lit: dl });
+    }
+    dustBudget -= n;
+    if (debrisBudget > 3 && Math.random() < 0.8) {
+      const c = b.color.map((v) => Math.pow(v, 0.45));
+      for (let i = 0; i < 2; i++) {
+        const side = Math.random() < 0.5 ? (Math.random() < 0.5 ? -1 : 1) : 0;
+        const x = b.x + (side ? side * b.sx * 0.5 : (Math.random() - 0.5) * b.sx), z = b.z + (side ? (Math.random() - 0.5) * b.sz : (Math.random() < 0.5 ? -1 : 1) * b.sz * 0.5);
+        const s = Math.max(0.6, Math.min(b.sx, b.sz) * (0.06 + Math.random() * 0.08));
+        debris.add({ x, y, z, vx: (x - b.x) * 0.25 + (Math.random() - 0.5) * 3, vy: Math.random() * 2, vz: (z - b.z) * 0.25 + (Math.random() - 0.5) * 3, s, c });
+      }
+      debrisBudget -= 2;
+    }
+    if (EP.audio && nearEnough(b, 0.02)) EP.audio.crumble(Math.hypot(b.x - camPos.x, b.z - camPos.z), fp * 0.4);
+  };
+  // Fala pyłu po zawaleniu rozlewa się nisko ulicami
+  F.dustSurge = function (b) {
+    if (!nearEnough(b, 0.003)) return;
+    const tn = tint(), dl = litFor(0, 1, 0);
+    const fp = Math.max(b.sx, b.sz), vol = b.sx * b.sy * b.sz;
+    const n = Math.round(Ut.clamp(Math.cbrt(vol) * 0.9, 8, 44));
+    const gy = Wd.groundY(b.x, b.z);
+    const sc = Ut.clamp(Math.cbrt(vol) / 30, 0.4, 2.2);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.283, ca = Math.cos(a), sa = Math.sin(a);
+      // pył wypływa wzdłuż ulic: kierunki bliższe osiom siatki dostają większą prędkość
+      const axis = Math.max(Math.abs(ca), Math.abs(sa));
+      const sp = (8 + Math.random() * 16) * sc * (0.6 + 0.6 * axis * axis);
+      const g = 0.6 + Math.random() * 0.12;
+      smoke.spawn({ x: b.x + ca * fp * 0.55, y: gy + 1 + Math.random() * fp * 0.12, z: b.z + sa * fp * 0.55, vx: ca * sp, vy: 0.4 + Math.random(), vz: sa * sp,
+        drag: 0.45, buoy: 0.35, life: 14 + Math.random() * 12, s0: fp * 0.3 + 3, s1: Math.min(fp * 1.6 + 12, 140), c: [g * tn[0], g * 0.95 * tn[1], g * 0.87 * tn[2]], a: 0.6, fin: 0.04, lit: dl });
+    }
+    if (EP.audio && nearEnough(b, 0.02)) EP.audio.crumble(Math.hypot(b.x - camPos.x, b.z - camPos.z), Math.cbrt(vol));
   };
   F.collapseDust = function (b, dtA) {
     if (dustBudget <= 0 || Math.random() > dtA * 6 || !nearEnough(b, 0.006)) return;

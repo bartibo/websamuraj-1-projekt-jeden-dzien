@@ -39,7 +39,7 @@ Nie trzeba niczego instalować ani budować. Three.js leży w folderze `lib/`, a
 | Bomba MOAB | 11 t | zrzut z samolotu |
 | Mini-atomówka Davy Crockett | 20 t | wystrzał z działa bezodrzutowego |
 | Little Boy (Hiroszima) | 15 kt | spada z wysokości, wybuch 580 m nad ziemią |
-| Głowica ICBM | 475 kt | świecąca głowica wchodzi w atmosferę |
+| Głowica ICBM | 475 kt (1, 3 albo 8 głowic) | świecące głowice wchodzą w atmosferę jedna po drugiej, w rozrzucie wokół celu |
 | Car-bomba | 50 Mt | opada na spadochronie, wybuch na 4 km |
 | Port w Bejrucie (2020) | 0,8 kt | pożar magazynu i fajerwerków, potem detonacja saletry |
 | Meteor czelabiński (2013) | 500 kt | wejście w atmosferę pod kątem 18°, rozbłysk 27 km nad ziemią |
@@ -90,6 +90,14 @@ Bomby jądrowe można zdetonować w powietrzu (na historycznej wysokości) albo 
   - Odbudowa w trakcie lotu sprząta pocisk. Ustawienia (pora dnia, dźwięk, pierścienie, kamera, pogoda) zostają w przeglądarce. `prefers-reduced-motion` słabszy błysk i bez wstrząsu. Car-bomba ma klawisz `]`, a Backspace nie burzy już miasta. Link „← Wszystkie projekty”, tagi `og:` (obrazek `galeria/projekt-12.jpg` dojdzie razem ze stroną główną).
 - **Wydajność:** drzewa liczą stan raz na wybuch na procesorze, a shader odtwarza tylko przewracanie w rytm czoła fali. Prostsze bryły drzew w kaflach 2 km z odrzucaniem poza kadrem i cieniem. Cień przeliczany tylko, gdy coś się rusza. Zakończone wybuchy liczą falę tylko w zasięgu kilku kPa, a dalekie sloty są pomijane. Shadery efektów kompilują się przy starcie, modele pocisków zwalniają geometrię. Rozdzielczość sama się obniża na słabym sprzęcie. Po salwie 60 kl/s zamiast 18–20 (RTX 5060 Ti, 1600×900).
 
+## Rozwój po eksperymencie: runda 2
+
+03.11.2026, trzy rzeczy, których brakowało po pierwszej rundzie:
+
+- **Rozpad budynków piętro po piętrze.** Wysoki budynek (ponad ok. 26 m) po zawaleniu składa się od góry skokami, coraz szybciej, jak przy swobodnym spadku: wieżowiec 300 m pada ok. 11 s. Przy każdym piętrze z obrysu buchają kłęby pyłu i odpadają płyty elewacji, a elewacja stoi do końca, z poszarpanym frontem gruzu schodzącym od góry. Na koniec fala pyłu rozlewa się nisko ulicami, najszybciej wzdłuż nich.
+- **Kilka głowic z jednej rakiety (MIRV).** Głowica ICBM ma przełącznik 1 / 3 / 8. Głowice spadają jedna po drugiej w rozrzucie wzdłuż kierunku nadlotu, punkty celowania widać na makiecie jako czerwone kółka, a raport sumuje skutki wszystkich. Przy kilku grzybach naraz każdy dostaje mniej cząstek, żeby starczyło dla wszystkich.
+- **Porównanie dwóch ładunków.** W panelu zasięgów (albo klawiszem `C`) wybiera się drugi ładunek. Jego zasięgi rysują się kropkami wokół tego samego celu, z podpisami, a tabela pokazuje oba ładunki obok siebie: szyby, domy, zawalenia, ciężkie zniszczenia, oparzenia, kula ognia, obszar zawaleń i ile razy jeden jest silniejszy. Porównanie trafia też do linku.
+
 ## Fizyka
 
 - **Nadciśnienie**: wzór Kinneya–Grahama w funkcji odległości skalowanej Z = R / W^(1/3) (skalowanie Hopkinsona–Cranza). Wybuchy przy ziemi mają masę zwiększoną o odbicie od gruntu, a jądrowe w powietrzu także o wzmocnienie fali Macha (wynik zgodny z tablicami dla Hiroszimy: 35 kPa ok. 1,3 km od epicentrum).
@@ -118,6 +126,7 @@ Uproszczenia: budynki nie zasłaniają się przed falą, nie ma skutków długof
 | `R` / `F` / `T` | pierścienie zasięgów / kamera filmowa / pora dnia |
 | `O` | świadek: kliknij ulicę albo dach, przeciągaj, żeby się rozglądać, kółkiem przybliżaj |
 | `Z` | powtórka: odbudowa i ten sam wybuch jeszcze raz |
+| `C` | porównanie: kolejny ładunek do porównania (i wyłączenie) |
 | `Delete` | odbudowa miasta |
 | `Esc` | wyjście z widoku świadka |
 

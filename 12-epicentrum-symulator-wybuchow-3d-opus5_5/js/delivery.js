@@ -234,6 +234,39 @@
         if (s >= dist) { burst(P.clone().addScaledVector(fwd, -0.2), fwd, 0); finish(); }
         void v;
       };
+    } else if (kind === 'reentry' && tgt.aims && tgt.aims.length > 1) {
+      // MIRV: głowice z jednego autobusu wchodzą w atmosferę jedna po drugiej, każda na swój punkt
+      const fwdIn = v3(-dir.x * 7000, -16000, -dir.z * 7000).normalize();
+      const rvs = tgt.aims.map((end, i) => {
+        const start = end.clone().addScaledVector(fwdIn, -17500);
+        return { end, start, t0: i * 0.9 + Math.random() * 0.3, dur: start.distanceTo(end) / 5200, m: add(MODELS.rv()), done: false };
+      });
+      for (const r of rvs) r.m.visible = false;
+      const side = v3(-dir.z, 0, dir.x);
+      const spread = Math.max(...tgt.aims.map((a) => Math.hypot(a.x - P.x, a.z - P.z)), 1000);
+      const camP = P.clone().addScaledVector(side, spread * 2.6 + 9000).addScaledVector(dir, -spread * 0.8);
+      camP.y = Wd.groundY(camP.x, camP.z) + 2500 + spread * 0.4;
+      const lookP = P.clone(); lookP.y += 4500;
+      if (EP.audio) EP.audio.rocket(0.8);
+      D.ts = () => 0.5;
+      D.update = function (dt) {
+        D.t += dt;
+        let left = 0;
+        for (const [i, r] of rvs.entries()) {
+          if (r.done) continue;
+          left++;
+          const k = (D.t - r.t0) / r.dur;
+          if (k < 0) continue;
+          r.m.visible = true;
+          r.m.position.lerpVectors(r.start, r.end, Math.min(1, k));
+          r.m.lookAt(r.end);
+          F.trail(r.m.position.x, r.m.position.y, r.m.position.z, 3, 'plasma');
+          F.trail(r.m.position.x, r.m.position.y, r.m.position.z, 4, 'light');
+          if (k >= 1) { r.done = true; r.m.visible = false; burst(r.end.clone(), fwdIn, i); }
+        }
+        camSet(camP, lookP);
+        if (!left) finish();
+      };
     } else if (kind === 'drone' || kind === 'cruise' || kind === 'ballistic' || kind === 'reentry') {
       const cfg = {
         drone: { m: 'missile', back: 1700, up: 1100, speed: 430, trail: 'light', ts: 1, camB: 10, camU: 2.5, ts2: 0.6 },

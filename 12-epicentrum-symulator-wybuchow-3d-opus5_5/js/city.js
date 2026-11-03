@@ -593,7 +593,9 @@
   }
   function setDmgAttr(b) {
     const m = meshes[b.shape];
-    m.userData.aDmg.setXYZW(b.inst, b.dmg, b.burn, b.glass, b.seed);
+    // podczas zawalania shader dostaje postęp w części ułamkowej (2,51–2,99)
+    const dv = b.dmg === 3 && b.anim < 1 ? 2.51 + 0.48 * b.anim : b.dmg;
+    m.userData.aDmg.setXYZW(b.inst, dv, b.burn, b.glass, b.seed);
     m.userData.dirtyD = true;
   }
 
@@ -773,7 +775,17 @@
     b.hf0 = b.hf; b.tilt0 = b.tilt;
     if (L === 1) { b.hT = b.hf; b.tiltT = b.tilt; b.adur = 0.01; }
     else if (L === 2) { b.hT = Math.min(b.hf, 0.7 + 0.18 * r); b.tiltT = (0.03 + 0.05 * r) * (b.shape === 'cyl' ? 2 : 1); b.adur = 1.4 + b.sy / 50; }
-    else if (L === 3) { b.hT = Math.min(b.hf, Math.max(1.2 / b.sy, 0.04 + 0.12 * r)); b.tiltT = 0.04 + 0.12 * r; b.adur = 1.8 + b.sy / 35; if (b.shape === 'cyl' && b.sy > 40) { b.tiltT = 1.45; b.hT = 0.9; b.adur = 3.5; } }
+    else if (L === 3) {
+      b.hT = Math.min(b.hf, Math.max(1.2 / b.sy, 0.04 + 0.12 * r)); b.tiltT = 0.04 + 0.12 * r; b.adur = 1.8 + b.sy / 35;
+      b.prog = false;
+      if (b.shape === 'cyl' && b.sy > 40) { b.tiltT = 1.45; b.hT = 0.9; b.adur = 3.5; }
+      else if (b.shape === 'box' && b.sy > 26) {
+        // wysoki budynek składa się piętro po piętrze, coraz szybciej, jak przy swobodnym spadku
+        b.prog = true; b.floors = Math.max(5, Math.round(b.sy / 3.6)); b.flDone = 0; b.surge = false;
+        b.tiltT = 0.015 + 0.04 * r;
+        b.adur = 1.0 + Math.sqrt(2 * b.sy / 9.81) * 1.35;
+      }
+    }
     else { b.hT = 0.015; b.tiltT = 0; b.adur = 0.25; b.burnT = -1; b.burn = 0; }
     b.anim = 0;
     if (L === 3) addRubble(b);
@@ -816,10 +828,22 @@
         const b = B[i];
         b.anim = Math.min(1, b.anim + dtA / b.adur);
         const k = b.anim * b.anim * (3 - 2 * b.anim);
-        const kk = b.dmg >= 3 ? Math.pow(b.anim, 1.6) : k;
+        let kk = b.dmg >= 3 ? Math.pow(b.anim, 1.6) : k;
+        if (b.prog && b.dmg === 3) {
+          // skoki o kolejne piętra: chwila oporu, potem stropy spadają na niższe
+          const f = b.anim * b.anim * b.floors, fl = Math.floor(f);
+          kk = Math.min(1, (fl + Ut.smooth(0.5, 1, f - fl)) / b.floors);
+          if (fl > b.flDone && EP.fx) {
+            b.flDone = fl;
+            const by0 = b.parent >= 0 ? B[b.parent].y + B[b.parent].sy * B[b.parent].hf : b.y;
+            EP.fx.collapseFront(b, by0 + b.sy * (b.hf0 + (b.hT - b.hf0) * kk), Math.min(1, fl / b.floors + 0.3));
+          }
+          if (!b.surge && b.anim > 0.78 && EP.fx) { b.surge = true; EP.fx.dustSurge(b); }
+        } else if (b.dmg === 3 && !b.surge && b.anim > 0.6 && b.sy > 10 && EP.fx) { b.surge = true; EP.fx.dustSurge(b); }
         b.hf = b.hf0 + (b.hT - b.hf0) * kk;
         b.tilt = b.tilt0 + (b.tiltT - b.tilt0) * k;
         setMatrix(b);
+        if (b.dmg === 3 && (b.anim >= 1 || Math.abs(b.anim - (b._aSent || 0)) > 0.04)) { b._aSent = b.anim; setDmgAttr(b); }
         if (b.rub >= 0) setRubble(b, Ut.smooth(0.15, 1, b.anim));
         if (b.child >= 0) setMatrix(B[b.child]);
         if (b.child >= 0 && B[b.child].child >= 0) setMatrix(B[B[b.child].child]);
@@ -911,7 +935,7 @@
   // Odbudowa miasta
   C.reset = function () {
     for (const b of B) {
-      b.dmg = 0; b.hf = 1; b.hT = 1; b.tilt = 0; b.tiltT = 0; b.anim = 1; b.glass = 0; b.burn = 0; b.burnT = -1; b.alive = b.pop; b.rub = -1; b.burnBl = null;
+      b.dmg = 0; b.hf = 1; b.hT = 1; b.tilt = 0; b.tiltT = 0; b.anim = 1; b.glass = 0; b.burn = 0; b.burnT = -1; b.alive = b.pop; b.rub = -1; b.burnBl = null; b.prog = false; b.surge = false; b._aSent = 0;
       setMatrix(b); setDmgAttr(b);
     }
     rubbleN = 0; rubbleMesh.count = 0;

@@ -11,7 +11,7 @@
     target: { point: new T.Vector3(-12, 0, -40), building: false },
     blasts: [], delivery: null, lastTank: null, simNow: 0, tsMode: 'auto', tsFixed: 1, paused: false,
     rings: true, film: true, follow: null, nextId: 1, lastBlast: null,
-    wind: 1, windDir: 1, vis: 0, lambda: 80000, placingEye: false, lastShot: null, shot: false
+    wind: 1, windDir: 1, vis: 0, lambda: 80000, placingEye: false, lastShot: null, shot: false, mirv: 1, cmp: null
   };
   EP.state = st;
 
@@ -144,7 +144,31 @@
     eyeMarker.traverse((o) => { o.renderOrder = 11; });
     eyeMarker.visible = false;
     Wd.scene.add(eyeMarker);
+    // punkty celowania kolejnych głowic (MIRV)
+    aimMarks = new T.Group();
+    const m3 = new T.MeshBasicMaterial({ color: 0xff5040, transparent: true, opacity: 0.85, depthTest: false, side: T.DoubleSide });
+    for (let i = 0; i < 8; i++) { const r = new T.Mesh(new T.RingGeometry(0.7, 1, 32), m3); r.rotation.x = -Math.PI / 2; r.renderOrder = 10; r.visible = false; aimMarks.add(r); }
+    Wd.scene.add(aimMarks);
   }
+  let aimMarks;
+  // Rozrzut głowic: wzdłuż kierunku nadlotu, w dwóch rzędach przy ośmiu
+  function mirvAims(center, n, D) {
+    if (n <= 1) return [center.clone()];
+    const sp = Ut.clamp(D.radii.moderate * 1.7, 900, 4200);
+    const cam = Wd.camera.position;
+    const ax = new T.Vector3(cam.x - center.x, 0, cam.z - center.z); if (ax.lengthSq() < 1) ax.set(1, 0, 0); ax.normalize();
+    const pr = new T.Vector3(-ax.z, 0, ax.x);
+    const pts = [];
+    const lay = n === 3 ? [[-1, 0], [0, 0], [1, 0]] : [[-1.5, -0.55], [-0.5, -0.55], [0.5, -0.55], [1.5, -0.55], [-1.5, 0.55], [-0.5, 0.55], [0.5, 0.55], [1.5, 0.55]];
+    for (const [a, b] of lay) {
+      const j = (Ut.hash2(Math.round(center.x) + a * 7, Math.round(center.z) + b * 13) - 0.5) * 0.25;
+      const p = center.clone().addScaledVector(ax, (a + j) * sp).addScaledVector(pr, (b - j) * sp);
+      p.y = Wd.groundY(p.x, p.z);
+      pts.push(p);
+    }
+    return pts;
+  }
+  function nWarheads(w) { return w.mirvOpts ? st.mirv : 1; }
 
   // ---------- WYBÓR ----------
   function groundFor(w) { return w.custom ? w.ck === 'nuke' && w.chob === 0 : st.ground; }
@@ -158,6 +182,7 @@
   function selectWeapon(w, instant) {
     if (st.delivery && !st.delivery.done && !instant) { toast('Poczekaj, aż ładunek dotrze do celu'); return; }
     st.weapon = w;
+    if (st.cmp && st.cmp.id === w.id) st.cmp = null;
     if (st.group !== w.group) showGroup(w.group);
     hideNext();
     document.querySelectorAll('.wpn').forEach((el) => el.classList.toggle('sel', el.dataset.id === w.id));
@@ -207,7 +232,7 @@
     // zapamiętany strzał do powtórki
     st.lastShot = {
       wid: w.id, target: { point: tp.clone(), normal: st.target.normal ? st.target.normal.clone() : null, building: st.target.building }, ground: st.ground,
-      custom: w.custom ? { ck: w.ck, clog: w.clog, chob: w.chob } : null,
+      custom: w.custom ? { ck: w.ck, clog: w.clog, chob: w.chob } : null, mirv: st.mirv,
       cam: { tg: K.tTarget.clone(), d: K.tDist, phi: K.tPhi, th: K.tTheta }
     };
     writeHash();
@@ -216,8 +241,11 @@
     if (w.kt) burstPos = new T.Vector3(tp.x, gy + D.hob, tp.z);
     else burstPos = tp.clone();
     if (w.groundHob && !w.kt) burstPos.y = Math.max(burstPos.y, gy + w.groundHob);
-    const salvo = w.delivery === 'salvo';
-    st.delivery = Dl.start(w, { point: tp, normal: st.target.normal, building: st.target.building }, burstPos, (pos, dir, i) => detonate(w, pos, dir, salvo && i > 0));
+    const nw = nWarheads(w);
+    const salvo = w.delivery === 'salvo' || nw > 1;
+    const aims = nw > 1 ? mirvAims(tp, nw, D).map((p) => new T.Vector3(p.x, p.y + D.hob, p.z)) : null;
+    st.multiR = aims ? Math.max(...aims.map((p) => Math.hypot(p.x - tp.x, p.z - tp.z))) : 0;
+    st.delivery = Dl.start(w, { point: tp, normal: st.target.normal, building: st.target.building, aims }, burstPos, (pos, dir, i) => detonate(w, pos, dir, salvo && i > 0));
     if (st.delivery.cleanupLater) st.lastTank = st.delivery.cleanupLater;
     if (st.film && !K.eye && st.delivery.update) {
       st.delivery.update(0);
@@ -248,6 +276,7 @@
       heard: false, simStart: st.simNow, light: st.nextId % Wd.xLights.length, blackR: 0
     };
     bl.simNow = st.simNow;
+    if (!quiet) bl.multiR = st.multiR || 0;
     C.assess(bl);
     F.spawnExplosion(bl);
     st.blasts.push(bl);
@@ -301,6 +330,7 @@
     const dF = Math.max(D.radii.moderate * 3, D.Htop * (D.nuke ? 1.5 : 0.9), D.radii.glass * (D.nuke ? 0.9 : 1.3), D.cosmic ? D.radii.glass3 * 0.9 : 0, 10);
     let d = Ut.clamp(Math.max(d0, Rg * 2.0, top * 1.7), d0, dF);
     if (bl.w.salvo) d = Math.max(d, 650);
+    if (bl.multiR) d = Math.max(d, bl.multiR * 3.2);
     return { d, phi: D.nuke ? 1.22 : d < 60 ? 1.15 : 0.98, ty: D.nuke ? Math.max(dy * 0.6, top * 0.42) : Math.min(top * 0.3, d * 0.15) };
   }
 
@@ -318,10 +348,25 @@
       ringList.push({ k, R, name: RING_DEF[k][0], col: RING_DEF[k][1] });
     }
     ringList.sort((a, b) => b.R - a.R);
+    // drugi ładunek do porównania: główne zasięgi kropkami wokół tego samego punktu
+    cmpList = [];
+    if (st.cmp) {
+      const DB = deriveCmp(st.cmp);
+      for (const k of ['glass', 'light', 'moderate', 'heavy']) {
+        const R = DB.radii[k];
+        if (R > 0) cmpList.push({ k, R, name: RING_DEF[k][0], col: RING_DEF[k][1], cmp: true });
+      }
+      st.cmpD = DB;
+    }
     const U = SH.uniforms;
     U.uRingC.value.copy(ringCenter);
-    U.uRingN.value = Math.min(8, ringList.length);
-    ringList.slice(0, 8).forEach((x, i) => { U.uRingR.value[i] = x.R; U.uRingCol.value[i].set(x.col); });
+    const all = ringList.slice(0, 8).concat(cmpList.slice(0, 8));
+    U.uRingN.value = all.length;
+    all.forEach((x, i) => { U.uRingR.value[i] = x.R; U.uRingCol.value[i].set(x.cmp ? lighten(x.col) : x.col); U.uRingSty.value[i] = x.cmp ? 1 : 0; });
+    // punkty kolejnych głowic
+    const n = nWarheads(st.weapon);
+    const aims = preview && n > 1 ? mirvAims(st.target.point, n, D) : [];
+    aimMarks.children.forEach((m, i) => { m.visible = i < aims.length; if (m.visible) m.position.copy(aims[i]).add(new T.Vector3(0, 0.5, 0)); });
     U.uRingDash.value = preview ? 1 : 0;
     // opad promieniotwórczy dla wybuchu przy ziemi: długość i szerokość zależą od wiatru
     if (D.fallout) {
@@ -335,6 +380,47 @@
     st.ringPreview = preview;
   }
   function setRingsAlpha(a) { ringAlphaT = a; }
+  let cmpList = [];
+  function lighten(c) { const x = new T.Color(c); return '#' + x.lerp(new T.Color(1, 1, 1), 0.35).getHexString(); }
+  function deriveCmp(w) {
+    const gy = Wd.groundY(st.target.point.x, st.target.point.z);
+    return Ph.derive(w, { ground: w.kt ? st.ground : true, hob: w.kt ? 0 : Math.max(0, st.target.point.y - gy), lambda: st.lambda });
+  }
+  // Panel porównania: wybór drugiego ładunku i zasięgi obok siebie
+  function renderCmp(D) {
+    const box = $('#cmpBox');
+    const cur = st.weapon;
+    const opts = WEAP.filter((w) => !w.custom && w.id !== cur.id).map((w) => `<option value="${w.id}"${st.cmp && st.cmp.id === w.id ? ' selected' : ''}>${w.short} · ${Ut.tnt(w.kt ? w.kt * 1e6 : w.tnt)}</option>`).join('');
+    let h = `<div id="cmpRow"><span class="dot"></span>Porównaj z <select id="cmpSel" aria-label="Ładunek do porównania"><option value="">—</option>${opts}</select></div>`;
+    if (st.cmp && st.cmpD) {
+      const B = st.cmpD;
+      const rowR = (name, a, b) => `<tr><td>${name}</td><td>${a > 0 ? Ut.dist(a) : '—'}</td><td class="b">${b > 0 ? Ut.dist(b) : '—'}</td></tr>`;
+      const ea = D.Wtnt * (cur.salvo || 1), eb = B.Wtnt * (st.cmp.salvo || 1);
+      const ratio = eb / ea;
+      const rtxt = ratio >= 1 ? Ut.num(ratio, ratio < 10 ? 1 : 0) + '× silniejszy' : Ut.num(1 / ratio, 1 / ratio < 10 ? 1 : 0) + '× słabszy';
+      const area = (R) => (R > 0 ? Ut.area(Math.PI * R * R) : '—');
+      h += `<table class="cmpT"><tr><th></th><th>${cur.short}</th><th>${st.cmp.short}</th></tr>
+        ${rowR('Szyby · 5 kPa', D.radii.glass, B.radii.glass)}
+        ${rowR('Domy · 14 kPa', D.radii.light, B.radii.light)}
+        ${rowR('Zawalenia · 35 kPa', D.radii.moderate, B.radii.moderate)}
+        ${rowR('Ciężkie · 140 kPa', D.radii.heavy, B.radii.heavy)}
+        ${D.nuke || B.nuke ? rowR('Oparzenia III st.', D.radii.burn3, B.radii.burn3) : ''}
+        ${rowR('Kula ognia (średnica)', D.fbR * 2, B.fbR * 2)}
+        <tr><td>Obszar zawaleń</td><td>${area(D.radii.moderate)}</td><td class="b">${area(B.radii.moderate)}</td></tr>
+        <tr class="k"><td colspan="3">${st.cmp.short}: ${rtxt}, zasięg zawaleń ${D.radii.moderate > 0 && B.radii.moderate > 0 ? '× ' + Ut.num(B.radii.moderate / D.radii.moderate, 1) : 'nie do porównania'}</td></tr></table>`;
+    }
+    box.innerHTML = h;
+  }
+  function setCmp(id) {
+    st.cmp = id ? WEAP.byId(id) : null;
+    if (st.cmp && st.cmp.custom) st.cmp = null;
+    const D = deriveFor(st.weapon);
+    if (st.ringPreview !== false || !st.lastBlast) showRings(st.target.point, D, true);
+    else if (st.lastBlast) showRings(st.lastBlast.pos, st.lastBlast.d, false);
+    renderEffects(st.ringPreview === false && st.lastBlast ? st.lastBlast.d : D, st.ringPreview !== false);
+    if (st.cmp && !st.rings) $('#bRings').click();
+    setRingsAlpha(Math.max(ringAlphaT, 0.9));
+  }
 
   // ---------- POGODA ----------
   function windVec(speed) { const a = st.windDir * Math.PI / 4; return new T.Vector2(Math.sin(a) * speed, -Math.cos(a) * speed); }
@@ -542,6 +628,7 @@
     marker.position.copy(st.target.point);
     marker.scale.setScalar(Math.max(0.15, md * 0.018));
     marker.visible = !(st.delivery && !st.delivery.done) && !(st.follow && st.follow.t < 8);
+    if (aimMarks.children[0].visible) for (const m of aimMarks.children) { m.visible = m.visible && marker.visible && st.ringPreview !== false; m.scale.setScalar(Math.max(4, Wd.camera.position.distanceTo(m.position) * 0.012)); }
     marker.rotation.y += dtR * 0.6;
     if (eyeMarker.visible) eyeMarker.scale.setScalar(Math.max(0.3, Wd.camera.position.distanceTo(eyeMarker.position) * 0.016));
 
@@ -776,6 +863,7 @@
     if (s.custom) { Object.assign(w, s.custom); WEAP.applyCustom(w); }
     resetCity(true);
     st.ground = s.ground;
+    if (s.mirv) st.mirv = s.mirv;
     st.target = { point: s.target.point.clone(), normal: s.target.normal ? s.target.normal.clone() : null, building: s.target.building };
     st.weapon = w;
     showGroup(w.group);
@@ -794,6 +882,8 @@
     q.set('w', w.id); q.set('x', p.x.toFixed(1)); q.set('y', p.y.toFixed(1)); q.set('z', p.z.toFixed(1));
     if (st.target.building) q.set('b', '1');
     if (st.ground) q.set('g', '1');
+    if (w.mirvOpts && st.mirv > 1) q.set('m', st.mirv);
+    if (st.cmp) q.set('cmp', st.cmp.id);
     if (w.custom) { q.set('c', w.ck); q.set('k', w.clog.toFixed(2)); q.set('h', String(Math.round(w.chob))); }
     if (Wd.timeName !== 'day') q.set('t', Wd.timeName);
     if (st.wind !== 1) q.set('wi', st.wind);
@@ -810,6 +900,8 @@
     const x = parseFloat(q.get('x')), y = parseFloat(q.get('y')), z = parseFloat(q.get('z'));
     if (isFinite(x) && isFinite(z) && Math.hypot(x, z) < 300000) st.target = { point: new T.Vector3(x, isFinite(y) ? y : Wd.groundY(x, z), z), building: q.get('b') === '1' };
     st.ground = q.get('g') === '1';
+    const m = parseInt(q.get('m'), 10); if (m === 3 || m === 8) st.mirv = m;
+    const cw = WEAP.byId(q.get('cmp')); if (cw && !cw.custom) st.cmp = cw;
     if (w.custom) {
       w.ck = q.get('c') === 'nuke' ? 'nuke' : 'chem';
       const k = parseFloat(q.get('k')), h = parseFloat(q.get('h'));
@@ -899,6 +991,15 @@
         showRings(st.target.point, D, true); renderEffects(D, true); setRingsAlpha(1);
         return;
       }
+      const mv = e.target.closest('[data-mirv]');
+      if (mv) {
+        st.mirv = parseInt(mv.dataset.mirv, 10);
+        renderCard();
+        const D = deriveFor(st.weapon);
+        showRings(st.target.point, D, true); renderEffects(D, true); setRingsAlpha(1);
+        if (!K.eye && st.mirv > 1) { const tg = st.target.point.clone(); K.flyTo(tg, Math.max(previewDist(D), Ut.clamp(D.radii.moderate * 1.7, 900, 4200) * 5), 1.05, undefined, 1.4); }
+        return;
+      }
       const k = e.target.closest('[data-ck]');
       if (k && st.weapon.custom) {
         const w = st.weapon;
@@ -922,6 +1023,7 @@
       }
       customChanged(false);
     });
+    $('#cmpBox').addEventListener('change', (e) => { if (e.target.id === 'cmpSel') setCmp(e.target.value); });
     card.addEventListener('change', (e) => { if (st.weapon.custom && (e.target.id === 'cLog' || e.target.id === 'cHob')) customChanged(true); });
     // podgląd skutków pod kursorem
     Wd.renderer.domElement.addEventListener('pointermove', (e) => { hoverT = performance.now(); hover(e); });
@@ -978,6 +1080,14 @@
     else if (k === 't' || k === 'T') $('#bTime').click();
     else if (k === 'o' || k === 'O') toggleEye();
     else if (k === 'z' || k === 'Z') replay();
+    else if (k === 'c' || k === 'C') {
+      // kolejny ładunek do porównania (silniejszy od wybranego), potem wyłączenie
+      const list = WEAP.filter((w) => !w.custom && w.id !== st.weapon.id);
+      const i = st.cmp ? list.indexOf(st.cmp) : -1;
+      const nx = i < 0 ? (nextWeapon(st.weapon) || list[0]) : list[i + 1] || null;
+      setCmp(nx ? nx.id : '');
+      toast(nx ? 'Porównanie: ' + nx.short : 'Bez porównania');
+    }
     else if (k === 'Delete') resetCity();
     else if (k === 'Escape') { if (!$('#help').hidden) $('#help').hidden = true; else if (K.eye || st.placingEye) exitEye(); }
   }
@@ -1039,6 +1149,10 @@
       burst = `<div class="burst"><button data-burst="air" class="${!st.ground ? 'on' : ''}">W powietrzu · ${Ut.dist(w.hob)}</button><button data-burst="ground" class="${st.ground ? 'on' : ''}">Przy ziemi</button></div>
       <p class="bnote">${st.ground ? 'Wybuch przy ziemi: mniejszy zasięg fali, ale krater i opad promieniotwórczy z wiatrem.' : 'Wysokość wybuchu dobrana tak jak w rzeczywistości, by fala zniszczyła jak największy obszar.'}</p>`;
     }
+    if (w.mirvOpts) {
+      burst += `<div class="mirv"><span>Głowice</span>${w.mirvOpts.map((n) => `<button data-mirv="${n}" class="${st.mirv === n ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <p class="bnote">${st.mirv > 1 ? `Jedna rakieta, ${st.mirv} głowice spadają jedna po drugiej w rozrzucie wokół celu (czerwone kółka). Razem ${Ut.tnt(w.kt * 1e6 * st.mirv)}.` : 'Rakieta może nieść kilka głowic, każdą na inny cel.'}</p>`;
+    }
     $('#card').innerHTML = `
       <div class="ch"><span class="ic big">${WEAP.icon(w)}</span><div><small>${GL[w.group]}</small><h3>${w.name}</h3></div></div>
       <div class="yield"><span>Równoważnik trotylu</span><b>${Ut.tnt(kg)}${w.salvo ? ' × ' + w.salvo : ''}</b></div>
@@ -1060,6 +1174,7 @@
     if (D.radii.moderate > 0) h += `<div class="mini">Obszar zawaleń: <b>${Ut.area(Math.PI * D.radii.moderate * D.radii.moderate)}</b></div>`;
     if (preview) h += `<div class="mini">W strefie zawaleń (35 kPa) w tym miejscu: <b>${Ut.num(ex.bld, 0)}</b> ${Ut.plural(ex.bld, 'budynek', 'budynki', 'budynków')}, ok. <b>${Ut.bigCount(ex.pop)}</b> ${Ut.plural(ex.pop, 'osoba', 'osoby', 'osób')}</div>`;
     $('#effects .rbody').innerHTML = h;
+    renderCmp(D);
   }
 
   function updateHud() {
@@ -1098,29 +1213,30 @@
   // Etykiety pierścieni w 3D
   function updateLabels() {
     const box = $('#labels');
-    if (!st.rings || ringAlpha < 0.05 || !ringList.length || K.eye) { if (box.childElementCount) box.innerHTML = ''; return; }
+    const labs = ringList.concat(cmpList);
+    if (!st.rings || ringAlpha < 0.05 || !labs.length || K.eye) { if (box.childElementCount) box.innerHTML = ''; return; }
     const cam = Wd.camera;
     const right = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 0); right.y = 0; right.normalize();
     const w = window.innerWidth, h = window.innerHeight;
-    while (box.childElementCount < ringList.length) box.appendChild(document.createElement('div'));
-    while (box.childElementCount > ringList.length) box.lastChild.remove();
+    while (box.childElementCount < labs.length) box.appendChild(document.createElement('div'));
+    while (box.childElementCount > labs.length) box.lastChild.remove();
     const placed = [];
-    ringList.forEach((r, i) => {
+    labs.forEach((r, i) => {
       const el = box.children[i];
-      const a = -0.5 + i * 0.3, ca = Math.cos(a), sa = Math.sin(a);
+      const a = r.cmp ? Math.PI - 0.5 + (i - ringList.length) * 0.32 : -0.5 + i * 0.3, ca = Math.cos(a), sa = Math.sin(a);
       const dir = new T.Vector3(right.x * ca - right.z * sa, 0, right.x * sa + right.z * ca);
       const p = ringCenter.clone().addScaledVector(dir, r.R);
       p.y = Wd.groundY(p.x, p.z);
       const s = p.project(cam);
       const x = (s.x * 0.5 + 0.5) * w, y = (-s.y * 0.5 + 0.5) * h;
       const vis = s.z < 1 && x > 0 && x < w - 60 && y > 40 && y < h && !placed.some((q) => Math.abs(q[1] - y) < 18 && Math.abs(q[0] - x) < 150);
-      el.className = 'lbl';
+      el.className = r.cmp ? 'lbl cmp' : 'lbl';
       el.style.display = vis ? '' : 'none';
       if (vis) {
         placed.push([x, y]);
         el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
         el.style.opacity = ringAlpha.toFixed(2);
-        const html = `<i style="background:${r.col}"></i>${r.name.split(' · ')[0]} <b>${Ut.dist(r.R)}</b>`;
+        const html = `<i style="background:${r.col}"></i>${r.cmp ? st.cmp.short + ': ' : ''}${r.name.split(' · ')[0]} <b>${Ut.dist(r.R)}</b>`;
         if (el._h !== html) { el._h = html; el.innerHTML = html; el.style.borderColor = r.col; }
       }
     });

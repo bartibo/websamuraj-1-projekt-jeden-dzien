@@ -69,7 +69,7 @@
     },
     {
       id: 'w88', name: 'Głowica rakiety międzykontynentalnej', short: 'Głowica ICBM', group: 'nuke', kt: 475, hob: 1800, groundHob: 2,
-      delivery: 'reentry', icon: 'icbm',
+      delivery: 'reentry', icon: 'icbm', mirvOpts: [1, 3, 8],
       facts: [['Typ', 'termojądrowa, z okrętu podwodnego'], ['Moc', '≈ 475 kt TNT'], ['Prędkość', '≈ 6 km/s przy wejściu w atmosferę'], ['Rakieta', 'nosi do 8–14 takich głowic']],
       desc: 'Współczesna głowica strategiczna, 30 razy silniejsza od bomby z Hiroszimy, a przy tym mniejsza od człowieka. Spada z przestrzeni kosmicznej w świecącym od gorąca stożku. Jedna wystarcza, żeby zniszczyć duże miasto.'
     },

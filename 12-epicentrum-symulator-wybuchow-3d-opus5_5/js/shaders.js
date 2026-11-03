@@ -22,8 +22,9 @@
     uSkyRef: { value: new T.Color(0.55, 0.65, 0.78) },
     uHob: { value: vec4s() },  // x wysokość wybuchu nad ziemią, y promień zeszklenia ziemi
     uRingC: { value: new T.Vector3() },
-    uRingR: { value: new Array(8).fill(0) },
-    uRingCol: { value: Array.from({ length: 8 }, () => new T.Color()) },
+    uRingR: { value: new Array(16).fill(0) },
+    uRingCol: { value: Array.from({ length: 16 }, () => new T.Color()) },
+    uRingSty: { value: new Array(16).fill(0) },   // 0 zasięgi wybranego ładunku, 1 ładunek do porównania
     uRingN: { value: 0 },
     uRingA: { value: 0 },
     uRingDash: { value: 0 },
@@ -114,8 +115,9 @@ EPB epBlast(vec3 wp, vec3 n, float useN){
 uniform sampler2D uLand;
 uniform sampler2D uCity;
 uniform vec3 uRingC;
-uniform float uRingR[8];
-uniform vec3 uRingCol[8];
+uniform float uRingR[16];
+uniform vec3 uRingCol[16];
+uniform float uRingSty[16];
 uniform int uRingN;
 uniform float uRingA;
 uniform float uRingDash;
@@ -323,17 +325,17 @@ vec3 epNW = vec3(0.0, 1.0, 0.0);
   if (uRingA > 0.0 && uRingN > 0){
     float dr = length(p - uRingC.xz);
     float pxr = max(px, 0.02);
-    for (int k = 0; k < 8; k++){
+    for (int k = 0; k < 16; k++){
       if (k >= uRingN) break;
       float R = uRingR[k];
       if (R <= 0.0) continue;
-      float w = pxr*1.6 + R*0.0015;
+      bool cmpR = uRingSty[k] > 0.5;
+      float w = pxr*(cmpR ? 2.2 : 1.6) + R*0.0015;
       float line = 1.0 - smoothstep(w*0.5, w, abs(dr - R));
-      if (uRingDash > 0.5){
-        float a = atan(p.y - uRingC.z, p.x - uRingC.x);
-        line *= step(0.45, fract(a*R/(pxr*40.0 + R*0.05)));
-      }
-      float fill = (1.0 - step(R, dr)) * 0.055;
+      float a = atan(p.y - uRingC.z, p.x - uRingC.x);
+      if (cmpR) line *= step(0.55, fract(a*R/(pxr*12.0 + R*0.012)));
+      else if (uRingDash > 0.5) line *= step(0.45, fract(a*R/(pxr*40.0 + R*0.05)));
+      float fill = cmpR ? 0.0 : (1.0 - step(R, dr)) * 0.055;
       col = mix(col, uRingCol[k], (line*0.9 + fill)*uRingA);
       epEm += uRingCol[k]*line*0.45*uRingA;
     }
@@ -477,7 +479,10 @@ vec3 epEm = vec3(0.0);
   // gruz po zawaleniu
   if (dmg > 1.5){
     float top = smoothstep(0.62, 0.92, vEpLoc.y);
-    float rr = dmg > 2.5 ? 1.0 : top;
+    // w trakcie zawalania (2,51–2,99) elewacja jeszcze stoi, a gruz schodzi od góry poszarpanym frontem
+    float ca = dmg > 2.5 && dmg < 3.0 ? clamp((dmg - 2.51)/0.48, 0.0, 1.0) : 1.0;
+    float jag = epN(vec2(u*0.15, seed*20.0))*0.1;
+    float rr = dmg > 2.5 ? max(smoothstep(0.84 - jag - ca*0.3, 0.97 - jag, vEpLoc.y), smoothstep(0.55, 0.95, ca)) : top;
     vec3 rc = mix(vec3(0.40,0.38,0.35), vec3(0.20,0.18,0.16), epN(lp.xz*1.3 + lp.y*2.0))*(0.7 + 0.5*epN(lp.xz*5.0 + lp.y));
     col = mix(col, rc*mix(vec3(1.0), wall*1.5, 0.35), rr);
     epGlass *= 1.0 - rr; epEm *= 1.0 - rr*0.6;
