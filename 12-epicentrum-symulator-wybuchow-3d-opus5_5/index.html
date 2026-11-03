@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1014">
+  <title>Epicentrum – symulator wybuchów 3D</title>
+  <meta name="description" content="Symulator wybuchów na makiecie miasta 3D: od laski dynamitu, przez granat, pocisk czołgowy i rakiety, po bombę z Hiroszimy i Car-bombę. Fala uderzeniowa liczona fizycznie burzy budynki, wybija szyby, przewraca drzewa i samochody, a błysk wywołuje pożary.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d1014'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%23ff8a1c' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='12' fill='none' stroke='%23ff3b30' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23ffd23f'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="flash"></div>
+  <div id="labels"></div>
+  <div id="tip" hidden></div>
+
+  <header id="top">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="#ff8a1c" stroke-width="4"/><circle cx="32" cy="32" r="15" fill="none" stroke="#ff3b30" stroke-width="4"/><circle cx="32" cy="32" r="5" fill="#ffd23f"/></svg>
+      <div><b>EPICENTRUM</b><span>symulator wybuchów na makiecie miasta</span></div>
+    </div>
+    <div class="tools">
+      <button class="tb" id="bTime" title="Pora dnia (T)"><span class="ti">☀️</span><span class="tl">Dzień</span></button>
+      <button class="tb on" id="bRings" title="Zasięgi skutków (R)"><span class="ti">◎</span><span class="tl">Zasięgi</span></button>
+      <button class="tb on" id="bFilm" title="Kamera filmowa śledzi pocisk (F)"><span class="ti">🎥</span><span class="tl">Kamera filmowa</span></button>
+      <button class="tb on" id="bSound" title="Dźwięk"><span class="ti">🔊</span></button>
+      <button class="tb" id="bReset" title="Odbuduj miasto (Delete)"><span class="ti">↺</span><span class="tl">Odbuduj</span></button>
+      <button class="tb" id="bPanel" title="Zasięgi i raport"><span class="ti">📊</span></button>
+      <button class="tb" id="bHelp" title="Jak to działa"><span class="ti">?</span></button>
+    </div>
+  </header>
+
+  <aside id="left" class="panel">
+    <h2>Arsenał</h2>
+    <div id="wlist"></div>
+    <section id="card"></section>
+    <button id="fire"><span class="f1">ODPAL</span><span class="f2">spacja · cel: kliknij w makietę</span></button>
+  </aside>
+
+  <aside id="effects" class="panel">
+    <h2>Zasięgi skutków</h2>
+    <div class="rbody"></div>
+    <div id="report" hidden></div>
+  </aside>
+
+  <div id="timebar">
+    <div id="clock">Gotowy</div>
+    <div id="speeds">
+      <button data-s="pause" title="Pauza (P)">⏸</button>
+      <button data-s="0.05">0,05×</button>
+      <button data-s="0.25">¼×</button>
+      <button data-s="1">1×</button>
+      <button data-s="5">5×</button>
+      <button data-s="25">25×</button>
+      <button data-s="auto" class="on" title="Tempo dobierane do wybuchu">Auto</button>
+    </div>
+    <div id="tsv">1×</div>
+  </div>
+
+  <div id="hint">Kliknij w dowolne miejsce makiety (ulicę, dach, las), żeby wskazać cel. Przeciągaj, żeby obracać, kółkiem przybliżaj, prawym przyciskiem przesuwaj.</div>
+  <div id="toast"></div>
+
+  <div id="intro" class="modal">
+    <div class="mbox">
+      <div class="mlogo"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="#ff8a1c" stroke-width="3"/><circle cx="32" cy="32" r="15" fill="none" stroke="#ff3b30" stroke-width="3"/><circle cx="32" cy="32" r="5" fill="#ffd23f"/></svg></div>
+      <h1>Epicentrum</h1>
+      <p class="lead">Makieta miasta z okolicą (śródmieście, kamienice, bloki, domki, fabryki, rzeka, lasy i wsie aż po góry) i 13 rodzajów ładunków: od <b>laski dynamitu</b> po <b>Car-bombę</b>, 250 miliardów razy silniejszą.</p>
+      <ul>
+        <li><b>Fala uderzeniowa</b> rozchodzi się z prawdziwą prędkością. Każde okno, budynek, drzewo i samochód sprawdza, jakie nadciśnienie do niego dotarło.</li>
+        <li><b>Błysk</b> wybuchu jądrowego podpala miasto, zanim dotrze fala. Huk słychać dopiero, gdy fala dojdzie do kamery.</li>
+        <li><b>Tempo czasu</b> dobiera się samo: dynamit w zwolnionym tempie, grzyb Car-bomby przyspieszony.</li>
+      </ul>
+      <p class="warn">To model edukacyjny oparty na publicznych wzorach fizycznych (skalowanie Hopkinsona–Cranza, Kinney–Graham, Glasstone i Dolan). Pokazuje, dlaczego tej broni nie wolno używać.</p>
+      <div id="loading">Buduję makietę…</div>
+      <button id="introGo" disabled>Buduję makietę…</button>
+    </div>
+  </div>
+
+  <div id="help" class="modal" hidden>
+    <div class="mbox wide">
+      <h2>Jak to działa</h2>
+      <div class="cols">
+        <div>
+          <h3>Sterowanie</h3>
+          <table>
+            <tr><td>Klik</td><td>wybór celu (ulica, dach, ściana, las)</td></tr>
+            <tr><td>Przeciąganie</td><td>obrót kamery</td></tr>
+            <tr><td>Prawy przycisk / Shift</td><td>przesuwanie</td></tr>
+            <tr><td>Kółko / szczypanie</td><td>przybliżanie</td></tr>
+            <tr><td><kbd>1</kbd>–<kbd>0</kbd></td><td>wybór broni</td></tr>
+            <tr><td><kbd>Spacja</kbd></td><td>odpal</td></tr>
+            <tr><td><kbd>P</kbd></td><td>pauza</td></tr>
+            <tr><td><kbd>R</kbd> / <kbd>F</kbd> / <kbd>T</kbd></td><td>zasięgi / kamera filmowa / pora dnia</td></tr>
+            <tr><td><kbd>Delete</kbd></td><td>odbudowa miasta</td></tr>
+          </table>
+          <h3>Co widać</h3>
+          <p>Szyby pękają okno po oknie, gdy dotrze do nich nadciśnienie ok. 3–9 kPa. Budynki mają różną wytrzymałość: drewniany dom przewraca się przy ok. 30 kPa, wieżowiec ze stali dopiero przy ok. 115 kPa. Drzewa padają promieniście od wybuchu (jak w Tunguskiej puszczy w 1908 r.), samochody są odrzucane, a przy wybuchach jądrowych ściany zwrócone ku kuli ognia czernieją od żaru.</p>
+        </div>
+        <div>
+          <h3>Fizyka</h3>
+          <p><b>Nadciśnienie</b>: wzór Kinneya–Grahama w funkcji odległości skalowanej Z = R / W<sup>1/3</sup>. Dla wybuchów przy ziemi masa jest zwiększona o odbicie od gruntu, a dla jądrowych w powietrzu także o efekt fali Macha.</p>
+          <p><b>Prędkość czoła fali</b> wynika z nadciśnienia (równania Rankine'a–Hugoniota): blisko wybuchu fala jest kilka razy szybsza od dźwięku, daleko zwalnia do 343 m/s.</p>
+          <p><b>Ciepło</b>: ok. 35% energii wybuchu jądrowego wychodzi jako promieniowanie cieplne, słabnące z kwadratem odległości i pochłaniane przez powietrze.</p>
+          <p><b>Kula ognia, krater, grzyb</b>: przybliżenia skalowania z „The Effects of Nuclear Weapons” (Glasstone i Dolan) oraz pomiarów wybuchów konwencjonalnych.</p>
+          <p class="fine">Uproszczenia: bez cieni rzucanych przez budynki na falę, bez wiatru i pogody wpływających na ciepło, bez skutków długofalowych. Liczby ofiar to szacunek dla ludzi w budynkach makiety.</p>
+        </div>
+      </div>
+      <button id="helpClose">Zamknij</button>
+    </div>
+  </div>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/shaders.js"></script>
+<script src="js/world.js"></script>
+<script src="js/city.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/delivery.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
