@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bezpiecznik – czy ten link jest bezpieczny?</title>
+<meta name="description" content="Wklej podejrzany link z SMS-a lub e-maila. Bezpiecznik sprawdzi go w bazach oszustw i od razu pokaże: zielony – bezpieczny, czerwony – oszustwo.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 3 6 13v17c0 16 11 27 26 31V3z' fill='%2300f25a'/%3E%3Cpath d='M32 3l26 10v17c0 16-11 27-26 31V3z' fill='%23ff1e1e'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://security.cloudflare-dns.com" crossorigin>
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- 1. Ekran startowy: jedno pole -->
+<main id="start" class="ekran ekran-start">
+  <header class="logo" aria-label="Bezpiecznik">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3 6 13v17c0 16 11 27 26 31 15-4 26-15 26-31V13L32 3z" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/><path d="m20 32 8 8 16-17" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Bezpiecznik</span>
+  </header>
+
+  <section class="srodek">
+    <h1>Czy ten link jest bezpieczny?</h1>
+    <p class="lead">Wklej link z SMS-a albo e-maila.<br>Sprawdzimy go za Ciebie.</p>
+
+    <form id="formularz" class="formularz" autocomplete="off" novalidate>
+      <label for="pole" class="ukryte">Podejrzany link</label>
+      <div class="pole-ramka">
+        <textarea id="pole" rows="3" placeholder="Wklej tutaj link…" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></textarea>
+        <button type="button" id="wyczysc" class="wyczysc" aria-label="Wyczyść pole" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <button type="submit" id="akcja" class="przycisk-glowny">
+        <svg id="ikona-wklej" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9z M8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>
+        <svg id="ikona-sprawdz" viewBox="0 0 24 24" aria-hidden="true" hidden><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg>
+        <span id="akcja-tekst">Wklej link</span>
+      </button>
+      <p id="komunikat" class="komunikat" role="alert" aria-live="polite"></p>
+    </form>
+
+    <p class="drobne">Możesz też wkleić całą wiadomość – sami znajdziemy w niej link.</p>
+  </section>
+
+  <footer class="stopka">
+    <p class="przyklady">Nie masz linku pod ręką? Wypróbuj:
+      <button type="button" data-przyklad="https://allegro.pl/moje-allegro/zakupy">bezpieczny</button>
+      <span aria-hidden="true">·</span>
+      <button type="button" data-przyklad="InPost: Twoja paczka czeka na dopłatę 1,99 zł. Opłać do dziś: https://inpost.pl-doplata.top/paczka/odbior">oszustwo</button>
+    </p>
+    <details class="jak">
+      <summary>Jak to działa?</summary>
+      <div class="jak-tresc">
+        <p>Bezpiecznik w kilka sekund sprawdza link w darmowych, niezależnych źródłach:</p>
+        <ul>
+          <li><b>Cloudflare 1.1.1.2</b> – filtr złośliwych stron i wyłudzeń, z którego korzystają miliony ludzi,</li>
+          <li><b>OpenPhish</b> i <b>Phishing.Database</b> – bazy setek tysięcy znanych stron oszustów,</li>
+          <li><b>rejestr domen (RDAP)</b> – jak dawno powstała strona; oszuści zakładają nowe co kilka dni,</li>
+          <li>oraz <b>sztuczki oszustów</b>: podszywanie się pod InPost, Allegro, OLX, banki czy mObywatel, literówki (alegro, inpots), podrobione litery, skrócone linki, pliki .apk.</li>
+        </ul>
+        <p><b>Prywatność:</b> nic nie zapisujemy. Na zewnątrz trafia tylko sama nazwa strony (np. <i>przyklad.pl</i>), nigdy cały link. Bazy oszustów pobieramy i porównujemy na Twoim urządzeniu.</p>
+        <p>Jeśli choćby jedna rzecz się nie zgadza, wynik jest czerwony. Lepiej raz za dużo nie kliknąć niż stracić pieniądze.</p>
+      </div>
+    </details>
+  </footer>
+</main>
+
+<!-- 2. Sprawdzanie -->
+<section id="sprawdzanie" class="ekran ekran-sprawdzanie" hidden aria-live="polite">
+  <div class="kolo" aria-hidden="true"></div>
+  <h2>Sprawdzam…</h2>
+  <p id="spr-adres" class="spr-adres"></p>
+  <ul id="kroki" class="kroki">
+    <li data-krok="cloudflare">Filtr Cloudflare</li>
+    <li data-krok="openphish">Baza OpenPhish</li>
+    <li data-krok="phishdb">Baza Phishing.Database</li>
+    <li data-krok="wiek">Wiek strony</li>
+    <li data-krok="sztuczki">Sztuczki oszustów</li>
+  </ul>
+</section>
+
+<!-- 3. Wynik na cały ekran -->
+<section id="wynik" class="ekran ekran-wynik" hidden role="alertdialog" aria-labelledby="w-naglowek" aria-describedby="w-podtytul">
+  <div class="wynik-tresc">
+    <div id="w-ikona" class="w-ikona" aria-hidden="true"></div>
+    <h2 id="w-naglowek" class="w-naglowek"></h2>
+    <p id="w-podtytul" class="w-podtytul"></p>
+    <p id="w-domena" class="w-domena"></p>
+    <ul id="w-powody" class="w-powody"></ul>
+    <div id="w-porady" class="w-porady"></div>
+    <div class="w-przyciski">
+      <button type="button" id="w-ponow" class="przycisk-wynik" hidden>Spróbuj ponownie</button>
+      <button type="button" id="w-znowu" class="przycisk-wynik">Sprawdź inny link</button>
+    </div>
+    <details id="w-szczegoly" class="w-szczegoly">
+      <summary>Co sprawdziliśmy</summary>
+      <ul id="w-lista"></ul>
+    </details>
+  </div>
+</section>
+
+<script src="js/dane.js"></script>
+<script src="js/analiza.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
