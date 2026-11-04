@@ -1,9 +1,14 @@
 /* Bezpiecznik – dwa kolory wyniku (jaskrawa zieleń i jaskrawa czerwień) na czarno-białej bazie. */
+/* Krój Archivo (licencja OFL, css/fonts/OFL.txt) we własnych plikach: zewnętrzne fonty nie mogą zablokować strony. */
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 500 900; font-display: swap; src: url(fonts/archivo-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 500 900; font-display: swap; src: url(fonts/archivo-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 :root {
   --tlo: #ffffff;
   --tekst: #000000;
   --zielony: #00f25a;
-  --czerwony: #ff1e1e;
+  --czerwony: #e00000;   /* biały tekst na tej czerwieni ma kontrast 5:1 (WCAG AA) */
   --font: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --promien: 22px;
   color-scheme: light dark;
@@ -39,6 +44,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---------- 1. start ---------- */
 .logo {
+  width: 100%; max-width: 860px; margin: 0 auto;
   display: flex; align-items: center; gap: 10px;
   font-weight: 900; font-size: 1.25rem; letter-spacing: -0.01em;
 }
@@ -56,7 +62,8 @@ h1 {
   font-size: clamp(2.3rem, 7.4vw, 5.2rem);
   line-height: 0.98;
   font-weight: 900;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.015em;
+  word-spacing: .06em;
   margin: 0 0 0.35em;
   text-wrap: balance;
 }
@@ -82,7 +89,7 @@ h1 {
   word-break: break-all;
   transition: box-shadow .15s;
 }
-#pole::placeholder { color: var(--tekst); opacity: .45; font-weight: 500; }
+#pole::placeholder { color: var(--tekst); opacity: .6; font-weight: 500; }
 #pole:focus { outline: none; box-shadow: 0 0 0 6px var(--tlo), 0 0 0 10px var(--tekst); }
 .wyczysc {
   position: absolute; top: 14px; right: 14px;
@@ -108,27 +115,32 @@ h1 {
 }
 .przycisk-glowny svg { width: 34px; height: 34px; flex: none; }
 .przycisk-glowny:active { transform: scale(.98); }
-.przycisk-glowny:focus-visible { outline-offset: 5px; }
+.przycisk-glowny:focus-visible, .wyczysc:focus-visible { outline-color: var(--tekst); outline-offset: 5px; }
+.przycisk-glowny:hover { box-shadow: 0 0 0 4px var(--tlo), 0 0 0 8px var(--tekst); }
 
 .komunikat {
   min-height: 1.4em; margin: 0;
   font-size: 1.2rem; font-weight: 800;
 }
 .komunikat:empty { min-height: 0; }
+.komunikat:not(:empty) { border-left: 6px solid currentColor; padding: 6px 0 6px 14px; }
 .drobne { margin: 1.4em 0 0; font-size: 1.05rem; opacity: .75; }
 
 .stopka {
   width: 100%; max-width: 860px; margin: 0 auto;
-  font-size: 1rem;
+  font-size: 1.125rem;
   border-top: 2px solid var(--tekst);
   padding-top: 14px;
 }
 .przyklady { margin: 0 0 8px; }
+.przyklady { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .przyklady button {
-  border: 0; background: none; padding: 4px 2px;
-  font-weight: 800; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px;
+  min-height: 44px; padding: 6px 16px;
+  border: 3px solid currentColor; border-radius: 999px; background: none;
+  font-weight: 800;
 }
-.jak summary { cursor: pointer; font-weight: 800; padding: 6px 0; width: max-content; max-width: 100%; }
+.przyklady button:hover { background: var(--tekst); color: var(--tlo); }
+.jak summary { cursor: pointer; font-weight: 800; padding: 10px 0; min-height: 44px; width: max-content; max-width: 100%; }
 .jak-tresc { max-width: 70ch; padding-bottom: 8px; }
 .jak-tresc ul { padding-left: 1.2em; }
 .jak-tresc li { margin: 0.3em 0; }
@@ -148,7 +160,7 @@ h1 {
 .ekran-sprawdzanie h2 { font-size: clamp(2.6rem, 9vw, 5rem); font-weight: 900; letter-spacing: -0.03em; margin: 0; }
 .spr-adres { font-size: clamp(1.1rem, 3vw, 1.5rem); font-weight: 700; margin: 0 0 18px; max-width: 100%; overflow-wrap: anywhere; opacity: .8; }
 .kroki { list-style: none; padding: 0; margin: 0; text-align: left; font-size: clamp(1.1rem, 2.8vw, 1.35rem); font-weight: 700; }
-.kroki li { display: flex; align-items: center; gap: 14px; padding: 7px 0; opacity: .5; transition: opacity .2s; }
+.kroki li { display: flex; align-items: center; gap: 14px; padding: 7px 0; opacity: .6; transition: opacity .2s; }
 .kroki li::before {
   content: ''; flex: none;
   width: 30px; height: 30px; border-radius: 50%;
@@ -161,6 +173,7 @@ h1 {
 .kroki li.ok::before { content: '✓'; background: var(--tekst); color: var(--tlo); animation: none; }
 .kroki li.zle::before { content: '!'; background: var(--tekst); color: var(--tlo); animation: none; }
 .kroki li.pominiete::before { content: '–'; animation: none; }
+.kroki li.uwaga::before { content: '!'; animation: none; border-style: dashed; }
 @keyframes pulsuj { 50% { transform: scale(.75); } }
 
 /* ---------- 3. wynik ---------- */
@@ -176,7 +189,7 @@ h1 {
 .ekran-wynik.zielony { background: var(--zielony); color: #000; }
 .ekran-wynik.czerwony { background: var(--czerwony); color: #fff; }
 .ekran-wynik.czerwony.pokaz { animation: alarm .5s .55s 2; }
-@keyframes alarm { 50% { background: #c80000; } }
+@keyframes alarm { 50% { background: #a80000; } }
 
 .wynik-tresc {
   width: 100%; max-width: 900px;
@@ -184,7 +197,7 @@ h1 {
   display: flex; flex-direction: column; align-items: center; text-align: center;
   padding: 3vh 0;
 }
-.w-ikona { width: clamp(84px, 18vw, 160px); aspect-ratio: 1; margin-bottom: 10px; }
+.w-ikona { width: clamp(72px, 16vw, 150px); aspect-ratio: 1; margin-bottom: 10px; }
 .w-ikona svg { width: 100%; height: 100%; }
 .pokaz .w-ikona { animation: wskocz .5s .3s both cubic-bezier(.3, 1.6, .5, 1); }
 @keyframes wskocz { from { transform: scale(.3); opacity: 0; } }
@@ -192,7 +205,7 @@ h1 {
   font-size: clamp(3.4rem, 15vw, 9.5rem);
   line-height: .9;
   font-weight: 900;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.02em;
   margin: 0;
   text-transform: uppercase;
   width: 100%;
@@ -225,6 +238,12 @@ h1 {
   width: 18px; height: 18px; border-radius: 50%; background: currentColor;
 }
 .zielony .w-powody li::before { border-radius: 0; width: 20px; height: 11px; background: none; border: solid currentColor; border-width: 0 0 4px 4px; transform: rotate(-45deg); top: 13px; }
+/* na czerwonym krzyżyki: lustro zielonych ptaszków, czytelne bez koloru */
+.czerwony .w-powody li::before, .czerwony .w-powody li::after { content: ''; position: absolute; left: 2px; top: 18px; width: 22px; height: 4px; border-radius: 2px; background: currentColor; transform: rotate(45deg); }
+.czerwony .w-powody li::after { transform: rotate(-45deg); }
+.w-dlaczego { width: 100%; max-width: 760px; text-align: left; font-size: clamp(1.4rem, 3.4vw, 1.9rem); font-weight: 900; margin: 6px 0 4px; }
+.w-wiecej { width: 100%; max-width: 760px; text-align: left; margin: -10px 0 16px; font-size: clamp(1.05rem, 2.4vw, 1.25rem); font-weight: 600; }
+.w-wiecej summary { cursor: pointer; font-weight: 800; padding: 8px 0; min-height: 44px; }
 .w-porady { width: 100%; max-width: 760px; text-align: left; }
 .w-porady:empty { display: none; }
 .w-porady h3 { font-size: clamp(1.4rem, 3.4vw, 1.9rem); font-weight: 900; margin: 6px 0 8px; }
@@ -238,7 +257,7 @@ h1 {
   display: grid; place-items: center;
 }
 .czerwony .w-porady ol li::before { color: var(--czerwony); background: #fff; font-weight: 900; }
-.w-porady ol li b { font-weight: 900; }
+.w-porady ol li b { font-weight: 800; }
 .w-rada { font-size: clamp(1rem, 2.4vw, 1.2rem); font-weight: 600; max-width: 700px; margin: 4px auto 18px; text-align: center; }
 
 .w-przyciski { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; width: 100%; margin: 6px 0 18px; }
@@ -251,6 +270,8 @@ h1 {
 }
 .zielony .przycisk-wynik { background: #000; color: var(--zielony); border-color: #000; }
 .czerwony .przycisk-wynik { background: #fff; color: var(--czerwony); border-color: #fff; }
+.zielony .przycisk-wynik:focus-visible, .zielony .w-szczegoly summary:focus-visible { outline: 5px solid #000; outline-offset: 5px; }
+.czerwony .przycisk-wynik:focus-visible, .czerwony .w-szczegoly summary:focus-visible { outline: 5px solid #fff; outline-offset: 5px; }
 .przycisk-wynik.drugi { background: transparent !important; color: inherit !important; border-color: currentColor !important; }
 .przycisk-wynik:active { transform: scale(.98); }
 
@@ -258,9 +279,15 @@ h1 {
 .w-szczegoly summary { cursor: pointer; font-weight: 800; padding: 8px 0; width: max-content; max-width: 100%; margin: 0 auto; }
 .w-szczegoly ul { list-style: none; padding: 0; margin: 8px 0 0; border-top: 2px solid currentColor; }
 .w-szczegoly li { display: flex; gap: 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid currentColor; }
-.w-szczegoly li .z { flex: none; width: 26px; font-weight: 900; }
+.w-szczegoly li .z { flex: none; width: 26px; height: 1.2em; position: relative; }
+/* znaczki rysowane tak samo jak punktory wyniku, a nie znakami z zapasowego kroju */
+.w-szczegoly li .z.ok::before { content: ''; position: absolute; left: 3px; top: 4px; width: 14px; height: 8px; border: solid currentColor; border-width: 0 0 3px 3px; transform: rotate(-45deg); }
+.w-szczegoly li .z.zle::before, .w-szczegoly li .z.zle::after { content: ''; position: absolute; left: 2px; top: 9px; width: 16px; height: 3px; border-radius: 2px; background: currentColor; transform: rotate(45deg); }
+.w-szczegoly li .z.zle::after { transform: rotate(-45deg); }
+.w-szczegoly li .z.uwaga::before { content: '!'; position: absolute; left: 6px; top: -1px; font-weight: 900; }
+.w-szczegoly li .z.pominiete::before { content: ''; position: absolute; left: 3px; top: 9px; width: 14px; height: 3px; background: currentColor; }
 .w-szczegoly li .n { flex: 1; }
-.w-szczegoly li .o { opacity: .85; font-weight: 500; text-align: right; }
+.w-szczegoly li .o { font-weight: 600; text-align: right; }
 
 @media (max-width: 560px) {
   body { font-size: 17px; }
@@ -269,7 +296,31 @@ h1 {
   .w-szczegoly li { flex-wrap: wrap; }
   .w-szczegoly li .o { flex-basis: 100%; text-align: left; padding-left: 38px; }
 }
+@media (max-height: 760px) {
+  h1 { font-size: clamp(2.2rem, 6vw, 4.2rem); }
+  .srodek { padding: 2vh 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .kolo { animation: none; border-right-color: var(--tekst); }
 }
+
+/* ---------- zgłoszenie, instalacja ---------- */
+a.przycisk-wynik { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; text-align: center; color: inherit; }
+.instaluj { align-self: flex-start; margin-top: 14px; min-height: 52px; padding: 8px 20px; border: 3px solid var(--tekst); border-radius: 999px; background: var(--tlo); color: var(--tekst); font-weight: 800; font-size: 1.05rem; }
+.instaluj:hover { background: var(--tekst); color: var(--tlo); }
+
+/* przycisk powrotu zawsze w zasięgu: przyklejony do dołu ekranu wyniku */
+.ekran-wynik .w-przyciski { position: sticky; bottom: 0; z-index: 2; padding: 12px 0 max(12px, env(safe-area-inset-bottom)); margin-bottom: 6px; }
+.zielony .w-przyciski { background: linear-gradient(to bottom, rgba(0, 242, 90, 0), var(--zielony) 22%); }
+.czerwony .w-przyciski { background: linear-gradient(to bottom, rgba(224, 0, 0, 0), var(--czerwony) 22%); }
+.czerwony.pokaz .w-przyciski { animation: alarm .5s .55s 2; }
+
+/* zgłoszenie i ostrzeżenie bliskich: pod „Co teraz zrobić?”, nie w przyklejonym pasku */
+.w-akcje { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; max-width: 760px; margin: 0 0 14px; }
+.w-akcje:not(:has(:not([hidden]))) { display: none; }
+.przycisk-akcja { flex: 1 1 220px; min-height: 58px; padding: 8px 16px; border: 4px solid currentColor; border-radius: var(--promien); background: transparent; color: inherit;
+  font-size: clamp(1.1rem, 2.8vw, 1.3rem); font-weight: 900; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
+.czerwony .przycisk-akcja:focus-visible { outline: 5px solid #fff; outline-offset: 4px; }
+.wszystkie { display: inline-block; margin: 6px 0 2px; padding: 8px 0; min-height: 44px; color: inherit; font-weight: 700; opacity: .75; text-underline-offset: 4px; }
+.wszystkie:hover { opacity: 1; }

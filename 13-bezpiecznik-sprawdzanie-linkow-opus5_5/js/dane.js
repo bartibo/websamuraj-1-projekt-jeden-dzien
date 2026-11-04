@@ -21,7 +21,7 @@ window.BZ = window.BZ || {};
      literowki – wzorce do łapania literówek (alegro, inpots). */
   BZ.MARKI = [
     { nazwa: 'InPost', glowna: 'inpost.pl', ciagi: ['inpost', 'paczkomat'], krajowe: true,
-      oficjalne: ['inpost.pl', 'inpost.eu', 'inpost-group.com', 'paczkomaty.pl'], literowki: ['inpost'] },
+      oficjalne: ['inpost.pl', 'inpost.eu', 'inpost-group.com', 'paczkomaty.pl', 'inpostpay.pl', 'inpost.co.uk', 'inpostfresh.pl'], literowki: ['inpost'] },
     { nazwa: 'Allegro', glowna: 'allegro.pl', ciagi: ['allegro'], krajowe: true,
       oficjalne: ['allegro.pl', 'allegrolokalnie.pl', 'allegro.tech', 'allegrogroup.com', 'allegropay.pl', 'allegrostatic.com', 'allegroimg.com'],
       literowki: ['allegro', 'allegrolokalnie'] },
@@ -32,19 +32,19 @@ window.BZ = window.BZ || {};
     { nazwa: 'DPD', glowna: 'dpd.com.pl', slowa: ['dpd'], ciagi: ['dpdpl', 'dpdpaczk', 'dpdgroup'], krajowe: true,
       oficjalne: ['dpd.com', 'dpd.pl', 'dpd.com.pl', 'dpdgroup.com', 'dpd.co.uk'] },
     { nazwa: 'DHL', glowna: 'dhl.com', slowa: ['dhl'], ciagi: ['dhlparcel', 'dhlexpress', 'dhlpl'], krajowe: true,
-      oficjalne: ['dhl.com', 'dhl.pl', 'dhl.de', 'dhlparcel.pl', 'dhl24.com.pl', 'dhlparcel.nl', 'dhl.co.uk'] },
+      oficjalne: ['dhl.com', 'dhl.pl', 'dhl.de', 'dhlparcel.pl', 'dhl24.com.pl', 'dhlparcel.nl', 'dhl.co.uk'], tld: 'dhl' },
     { nazwa: 'UPS', glowna: 'ups.com', slowa: ['ups'], slabe: ['ups'], krajowe: true, oficjalne: ['ups.com'] },
     { nazwa: 'FedEx', glowna: 'fedex.com', ciagi: ['fedex'], krajowe: true, oficjalne: ['fedex.com'] },
     { nazwa: 'GLS', glowna: 'gls-group.eu', slowa: ['gls'], slabe: ['gls'], ciagi: ['glspoland', 'glsgroup', 'glspaczk'],
       oficjalne: ['gls-group.eu', 'gls-group.com', 'gls-poland.com', 'gls-pakete.de'] },
-    { nazwa: 'PKO Bank Polski', glowna: 'pkobp.pl', slowa: ['pko'], ciagi: ['pkobp', 'ipko', 'pkobank'],
-      oficjalne: ['pkobp.pl', 'ipko.pl', 'pko.pl', 'pkotfi.pl', 'pkoleasing.pl'], literowki: ['pkobp'] },
+    { nazwa: 'PKO Bank Polski', glowna: 'pkobp.pl', slowa: ['pko'], ciagi: ['pkobp', 'ipko', 'pkobank', 'pkobiznes'],
+      oficjalne: ['pkobp.pl', 'ipko.pl', 'pko.pl', 'pkotfi.pl', 'pkoleasing.pl', 'ipkobiznes.pl', 'pkobh.pl', 'pkoubezpieczenia.pl'], literowki: ['pkobp'] },
     { nazwa: 'mBank', glowna: 'mbank.pl', ciagi: ['mbank'], krajowe: true, oficjalne: ['mbank.pl', 'mbank.cz', 'mbank.sk', 'mbank.com.pl'] },
     { nazwa: 'ING', glowna: 'ing.pl', slowa: ['ing'], ciagi: ['ingbank', 'ingbs', 'ingonline'], krajowe: true,
       oficjalne: ['ing.pl', 'ing.com', 'ingbank.pl', 'ing.de', 'ing.nl', 'ing.be'] },
     { nazwa: 'Santander', glowna: 'santander.pl', ciagi: ['santander'], krajowe: true,
       oficjalne: ['santander.pl', 'santander.com', 'santanderconsumer.pl', 'santander.co.uk', 'santander.de'], literowki: ['santander'] },
-    { nazwa: 'Bank Pekao', glowna: 'pekao.com.pl', ciagi: ['pekao'], oficjalne: ['pekao.com.pl', 'pekaobiznes24.pl', 'pekao24.pl', 'pekaotfi.pl'] },
+    { nazwa: 'Bank Pekao', glowna: 'pekao.com.pl', ciagi: ['pekao'], oficjalne: ['pekao.com.pl', 'pekaobiznes24.pl', 'pekao24.pl', 'pekaotfi.pl', 'pekaobh.pl', 'pekaoleasing.pl'] },
     { nazwa: 'Bank Millennium', glowna: 'bankmillennium.pl', ciagi: ['bankmillennium', 'millenet'],
       oficjalne: ['bankmillennium.pl', 'millenet.pl'], literowki: ['bankmillennium'] },
     { nazwa: 'Alior Bank', glowna: 'aliorbank.pl', ciagi: ['aliorbank', 'aliorbiz'], oficjalne: ['aliorbank.pl'], literowki: ['aliorbank'] },
@@ -52,24 +52,26 @@ window.BZ = window.BZ || {};
       oficjalne: ['credit-agricole.pl', 'credit-agricole.com', 'credit-agricole.fr'], literowki: ['creditagricole'] },
     { nazwa: 'BNP Paribas', glowna: 'bnpparibas.pl', ciagi: ['bnpparibas', 'goonline'], krajowe: true, oficjalne: ['bnpparibas.pl', 'bnpparibas.com'] },
     { nazwa: 'VeloBank', glowna: 'velobank.pl', ciagi: ['velobank'], oficjalne: ['velobank.pl'] },
-    { nazwa: 'Revolut', glowna: 'revolut.com', ciagi: ['revolut'], oficjalne: ['revolut.com', 'revolut.me', 'revolut.codes'], literowki: ['revolut'] },
+    // tylko jako osobny człon: „revolution” to nie Revolut
+    { nazwa: 'Revolut', glowna: 'revolut.com', slowa: ['revolut'], ciagi: ['revolutbank', 'revolutpl'], oficjalne: ['revolut.com', 'revolut.me', 'revolut.codes'], literowki: ['revolut'] },
     { nazwa: 'PayPal', glowna: 'paypal.com', ciagi: ['paypal'], krajowe: true,
       oficjalne: ['paypal.com', 'paypal.me', 'paypalobjects.com', 'paypal-community.com'], literowki: ['paypal'] },
     { nazwa: 'BLIK', glowna: 'blik.com', slowa: ['blik'], ciagi: ['blikkod', 'kodblik', 'blikpay', 'blikplat'], oficjalne: ['blik.com'] },
     { nazwa: 'Przelewy24', glowna: 'przelewy24.pl', ciagi: ['przelewy24', 'przelewy'], oficjalne: ['przelewy24.pl'], literowki: ['przelewy24'] },
     { nazwa: 'PayU', glowna: 'payu.pl', slowa: ['payu'], krajowe: true, oficjalne: ['payu.pl', 'payu.com', 'secure.payu.com'] },
-    { nazwa: 'mObywatel / gov.pl', glowna: 'gov.pl', slowa: ['gov', 'zus', 'epuap', 'mobywatel'], ciagi: ['mobywatel', 'epuap', 'govpl', 'ezus'],
+    { nazwa: 'mObywatel / gov.pl', glowna: 'gov.pl', slowa: ['gov', 'zus', 'epuap', 'mobywatel'], ciagi: ['mobywatel', 'epuap', 'govpl', 'ezusgov', 'ezuspl'],
       gov: true, oficjalne: ['gov.pl', 'zus.pl', 'podatki.gov.pl', 'mobywatel.gov.pl'], literowki: ['mobywatel'] },
     { nazwa: 'Vinted', glowna: 'vinted.pl', ciagi: ['vinted'], krajowe: true, oficjalne: ['vinted.pl', 'vinted.com', 'vinted.net'] },
     { nazwa: 'Otomoto', glowna: 'otomoto.pl', ciagi: ['otomoto'], oficjalne: ['otomoto.pl'], literowki: ['otomoto'] },
     { nazwa: 'Orlen', glowna: 'orlen.pl', ciagi: ['orlen'], krajowe: true, oficjalne: ['orlen.pl', 'orlen.com', 'orlenpaczka.pl', 'orlenoil.pl'] },
-    { nazwa: 'PGE', glowna: 'pge.pl', slowa: ['pge'], ciagi: ['pgeobrot', 'pgeenergia'], oficjalne: ['pge.pl', 'gkpge.pl', 'pge-obrot.pl'] },
-    { nazwa: 'Tauron', glowna: 'tauron.pl', ciagi: ['tauron'], oficjalne: ['tauron.pl', 'tauron-dystrybucja.pl'], literowki: ['tauron'] },
+    { nazwa: 'PGE', glowna: 'pge.pl', slowa: ['pge'], ciagi: ['pgeobrot', 'pgeenergia'], oficjalne: ['pge.pl', 'gkpge.pl', 'pge-obrot.pl', 'pgeenergiaciepla.pl', 'pgedystrybucja.pl'] },
+    { nazwa: 'Tauron', glowna: 'tauron.pl', ciagi: ['tauron'], oficjalne: ['tauron.pl', 'tauron-dystrybucja.pl', 'mojtauron.pl', 'tauron-wytwarzanie.pl', 'tauronarenakrakow.pl'], literowki: ['tauron'] },
     { nazwa: 'Energa', glowna: 'energa.pl', ciagi: ['energa'], oficjalne: ['energa.pl', 'energa-obrot.pl', 'energa-operator.pl', 'grupa.energa.pl'] },
     { nazwa: 'Enea', glowna: 'enea.pl', slowa: ['enea'], slabe: ['enea'], oficjalne: ['enea.pl', 'eneaoperator.pl'] },
     { nazwa: 'PGNiG', glowna: 'pgnig.pl', ciagi: ['pgnig'], oficjalne: ['pgnig.pl', 'pgnigos.pl'] },
     { nazwa: 'Biedronka', glowna: 'biedronka.pl', ciagi: ['biedronka'], oficjalne: ['biedronka.pl', 'jeronimomartins.pl'], literowki: ['biedronka'] },
-    { nazwa: 'Lidl', glowna: 'lidl.pl', ciagi: ['lidlpl', 'lidlplus'], slowa: ['lidl'], krajowe: true, oficjalne: ['lidl.pl', 'lidl.com', 'lidl.de', 'lidlplus.com'] },
+    { nazwa: 'Aldi', glowna: 'aldi.pl', slowa: ['aldi'], ciagi: ['aldipl', 'aldibon', 'aldikarta'], krajowe: true, oficjalne: ['aldi.pl', 'aldi.com', 'aldi.de', 'aldi-nord.de', 'aldi-sued.de'] },
+    { nazwa: 'Lidl', glowna: 'lidl.pl', ciagi: ['lidlpl', 'lidlplus'], slowa: ['lidl'], krajowe: true, oficjalne: ['lidl.pl', 'lidl.com', 'lidl.de', 'lidlplus.com', 'lidl-sklep.pl'] },
     { nazwa: 'Netflix', glowna: 'netflix.com', ciagi: ['netflix'], krajowe: true, oficjalne: ['netflix.com', 'netflix.net', 'nflxext.com', 'nflxvideo.net'], literowki: ['netflix'] },
     { nazwa: 'Apple', glowna: 'apple.com', slowa: ['apple', 'icloud'], slabe: ['apple'], ciagi: ['appleid', 'icloud', 'appleservice', 'applesupport'], krajowe: true,
       oficjalne: ['apple.com', 'icloud.com', 'apple.news', 'mzstatic.com', 'cdn-apple.com', 'icloud-content.com', 'apple.co'] },
@@ -103,7 +105,7 @@ window.BZ = window.BZ || {};
 
   /* Znane, sprawdzone strony – jeśli link prowadzi do nich, wynik jest zielony (o ile żadna baza ich nie zgłasza). */
   BZ.ZAUFANE = zbior(`
-    allegro.pl allegrolokalnie.pl olx.pl inpost.pl poczta-polska.pl pocztex.pl envelo.pl dpd.com.pl dpd.pl dpd.com dhl.com dhl.pl dhlparcel.pl
+    allegro.pl allegrolokalnie.pl olx.pl inpost.pl inpostpay.pl poczta-polska.pl pocztex.pl envelo.pl dpd.com.pl dpd.pl dpd.com dhl.com dhl.pl dhlparcel.pl
     ups.com fedex.com gls-group.eu gls-group.com gls-poland.com orlenpaczka.pl
     pkobp.pl ipko.pl pko.pl mbank.pl ing.pl ing.com santander.pl pekao.com.pl pekao24.pl pekaobiznes24.pl bankmillennium.pl millenet.pl
     aliorbank.pl credit-agricole.pl bnpparibas.pl velobank.pl citibank.pl citihandlowy.pl nestbank.pl bankpocztowy.pl bosbank.pl
@@ -111,7 +113,7 @@ window.BZ = window.BZ || {};
     gov.pl zus.pl nfz.gov.pl biznes.gov.pl
     orlen.pl pge.pl tauron.pl energa.pl enea.pl pgnig.pl
     vinted.pl vinted.com otomoto.pl otodom.pl ceneo.pl empik.com mediaexpert.pl rtveuroagd.pl x-kom.pl morele.net euro.com.pl
-    biedronka.pl lidl.pl lidl.com rossmann.pl zabka.pl pyszne.pl glovoapp.com uber.com bolt.eu allegro.cz ikea.com decathlon.pl zalando.pl
+    biedronka.pl lidl.pl lidl.com aldi.pl rossmann.pl zabka.pl pyszne.pl glovoapp.com uber.com bolt.eu allegro.cz ikea.com decathlon.pl zalando.pl
     amazon.pl amazon.com amazon.de google.com google.pl youtube.com youtu.be gmail.com facebook.com instagram.com whatsapp.com wa.me messenger.com
     linkedin.com x.com twitter.com tiktok.com pinterest.com reddit.com spotify.com netflix.com apple.com icloud.com microsoft.com live.com
     outlook.com office.com microsoftonline.com github.com wikipedia.org wikimedia.org mozilla.org booking.com airbnb.pl airbnb.com
@@ -128,7 +130,8 @@ window.BZ = window.BZ || {};
     surge.sh ngrok-free.app ngrok.io ngrok.app trycloudflare.com translate.goog dweb.link myshopify.com notion.site canva.site
     jimdosite.com jimdo.com site123.me webnode.page webnode.pl yolasite.com tilda.ws ukit.me wixstudio.io hostingerapp.com
     s3.amazonaws.com amazonaws.com cloudfront.net blob.core.windows.net sharepoint.com my.canva.site gitbook.io
-    ipfs.io pinata.cloud fleek.co b-cdn.net firebasestorage.app`);
+    ipfs.io pinata.cloud fleek.co b-cdn.net firebasestorage.app lovable.app lovable.dev bolt.host v0.dev
+    vercel.dev netlify.com deno.dev val.run glitch.com pages.github.io wasmer.app`);
 
   /* Usługi, gdzie wiele cudzych stron wisi pod jednym adresem, rozróżnionych ścieżką (sites.google.com/…). */
   BZ.WSPOLNE_ADRESY = zbior(`
@@ -152,7 +155,15 @@ window.BZ = window.BZ || {};
     motorcycles homes mobi asia biz info`);
 
   /* Końcówki „wysokiego ryzyka” – ich obecność sama w sobie liczy się mocniej. */
-  BZ.BARDZO_PODEJRZANE_KONCOWKI = zbior(`top xyz icu cyou sbs click buzz rest cfd bond monster quest mom lol gq tk ml cf ga zip mov su`);
+  BZ.BARDZO_PODEJRZANE_KONCOWKI = zbior(`top xyz icu cyou sbs click buzz rest cfd bond monster quest mom lol gq tk ml cf ga zip mov su shop store lat`);
+
+  /* Linki, które otwierają rozmowę z nieznaną osobą (tak zaczynają się oszustwa „na pracę” i „na inwestycje”). */
+  BZ.CZATY = zbior(`wa.me api.whatsapp.com chat.whatsapp.com t.me telegram.me m.me signal.me viber.click invite.viber.com`);
+
+  /* Prawdziwe końcówki krajowe, które przyjmujemy dla adresu wpisanego bez „https://” i „www.”.
+     Bez polskich słów, które są też końcówkami (do, na, to, in, za, po, co, my, im, ja, ty, mi), bo „w drodze.Do odbioru” to nie adres. */
+  BZ.KONCOWKI_KRAJOWE = zbior(`pl eu de uk us fr it es cz sk ru ua by lt lv ee nl be at ch se no dk fi pt ie gr hu ro bg hr si rs ba me
+    cn jp kr tw hk sg th vn id ph my au nz ca mx br ar cl pe uy tr il ae sa eg za ng ke ma tn io ai tv cc ly gl gg sh ac vc ws fm am la st`);
 
   /* Słowa-wabiki: pilność, pieniądze, paczki, logowanie. Szukane w adresie po usunięciu polskich znaków. */
   BZ.WABIKI = [
@@ -167,6 +178,46 @@ window.BZ = window.BZ || {};
     ['customs', 'customs'], ['clo-', 'cło'], ['refund', 'refund'], ['odblok', 'odblokuj'], ['airdrop', 'airdrop'],
     ['giveaway', 'giveaway'], ['kryptowalut', 'kryptowaluty'], ['inwestyc', 'inwestycja'], ['mandat', 'mandat'],
     ['zaleglos', 'zaległość'], ['wezwani', 'wezwanie'], ['odlaczen', 'odłączenie']
+  ];
+
+  /* Schematy oszustw w treści wiadomości (tekst bez polskich znaków, małymi literami).
+     Żeby nie alarmować przy zwykłych wiadomościach, każdy schemat wymaga KILKU rzeczy naraz:
+     wszystkie – każdy z tych wzorców musi wystąpić, ktorekolwiek – choć jeden z nich,
+     bez – żadnego z nich (np. ostrzeżenia banków „nigdy nie podawaj kodu BLIK”). */
+  const NIGDY = /nigdy nie|nie (podawaj|przekazuj|udostepniaj|wysylaj)|nie prosi|nie prosimy|nie poprosi/;
+  BZ.SCENARIUSZE = [
+    { klucz: 'dziecko', nazwa: 'oszustwo „na dziecko”',
+      wszystkie: [/\b(nowy|nowym|nowego) (numer|nr|telefon)|zepsul\w* (mi )?(sie )?telefon|zgubil\w* (telefon|komork)|rozbil\w* telefon|to (jest )?moj (nowy|drugi) numer|pisze z (nowego|innego|cudzego|kolegi)/],
+      ktorekolwiek: [/\b(mamo|mamus\w*|mama|tato|tatus\w*|tata|babciu|babcia|dziadku|synu|corciu|ciociu|wujku)\b|whats ?app|napisz (do mnie|mi|na)|zapisz (sobie )?(ten|moj|nowy)/],
+      tekst: 'To oszustwo „na dziecko”: ktoś pisze z nowego numeru i podaje się za syna, córkę albo wnuczka. Zadzwoń do tej osoby na stary, znany numer i zapytaj.' },
+    { klucz: 'blik', nazwa: 'prośba o kod BLIK',
+      wszystkie: [/\bblik\w*/, /\b(wyslij|przeslij|podaj|daj|dasz|potrzebuj\w*|pozycz\w*|wygeneruj|przepisz|napisz|zrobisz|zrob)\b/], bez: [NIGDY],
+      tekst: 'Ktoś prosi o kod BLIK. Kod BLIK to pieniądze: kto go dostanie, wypłaci je z Twojego konta. Nikomu go nie wysyłaj, nawet „rodzinie”, dopóki nie zadzwonisz do niej na znany numer.' },
+    { klucz: 'karta', nazwa: 'prośba o dane karty',
+      wszystkie: [/(numer\w*|dane|danych) (twojej |swojej )?karty|\bcvv\b|\bcvc\b|kod\w* (z )?(tylu|odwrotu|odwrocie) karty|\bpin\w*\b|haslo do (banku|konta|bankowosci)/,
+        /\b(podaj|wpisz|wprowadz|potwierdz|przeslij|wyslij|zweryfikuj|uzupelnij|aktualizuj|zaktualizuj)\w*/], bez: [NIGDY],
+      tekst: 'Wiadomość prosi o dane karty, PIN albo hasło. Prawdziwy bank, sklep ani urząd nigdy o to nie prosi w SMS-ie, e-mailu ani przez telefon.' },
+    { klucz: 'pulpit', nazwa: 'instalacja programu do zdalnej obsługi',
+      wszystkie: [/anydesk|teamviewer|rustdesk|quick ?support|supremo|zdaln\w* (pulpit|pomoc|dostep|obslug)|udostepni\w* ekran/],
+      ktorekolwiek: [/zainstaluj|pobierz|instal|aplikacj|konsultant|bank|pomoc|technik|zabezpiecz/],
+      tekst: 'Ktoś namawia do zainstalowania programu (np. AnyDesk, TeamViewer), przez który przejmie Twój telefon lub komputer. Tak działają fałszywi „konsultanci banku”.' },
+    { klucz: 'konto', nazwa: 'fałszywy alarm o koncie',
+      wszystkie: [/(konto|karta|rachunek|dostep)\w* (do bankowosci )?(zostal\w* |jest |zostanie |bedzie )?(czasowo )?(zablokowan|zawieszon|ograniczon)|podejrzan\w* (transakc|logowan|przelew|operacj)|nieautoryzowan|proba (nieudanego )?logowania/],
+      ktorekolwiek: [/zadzwon|oddzwon|kliknij|zaloguj|potwierdz|infolini|konsultant|pilne|natychmiast|w ciagu \d+|odblokuj|zweryfikuj/], bez: [NIGDY],
+      tekst: 'Wiadomość straszy blokadą konta albo podejrzaną transakcją i każe szybko kliknąć lub zadzwonić. Jeśli się martwisz, zadzwoń do banku sam, na numer z odwrotu karty.' },
+    { klucz: 'bezpieczne', nazwa: '„bezpieczne konto”',
+      wszystkie: [/bezpieczn\w* (konto|rachunek|portfel)|przelej\w* (wszystkie |swoje )?(srodki|pieniadze|oszczednosci)|wyplac\w* (wszystkie |swoje )?(srodki|pieniadze|oszczednosci)/],
+      tekst: 'Prośba o przelanie pieniędzy na „bezpieczne konto”. Takie konto nie istnieje: tak oszuści podszywający się pod bank albo policję zabierają oszczędności.' },
+    { klucz: 'inwestycja', nazwa: 'inwestycja z gwarantowanym zyskiem',
+      wszystkie: [/(gwarantowan|pewn|staly|stalego)\w* (zysk|dochod|zarobek)|zarob\w*.{0,25}(dziennie|tygodniowo|miesiecznie|bez wysilku|bez ryzyka)|pasywn\w* dochod|inwestuj\w*.{0,40}(krypto|bitcoin|orlen|pge|baltyk|akcje|zloto)|podwoi\w* (pieniadze|kapital|srodki)/],
+      tekst: 'Obietnica pewnego, dużego zysku z inwestycji. Nikt uczciwy nie gwarantuje zysku: to schemat, w którym tracisz wpłacone pieniądze.' },
+    { klucz: 'wygrana', nazwa: 'fałszywa wygrana',
+      wszystkie: [/wygral\w*|zostal\w* (wylosowan|zwyciez)|odbierz (swoja )?(nagrod|wygran|prezent)|nagroda czeka/],
+      ktorekolwiek: [/oplat|doplat|karty|kliknij|potwierdz|wpisz|podaj|kurier|wysylk|dane osobowe/],
+      tekst: 'Wiadomość ogłasza wygraną albo nagrodę, za którą trzeba coś dopłacić lub podać dane. To przynęta: prawdziwe konkursy nie każą płacić za odbiór.' },
+    { klucz: 'platny', nazwa: 'płatny numer',
+      wszystkie: [/(zadzwon|oddzwon|wyslij sms|kontakt)\w*.{0,40}\b(\+?48 ?)?70[0-9][ -]?\d{3}[ -]?\d{3}\b|\b(\+?48 ?)?70[0-9][ -]?\d{3}[ -]?\d{3}\b.{0,40}(zadzwon|oddzwon|sms)/],
+      tekst: 'Wiadomość każe zadzwonić albo wysłać SMS na numer zaczynający się od 70… To numery płatne: jedna rozmowa może kosztować kilkadziesiąt złotych.' }
   ];
 
   /* Rozszerzenia plików, które instalują program na telefonie lub komputerze. */

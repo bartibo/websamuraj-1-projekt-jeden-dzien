@@ -2,8 +2,8 @@
    1) wyłuskanie linków z wklejonego tekstu (nawet całego SMS-a),
    2) rozbiór adresu (domena, właściciel domeny, końcówka, punycode),
    3) sztuczki oszustów sprawdzane na miejscu (podszywanie się pod marki, literówki, skracacze, IP, pliki .apk…),
-   4) darmowe zewnętrzne źródła: Cloudflare DNS z filtrem złośliwych stron (1.1.1.2), OpenPhish,
-      Phishing.Database (listy porównywane na urządzeniu) i RDAP (data rejestracji domeny),
+   4) darmowe zewnętrzne źródła: Cloudflare DNS z filtrem złośliwych stron (1.1.1.2), Lista Ostrzeżeń CERT Polska
+      i Phishing.Database (małe porcje list, pobierane według skrótu nazwy), OpenPhish i RDAP (data rejestracji domeny),
    5) werdykt: zielony albo czerwony. */
 (function (BZ) {
   'use strict';
@@ -13,22 +13,31 @@
     cloudflare: 'https://security.cloudflare-dns.com/dns-query',
     openphish: 'https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt',
     phishdb: 'https://raw.githubusercontent.com/Phishing-Database/Phishing.Database/master/phishing-domains-ACTIVE.txt',
-    rdap: 'https://rdap.org/domain/'
+    rdap: 'https://rdap.org/domain/',
+    // listy CERT Polska i Phishing.Database podzielone na 1024 porcje (gałąź odświeżana co godzinę przez GitHub Actions)
+    porcje: 'https://raw.githubusercontent.com/bartibo/websamuraj-1-projekt-jeden-dzien/bezpiecznik-dane/'
   };
+  const PORCJE = 1024;
   BZ.ZRODLA = ZRODLA;
 
+  /* Limit czasu obejmuje całą odpowiedź, także treść (zawieszona treść nie blokuje wyniku). */
   function pobierz(url, opcje = {}, ms = 6000) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ms);
     return fetch(url, Object.assign({ signal: ctrl.signal, cache: 'default', referrerPolicy: 'no-referrer' }, opcje))
+      .then(r => r.text().then(txt => ({ ok: r.ok, status: r.status, text: () => Promise.resolve(txt), json: () => Promise.resolve().then(() => JSON.parse(txt)) })))
       .finally(() => clearTimeout(t));
   }
+  // po nieudanym pobraniu listy nie próbujemy znowu przy każdym sprawdzeniu, tylko najwcześniej po minucie
+  const porazka = {};
+  const mozna = (k) => !porazka[k] || Date.now() - porazka[k] > 60000;
 
   /* Listy oszustw pobieramy raz, w tle, zaraz po otwarciu strony. Porównanie odbywa się na urządzeniu,
      więc wklejony link nie trafia do nikogo poza zapytaniem DNS o samą nazwę domeny. */
   const listy = { openphish: null, phishdb: null };
 
   function zaladujOpenPhish() {
+    if (!listy.openphish && !mozna('op')) return Promise.resolve(null);
     if (!listy.openphish) {
       listy.openphish = pobierz(ZRODLA.openphish, {}, 15000)
         .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
@@ -44,37 +53,75 @@
               hosty.add(h);
             } catch (e) { /* pomijamy śmieci */ }
           }
+          if (adresy.length < 20) throw new Error('format');   // pusty plik albo zmiana formatu
           return { adresy, hosty, ile: adresy.length };
         })
-        .catch(() => { listy.openphish = null; return null; });
+        .catch(() => { listy.openphish = null; porazka.op = Date.now(); return null; });
     }
     return listy.openphish;
   }
 
   function zaladujPhishDb() {
+    if (!listy.phishdb && !mozna('pd')) return Promise.resolve(null);
     if (!listy.phishdb) {
       listy.phishdb = pobierz(ZRODLA.phishdb, {}, 45000)
         .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
         .then(txt => {
-          const zb = new Set();
-          let i = 0, n = txt.length;
-          while (i < n) {
-            let j = txt.indexOf('\n', i);
-            if (j < 0) j = n;
-            const s = txt.slice(i, j).trim();
-            if (s && s[0] !== '#') zb.add(s.toLowerCase());
-            i = j + 1;
-          }
-          return { hosty: zb, ile: zb.size };
+          // jeden długi tekst i wyszukiwanie „\ndomena\n”: kilkanaście ms zamiast ponad sekundy i o połowę mniej pamięci
+          const tekst = '\n' + txt.toLowerCase().replace(/\r/g, '') + '\n';
+          let ile = 0;
+          for (let i = tekst.indexOf('\n'); i !== -1 && i < tekst.length - 1; i = tekst.indexOf('\n', i + 1)) ile++;
+          if (ile < 100000 || !/^[a-z0-9.-]+$/.test(tekst.slice(1, tekst.indexOf('\n', 1)))) throw new Error('format');
+          return { hosty: { has: (h) => tekst.indexOf('\n' + h + '\n') !== -1 }, ile };
         })
-        .catch(() => { listy.phishdb = null; return null; });
+        .catch(() => { listy.phishdb = null; porazka.pd = Date.now(); return null; });
     }
     return listy.phishdb;
   }
 
+  /* Porcje list: strona pobiera tylko porcję, w której może być sprawdzana domena (ok. 7 KB),
+     a nie całe listy (kilkanaście MB). Numer porcji to skrót FNV-1a, więc z zapytania nie da się
+     odczytać, jaki adres sprawdzasz. */
+  function fnv1a(s) {
+    let h = 0x811c9dc5;
+    for (const b of new TextEncoder().encode(s)) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; }
+    return h >>> 0;
+  }
+  const porcje = new Map();
+  function porcja(nr) {
+    if (!porcje.has(nr)) {
+      const p = pobierz(`${ZRODLA.porcje}s/${nr.toString(16).padStart(3, '0')}.txt`, {}, 6000)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(txt => {
+          const m = new Map();
+          for (const linia of txt.split('\n')) { const t = linia.indexOf('\t'); if (t > 0) m.set(linia.slice(0, t), linia.slice(t + 1)); }
+          if (m.size < 50) throw new Error('format');   // porcja ma zwykle kilkaset domen
+          return m;
+        })
+        .catch(() => { porcje.delete(nr); return null; });
+      porcje.set(nr, p);
+    }
+    return porcje.get(nr);
+  }
+  let meta = null;
+  BZ.metaList = function () {
+    if (!meta) meta = pobierz(ZRODLA.porcje + 'meta.json', { cache: 'no-cache' }, 6000).then(r => r.ok ? r.json() : null).catch(() => null);
+    return meta;
+  };
+  /* Sprawdza host i jego „rodziców” w porcjach list. Zwraca, w których listach jest (c = CERT, p = Phishing.Database). */
+  async function sprawdzPorcje(info) {
+    const hosty = hostyDoSprawdzenia(info);
+    if (!hosty.length) return { cert: false, phishdb: false };
+    const wyniki = await Promise.all(hosty.map(h => porcja(fnv1a(h) % PORCJE).then(m => (m ? { ok: true, zr: m.get(h) || '' } : { ok: false }))));
+    if (wyniki.some(w => !w.ok)) return null;
+    const zr = wyniki.map(w => w.zr).join('');
+    return { cert: zr.includes('c'), phishdb: zr.includes('p') };
+  }
+
   BZ.zacznijPobieracListy = function () {
+    // OpenPhish jest mały (kilkanaście KB) i najświeższy, więc pobiera się od razu; duże listy idą porcjami
     zaladujOpenPhish();
-    zaladujPhishDb();
+    BZ.metaList();
   };
 
   /* Czekamy na listę najwyżej do podanego terminu – jeśli jeszcze się nie pobrała, idziemy dalej bez niej. */
@@ -170,7 +217,7 @@
     if (!m) return false;
     const tld = m[3].toLowerCase();
     if (BZ.NIE_ADRESY.has(tok.toLowerCase())) return false;
-    return tld.length === 2 || BZ.KONCOWKI_OGOLNE.has(tld) || /[^\x00-\x7f]/.test(tld);
+    return BZ.KONCOWKI_KRAJOWE.has(tld) || BZ.KONCOWKI_OGOLNE.has(tld) || /[^\x00-\x7f]/.test(tld);
   }
 
   BZ.znajdzLinki = function (tekst) {
@@ -180,6 +227,8 @@
     // ukryty kod zamiast adresu strony
     if (/^\s*(javascript|data|vbscript|file):/i.test(surowy)) return [surowy];
     const tokeny = surowy.replace(/[<>"'`«»„”“]/g, ' ').split(/\s+/);
+    // gdy w wiadomości jest prawdziwy link (https://, www.), słowa w rodzaju „m.in.” czy „drodze.Do” nie są brane za adresy
+    const jestPelny = tokeny.some(t => /(https?:\/\/|hxxps?:\/\/|www\.)\S/i.test(t));
     for (let t of tokeny) {
       t = t.replace(/^[(\[{]+/, '').replace(/[.,;:!?)\]}…]+$/, '');
       if (!t) continue;
@@ -187,7 +236,7 @@
       if (mSchemat) {
         let s = mSchemat[0].replace(/^hxxp/i, 'http');
         wynik.push(s);
-      } else if (!t.includes('@') && wygladaJakDomena(t)) {
+      } else if (!jestPelny && !t.includes('@') && wygladaJakDomena(t)) {
         wynik.push(t);
       }
       if (wynik.length >= 5) break;
@@ -238,7 +287,9 @@
       info.koncowka = w.koncowka;
       info.domenaCzytelna = hostCzytelny(w.domena);
       const bezWww = host.replace(/^www\./, '');
-      info.zaufana = !w.hosting && !BZ.WSPOLNE_ADRESY.has(bezWww) && (BZ.ZAUFANE.has(w.domena) || /(^|\.)gov\.pl$/.test(host));
+      info.zaufana = (!w.hosting && !BZ.WSPOLNE_ADRESY.has(bezWww) && !BZ.CZATY.has(bezWww) && (BZ.ZAUFANE.has(w.domena) || /(^|\.)gov\.pl$/.test(host))) || bezWww === 'maps.app.goo.gl';
+      info.czat = BZ.CZATY.has(bezWww);
+      info.goly = !/^[a-z][a-z0-9+.-]*:\/\//i.test(kandydat.trim()) && !/^www\./i.test(kandydat.trim());
     }
     return info;
   };
@@ -253,6 +304,7 @@
     const d = info.domena, h = info.host;
     if (marka.oficjalne.includes(d) || marka.oficjalne.some(o => h === o || h.endsWith('.' + o))) return true;
     if (marka.gov && (/(^|\.)gov\.pl$/.test(h) || /(^|\.)gov(\.[a-z]{2,3})?$/.test(h))) return true;
+    if (marka.tld && h.endsWith('.' + marka.tld)) return true;
     if (marka.krajowe && !info.hosting) {
       const etykieta = d.split('.')[0];
       const reszta = d.slice(etykieta.length + 1);
@@ -281,12 +333,13 @@
       for (const w of (m.slowa || [])) {
         if (czlonyW.has(w)) { if ((m.slabe || []).includes(w)) slabe = true; else mocne = true; }
       }
+      if (slabe && !mocne && czlony.includes('pl') && (m.slowa || []).some(w => czlonyW.has(w))) mocne = true;
       if ((mocne || slabe) && !czyOficjalna(m, info)) trafienia.push({ marka: m, mocne });
     }
     return trafienia;
   }
 
-  const WYJATKI_LITEROWEK = new Set(['revolt', 'minted', 'impost', 'googly', 'goggles', 'amazone', 'santana', 'bincance', 'meta', 'netfix']);
+  const WYJATKI_LITEROWEK = new Set(['revolt', 'minted', 'impost', 'googly', 'goggles', 'amazone', 'santana', 'bincance', 'meta', 'netfix', 'finance', 'gogle', 'allegra', 'biedronki', 'revolution']);
   function wykryjLiterowke(info) {
     const sk = szkielet(info.czytelny);
     const kon = info.hosting ? '' : info.koncowka;
@@ -332,7 +385,8 @@
       twarde.push('Zamiast nazwy strony link zawiera same cyfry (adres IP). Prawdziwe firmy i urzędy tak nie robią.');
     }
     const bezWww = info.host.replace(/^www\./, '');
-    if (!info.ip && (BZ.SKRACACZE.has(bezWww) || BZ.SKRACACZE.has(info.domena))) {
+    if (!info.ip && bezWww !== 'maps.app.goo.gl' && (BZ.SKRACACZE.has(bezWww) || BZ.SKRACACZE.has(info.domena))) {
+      info.skrot = true;
       twarde.push(`To skrócony link (${bezWww}). Ukrywa prawdziwy adres strony, więc nie wiadomo, dokąd naprawdę prowadzi. Oszuści używają ich bardzo często.`);
     }
     const plik = (info.url.pathname.toLowerCase().match(/\.([a-z0-9]{2,12})$/) || [])[1];
@@ -370,7 +424,7 @@
         if (hostTekst.includes(wzor)) wHoscie.push(slowo);
         else if (sciezkaTekst.includes(wzor)) wSciezce.push(slowo);
       }
-      if (wHoscie.length) dodaj(wHoscie.length >= 2 ? 1.5 : 1, `W nazwie strony są słowa-wabiki: ${wHoscie.slice(0, 3).map(s => '„' + s + '”').join(', ')}.`, 'wabiki');
+      if (wHoscie.length) dodaj(wHoscie.length >= 2 ? 2 : 1, `W nazwie strony są słowa-wabiki: ${wHoscie.slice(0, 3).map(s => '„' + s + '”').join(', ')}.`, 'wabiki');
       if (wSciezce.length) dodaj(wSciezce.length >= 2 ? 1 : 0.5, `W linku są słowa-wabiki: ${wSciezce.slice(0, 3).map(s => '„' + s + '”').join(', ')}.`, 'wabiki2');
 
       // nazwa marki schowana w dalszej części linku (strona.top/inpost/…)
@@ -380,8 +434,10 @@
         if (wSc) dodaj(1, `W linku pojawia się nazwa „${wSc.nazwa}”, choć strona do tej firmy nie należy.`, 'marka2');
       }
 
-      if (info.hosting || BZ.WSPOLNE_ADRESY.has(bezWww)) {
-        dodaj(1, 'Strona stoi na darmowej usłudze, na której każdy może w minutę postawić własną stronę.', 'hosting');
+      if (info.czat) {
+        dodaj(2, 'Link otwiera rozmowę z nieznaną osobą (WhatsApp, Telegram, Messenger). Tak zaczynają się oszustwa „na pracę zdalną”, „na inwestycję” i „na dziecko”. Jeśli nie znasz nadawcy, nie odpisuj.', 'czat');
+      } else if (info.hosting || BZ.WSPOLNE_ADRESY.has(bezWww)) {
+        dodaj(1.5, 'Strona stoi na darmowej usłudze (np. formularz Google, Dropbox, darmowa strona), na której każdy może w minutę postawić własną stronę albo formularz.', 'hosting');
       }
       if (/xn--/.test(info.host) && !twarde.length) dodaj(0.5, `Adres zawiera nietypowe znaki (naprawdę wygląda tak: ${info.czytelny}).`, 'puny');
       const etykieta = info.domenaCzytelna.split('.')[0];
@@ -399,10 +455,29 @@
     return { twarde, miekkie };
   };
 
+  /* ---------- treść wiadomości: znane schematy oszustw ---------- */
+  BZ.przeczytajWiadomosc = function (tekst) {
+    const t = bezOgonkow((tekst || '').toLowerCase()).replace(/https?:\/\/\S+/g, ' ').replace(/\s+/g, ' ');
+    const znalezione = [];
+    for (const s of BZ.SCENARIUSZE) {
+      if (!s.wszystkie.every(r => r.test(t))) continue;
+      if (s.ktorekolwiek && !s.ktorekolwiek.some(r => r.test(t))) continue;
+      if (s.bez && s.bez.some(r => r.test(t))) continue;
+      znalezione.push(s);
+    }
+    return znalezione;
+  };
+  /* Czy w tekście jest coś więcej niż sam link (wtedy warto czytać treść). */
+  BZ.jestTresc = (tekst, linki) => {
+    let t = tekst;
+    for (const l of linki) t = t.split(l).join(' ');
+    return t.replace(/[^\p{L}]+/gu, ' ').trim().split(' ').filter(w => w.length > 1).length >= 3;
+  };
+
   /* ---------- zapytania do źródeł zewnętrznych ---------- */
   async function zapytajCloudflare(host) {
     try {
-      const r = await pobierz(`${ZRODLA.cloudflare}?name=${encodeURIComponent(host)}&type=A`, { headers: { accept: 'application/dns-json' } }, 6000);
+      const r = await pobierz(`${ZRODLA.cloudflare}?name=${encodeURIComponent(host)}&type=A`, { headers: { accept: 'application/dns-json' } }, 4500);
       if (!r.ok) return { stan: 'blad' };
       const j = await r.json();
       const odp = j.Answer || [];
@@ -414,13 +489,41 @@
     } catch (e) { return { stan: 'blad' }; }
   }
 
+  /* Spis serwerów rejestrów od IANA: dla .top, .xyz, .shop itd. pytamy właściwy rejestr wprost,
+     bo pośrednik rdap.org często odpowiada „za dużo zapytań”. */
+  let spisRdap = null;
+  function serwerRdap(kon) {
+    if (!spisRdap) {
+      spisRdap = pobierz('https://data.iana.org/rdap/dns.json', {}, 5000)
+        .then(r => (r.ok ? r.json() : null))
+        .then(j => {
+          const m = new Map();
+          if (j && j.services) for (const [konc, adresy] of j.services) { const a = adresy.find(x => x.startsWith('https')) || adresy[0]; for (const k of konc) m.set(k, a); }
+          return m;
+        })
+        .catch(() => { spisRdap = null; return null; });
+    }
+    return spisRdap.then(m => (m && m.get(kon)) || null);
+  }
+
   async function zapytajRdap(domena) {
+    const klucz = 'bz-rdap-' + domena;
     try {
-      // najpopularniejsze rejestry pytamy wprost (szybciej i bez limitu pośrednika), resztę przez rdap.org
+      const z = sessionStorage.getItem(klucz);
+      if (z) { const data = new Date(z); return { stan: 'ok', data, dni: Math.floor((Date.now() - data.getTime()) / 86400000) }; }
+    } catch (e) { /* bez pamięci sesji */ }
+    const w = await zapytajRdapSiec(domena);
+    if (w.stan === 'ok') try { sessionStorage.setItem(klucz, w.data.toISOString()); } catch (e) { /* bez pamięci sesji */ }
+    return w;
+  }
+  async function zapytajRdapSiec(domena) {
+    try {
+      // najpopularniejsze rejestry pytamy wprost, resztę według spisu IANA, a w ostateczności przez rdap.org
       const kon = domena.split('.').pop();
-      const adres = kon === 'pl' ? 'https://rdap.dns.pl/domain/'
+      let adres = kon === 'pl' ? 'https://rdap.dns.pl/domain/'
         : (kon === 'com' || kon === 'net') ? `https://rdap.verisign.com/${kon}/v1/domain/`
-          : ZRODLA.rdap;
+          : null;
+      if (!adres) { const s = await serwerRdap(kon); adres = s ? s.replace(/\/?$/, '/') + 'domain/' : ZRODLA.rdap; }
       const r = await pobierz(adres + encodeURIComponent(domena), { headers: { accept: 'application/rdap+json, application/json' } }, 7000);
       if (!r.ok) return { stan: 'brak' };
       const j = await r.json();
@@ -440,7 +543,8 @@
     const dlWl = info.domena.split('.').length;
     for (let k = czesci.length; k >= dlWl; k--) {
       const h = czesci.slice(-k).join('.');
-      if (BZ.WSPOLNE_ADRESY.has(h) || BZ.DARMOWE_HOSTINGI.has(h)) continue;
+      // wspólne adresy, darmowe hostingi i skracacze same w sobie nie są stronami oszustów
+      if (BZ.WSPOLNE_ADRESY.has(h) || BZ.DARMOWE_HOSTINGI.has(h) || BZ.SKRACACZE.has(h)) continue;
       wynik.push(h);
     }
     return wynik;
@@ -461,6 +565,14 @@
   }
 
   const ile = (n) => n.toLocaleString('pl-PL');
+  // „lista z 10:23” albo „lista sprzed 3 dni”, gdy automat odświeżający przestał działać
+  function kiedyLista(d) {
+    if (isNaN(d)) return '';
+    const h = (Date.now() - d.getTime()) / 3600000;
+    if (h < 20) return 'lista z ' + d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+    const dni = Math.max(1, Math.round(h / 24));
+    return `lista sprzed ${dni} ${dni === 1 ? 'dnia' : 'dni'}`;
+  }
   function wiekSlownie(dni) {
     if (dni <= 0) return 'dzisiaj';
     if (dni === 1) return 'wczoraj';
@@ -477,10 +589,10 @@
     krok('sztuczki', twarde.length ? 'zle' : 'ok');
 
     const szczegoly = [];
-    let cf = { stan: 'pominiete' }, op = null, pd = null, rd = { stan: 'pominiete' };
+    let cf = { stan: 'pominiete' }, op = null, pd = null, ce = null, rd = { stan: 'pominiete' };
 
     if (!info.ukrytyKod) {
-      const listaOp = zaladujOpenPhish(), listaPd = zaladujPhishDb();
+      const listaOp = zaladujOpenPhish();
       const zadania = [];
       if (info.ip) krok('cloudflare', 'pominiete');
       else zadania.push(zapytajCloudflare(info.host).then(w => { cf = w; krok('cloudflare', w.stan === 'blok' ? 'zle' : w.stan === 'blad' ? 'pominiete' : 'ok'); }));
@@ -489,15 +601,26 @@
         op = { lista, wynik: sprawdzOpenPhish(lista, info) };
         krok('openphish', op.wynik ? 'zle' : lista ? 'ok' : 'pominiete');
       }));
-      zadania.push(zTerminem(listaPd, 9000).then(l => {
-        const lista = l && l !== 'czas' ? l : null;
-        pd = { lista, wynik: sprawdzPhishDb(lista, info) };
-        krok('phishdb', pd.wynik ? 'zle' : lista ? 'ok' : 'pominiete');
+      zadania.push(sprawdzPorcje(info).then(async (w) => {
+        if (w) {
+          const m = await zTerminem(BZ.metaList(), 1500);
+          const mm = m && m !== 'czas' ? m : null;
+          ce = { ok: true, wynik: !info.zaufana && w.cert, ile: mm ? mm.cert : 0, czas: mm && mm.czas ? new Date(mm.czas) : null };
+          pd = { lista: { ile: mm ? mm.phishdb : 0 }, wynik: !info.zaufana && w.phishdb };
+        } else {
+          // porcje nieosiągalne: zapas, czyli pełna lista Phishing.Database (bez CERT)
+          ce = { ok: false };
+          const l = await zTerminem(zaladujPhishDb(), 12000);
+          const lista = l && l !== 'czas' ? l : null;
+          pd = { lista, wynik: sprawdzPhishDb(lista, info) };
+        }
+        krok('cert', ce.wynik ? 'zle' : ce.ok ? 'ok' : 'pominiete');
+        krok('phishdb', pd.wynik ? 'zle' : pd.lista ? 'ok' : 'pominiete');
       }));
       if (!info.ip && !info.zaufana && !info.hosting && !BZ.WSPOLNE_ADRESY.has(info.host.replace(/^www\./, ''))) {
-        zadania.push(zapytajRdap(info.domena).then(w => {
-          rd = w;
-          krok('wiek', w.stan === 'ok' ? (w.dni < 30 ? 'zle' : 'ok') : 'pominiete');
+        zadania.push(zTerminem(zapytajRdap(info.domena), 2500).then(w => {
+          rd = w === 'czas' ? { stan: 'brak' } : w;
+          krok('wiek', rd.stan === 'ok' ? (rd.dni < 30 ? 'zle' : 'ok') : 'pominiete');
         }));
       } else {
         krok('wiek', info.zaufana ? 'ok' : 'pominiete');
@@ -508,15 +631,30 @@
     /* zbieramy powody */
     if (cf.stan === 'blok') twarde.unshift('Cloudflare, firma chroniąca miliony stron, zna ten adres jako złośliwy i blokuje go.');
     if (op && op.wynik) twarde.unshift('Adres jest na liście OpenPhish – światowej bazie stron wyłudzających dane i pieniądze.');
-    if (pd && pd.wynik) twarde.unshift(`Adres jest w bazie Phishing.Database, w której jest ${ile(pd.lista.ile)} znanych stron oszustów.`);
-    if (cf.stan === 'brak' && !info.zaufana) twarde.push('Taka strona nie istnieje albo została już zamknięta. Tak zwykle kończą strony oszustów – link z wiadomości i tak jest podejrzany.');
+    // oficjalna domena znanej marki (np. amazon.ie, dhl24.com.pl) to nie oszustwo, nawet jeśli baza ją wpisała
+    if (pd && pd.wynik && BZ.MARKI.some(m => czyOficjalna(m, info))) pd.wynik = false;
+    if (pd && pd.wynik) {
+      // w Phishing.Database trafiają się znane, stare serwisy (np. pojedyncza zła podstrona) – wtedy to tylko sygnał
+      if (rd.stan === 'ok' && rd.dni > 730 && !(ce && ce.wynik)) miekkie.push({ punkty: 1, tekst: 'Adres jest w bazie Phishing.Database, choć strona działa od lat (możliwa pomyłka bazy albo przejęta podstrona).', klucz: 'pd' });
+      else twarde.unshift(pd.lista.ile ? `Adres jest w bazie Phishing.Database, w której jest ${ile(pd.lista.ile)} znanych stron oszustów.` : 'Adres jest w bazie Phishing.Database – światowej liście stron oszustów.');
+    }
+    if (ce && ce.wynik) twarde.unshift('Adres jest na Liście Ostrzeżeń CERT Polska. To polski zespół (NASK), który codziennie wyszukuje i blokuje strony oszustów podszywających się pod polskie firmy i urzędy.');
+    if (cf.stan === 'brak' && !info.zaufana) {
+      if (info.goly) miekkie.push({ punkty: 1, tekst: 'Taka strona nie istnieje albo została już zamknięta.', klucz: 'brak' });
+      else twarde.push('Taka strona nie istnieje albo została już zamknięta. Tak zwykle kończą strony oszustów – link z wiadomości i tak jest podejrzany.');
+    }
+    // nazwa znanej marki w adresie i brak daty rejestracji: nie wiadomo, czy to stara firmowa strona, czy świeża podróbka
+    if (miekkie.some(m => m.klucz === 'marka') && rd.stan !== 'ok') miekkie.push({ punkty: 0.5, tekst: 'Nie udało się sprawdzić, od kiedy działa ta strona.', klucz: 'wiek?' });
     if (rd.stan === 'ok') {
       if (rd.dni < 30) twarde.push(`Strona powstała ${wiekSlownie(rd.dni)}. Oszuści zakładają nowe strony co kilka dni, bo stare szybko trafiają na czarne listy.`);
       else if (rd.dni < 180) miekkie.push({ punkty: 1, tekst: `Strona jest bardzo młoda – powstała ${wiekSlownie(rd.dni)}.`, klucz: 'wiek' });
     }
 
     const punkty = miekkie.reduce((s, m) => s + m.punkty, 0);
-    const podstawySprawdzone = cf.stan === 'ok' || cf.stan === 'brak' || cf.stan === 'blok' || (op && op.lista && pd && pd.lista);
+    // zielony tylko, gdy zdążyła odpowiedzieć przynajmniej jedna duża lista oszustów (CERT albo Phishing.Database);
+    // sam Cloudflare nie wystarcza, bo oszustwa z ostatnich godzin zna dopiero lista
+    const listaSprawdzila = (ce && ce.ok) || (pd && pd.lista);
+    const podstawySprawdzone = listaSprawdzila && cf.stan === 'ok';
 
     let werdykt;
     if (twarde.length) werdykt = 'oszustwo';
@@ -528,24 +666,27 @@
     /* tabela „co sprawdziliśmy” */
     szczegoly.push({ nazwa: 'Cloudflare (filtr złośliwych stron 1.1.1.2)', stan: cf.stan === 'blok' ? 'zle' : cf.stan === 'blad' || cf.stan === 'pominiete' ? 'pominiete' : 'ok',
       opis: cf.stan === 'blok' ? 'zablokowana jako niebezpieczna' : cf.stan === 'brak' ? 'strona nie istnieje' : cf.stan === 'ok' ? 'nie jest na czarnej liście' : 'brak odpowiedzi' });
+    szczegoly.push({ nazwa: 'Lista Ostrzeżeń CERT Polska', stan: !ce || !ce.ok ? 'pominiete' : ce.wynik ? 'zle' : 'ok',
+      opis: (!ce || !ce.ok ? 'nie udało się pobrać' : ce.wynik ? 'jest na liście' : ce.ile ? `brak wśród ${ile(ce.ile)} stron` : 'nie ma na liście') + (ce && ce.czas ? ` (${kiedyLista(ce.czas)})` : '') });
     szczegoly.push({ nazwa: 'OpenPhish (światowa baza wyłudzeń)', stan: !op || !op.lista ? 'pominiete' : op.wynik ? 'zle' : 'ok',
       opis: !op || !op.lista ? 'nie udało się pobrać' : op.wynik ? 'jest na liście' : `brak wśród ${ile(op.lista.ile)} zgłoszeń` });
     szczegoly.push({ nazwa: 'Phishing.Database', stan: !pd || !pd.lista ? 'pominiete' : pd.wynik ? 'zle' : 'ok',
-      opis: !pd || !pd.lista ? 'nie udało się pobrać' : pd.wynik ? 'jest w bazie' : `brak wśród ${ile(pd.lista.ile)} stron` });
+      opis: !pd || !pd.lista ? 'nie udało się pobrać' : pd.wynik ? 'jest w bazie' : pd.lista.ile ? `brak wśród ${ile(pd.lista.ile)} stron` : 'nie ma w bazie' });
     szczegoly.push({ nazwa: 'Wiek strony (rejestr domen RDAP)', stan: rd.stan === 'ok' ? (rd.dni < 30 ? 'zle' : rd.dni < 180 ? 'uwaga' : 'ok') : info.zaufana ? 'ok' : 'pominiete',
       opis: rd.stan === 'ok' ? `zarejestrowana ${rd.data.toLocaleDateString('pl-PL')}` : info.zaufana ? 'znana, sprawdzona strona' : 'rejestr nie podaje daty' });
-    szczegoly.push({ nazwa: 'Sztuczki oszustów (podróbki marek, literówki, skracacze, pliki…)', stan: twarde.length && !twarde.every(t => /Cloudflare|OpenPhish|Phishing\.Database|nie istnieje|powstała/.test(t)) ? 'zle' : punkty >= 1 ? 'uwaga' : 'ok',
+    szczegoly.push({ nazwa: 'Sztuczki oszustów (podróbki marek, literówki, skracacze, pliki…)', stan: twarde.length && !twarde.every(t => /Cloudflare|OpenPhish|Phishing\.Database|CERT Polska|nie istnieje|powstała/.test(t)) ? 'zle' : punkty >= 1 ? 'uwaga' : 'ok',
       opis: punkty >= 1 ? `podejrzane sygnały: ${miekkie.length}` : 'nic nie znaleziono' });
 
     return {
       werdykt, info, twarde, miekkie, punkty, szczegoly,
+      tylkoSkrot: werdykt === 'oszustwo' && !!info.skrot && twarde.length === 1,
       domena: info.ukrytyKod ? 'ukryty kod' : (info.ip ? info.host : info.czytelny.replace(/^www\./, '')),
       marka: info.zaufana ? (BZ.MARKI.find(m => czyOficjalna(m, info)) || null) : null,
-      zrodla: { cf, op, pd, rd }
+      zrodla: { cf, op, pd, ce, rd }
     };
   };
 
   /* Do testów w konsoli. */
-  BZ._test = { punycode, szkielet, warianty, odleglosc, wlasciciel, wykryjMarke, wykryjLiterowke };
+  BZ._test = { punycode, szkielet, warianty, odleglosc, wlasciciel, wykryjMarke, wykryjLiterowke, fnv1a, sprawdzPorcje };
 
 })(window.BZ);
