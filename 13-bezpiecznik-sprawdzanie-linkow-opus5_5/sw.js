@@ -1,6 +1,6 @@
 /* Bezpiecznik – praca jako aplikacja: sama strona (HTML, CSS, JS) działa także bez sieci.
    Zapytania do Cloudflare, rejestrów domen i list oszustów zawsze idą przez sieć, nigdy z pamięci. */
-const WERSJA = 'bezpiecznik-2';
+const WERSJA = 'bezpiecznik-3';
 const PLIKI = ['./', './index.html', './css/style.css', './css/fonts/archivo-latin.woff2', './css/fonts/archivo-latin-ext.woff2',
   './js/dane.js', './js/analiza.js', './js/app.js', './manifest.webmanifest', './ikony/ikona-192.png'];
 

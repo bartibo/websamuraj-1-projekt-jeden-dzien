@@ -138,6 +138,8 @@
   const KOLEJNOSC = { oszustwo: 3, podejrzany: 2, nieznany: 1, bezpieczny: 0 };
 
   function li(tekst) { const e = document.createElement('li'); e.textContent = tekst; return e; }
+  // drobna informacja, że to projekt pokazowy i wynik może być niedokładny
+  function pokazowy(tekst) { const e = document.createElement('p'); e.className = 'w-pokazowy'; e.textContent = tekst; return e; }
 
   function pokazWynik(wyniki) {
     const glowny = wyniki.slice().sort((a, b) => KOLEJNOSC[b.werdykt] - KOLEJNOSC[a.werdykt])[0];
@@ -176,6 +178,7 @@
       rada.className = 'w-rada';
       rada.textContent = 'Dobra rada na zawsze: prawdziwy bank, kurier ani urząd nie prosi w SMS-ie o kod BLIK, PIN ani hasło.';
       porady.appendChild(rada);
+      porady.appendChild(pokazowy('Bezpiecznik to projekt pokazowy: wynik może być niedokładny i nie daje gwarancji. Jeśli coś Cię niepokoi, nie klikaj.'));
       porady.style.textAlign = 'center';
       dzwiek(true);
     } else {
@@ -217,6 +220,7 @@
             <li><b>Zgłoś i usuń wiadomość.</b> SMS prześlij bezpłatnie na numer <b>8080</b> – trafi do CERT Polska, który blokuje strony oszustów. E-mail zgłoś na stronie <b>incydent.cert.pl</b>.</li>
             <li>Jeśli dane karty, hasło albo kod BLIK zostały już tam wpisane – <b>od razu zadzwoń do swojego banku</b> (numer jest na odwrocie karty).</li>
           </ol>`;
+        porady.appendChild(pokazowy('Bezpiecznik to projekt pokazowy i może się pomylić. Ostrożność nic nie kosztuje: jeśli nie masz pewności, nie klikaj i zadzwoń do nadawcy na znany numer.'));
         dodajPrzyciskiZgloszenia(glowny);
       }
       dzwiek(false);

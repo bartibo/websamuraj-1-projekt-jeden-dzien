@@ -324,3 +324,7 @@ a.przycisk-wynik { display: inline-flex; align-items: center; justify-content: c
 .czerwony .przycisk-akcja:focus-visible { outline: 5px solid #fff; outline-offset: 4px; }
 .wszystkie { display: inline-block; margin: 6px 0 2px; padding: 8px 0; min-height: 44px; color: inherit; font-weight: 700; opacity: .75; text-underline-offset: 4px; }
 .wszystkie:hover { opacity: 1; }
+/* informacja, że to projekt pokazowy: widoczna, ale nie krzycząca */
+.pokazowy { margin: 12px 0 4px; padding: 10px 14px; border: 2px dashed currentColor; border-radius: 14px; font-size: 1rem; line-height: 1.45; max-width: 70ch; }
+.w-pokazowy { font-size: clamp(.95rem, 2.2vw, 1.05rem); font-weight: 600; max-width: 700px; margin: 0 auto 16px; opacity: .9; text-align: center; }
+.czerwony .w-pokazowy { text-align: left; margin-left: 0; }

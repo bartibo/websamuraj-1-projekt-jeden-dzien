@@ -4,6 +4,8 @@ Sprawdzacz podejrzanych linków dla osób, które nie znają się na komputerach
 
 Aplikacja ma dwa kolory: zielony i czerwony. Reszta jest czarno-biała (w trybie ciemnym odwrócona).
 
+> **To projekt pokazowy.** Wyniki mogą być niedokładne: zielony nie gwarantuje, że link jest bezpieczny, a czerwony nie przesądza, że to oszustwo. Bazy oszustów nie znają stron założonych przed chwilą, a Bezpiecznik widzi tylko adres i treść wiadomości, nie samą stronę. Ta informacja jest też na ekranie startowym i drobnym druczkiem na ekranie wyniku.
+
 ## Jak powstał
 
 Dzień 13 eksperymentu [1 prompt, 1 zdanie](../README.md): jeden prompt, zero poprawek.
