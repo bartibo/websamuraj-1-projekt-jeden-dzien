@@ -1,6 +1,6 @@
 # Epicentrum
 
-Symulator wybuchów na makiecie miasta 3D. Do wyboru 13 ładunków (a po rozwoju także port w Bejrucie, meteor czelabiński, katastrofa tunguska i własny ładunek), od **laski dynamitu** (200 g trotylu), przez granat, pocisk czołgowy, pięć rodzajów rakiet i bombę MOAB, po broń jądrową: mini-atomówkę Davy Crockett, bombę z Hiroszimy, głowicę rakiety międzykontynentalnej i **Car-bombę** (50 Mt). Car-bomba jest 250 miliardów razy silniejsza od dynamitu, więc jedna makieta musi działać w skali od centymetrów do setek kilometrów. Fala uderzeniowa liczona fizycznie wybija szyby okno po oknie, burzy budynki, przewraca drzewa i samochody, a błysk wybuchu jądrowego podpala miasto, zanim fala w ogóle do niego dotrze.
+Symulator wybuchów na makiecie miasta 3D. Do wyboru 13 ładunków (a po rozwoju także port w Bejrucie, meteor czelabiński, 12 uderzeń z kosmosu od katastrofy tunguskiej po Chicxulub i własny ładunek), od **laski dynamitu** (200 g trotylu), przez granat, pocisk czołgowy, pięć rodzajów rakiet i bombę MOAB, po broń jądrową: mini-atomówkę Davy Crockett, bombę z Hiroszimy, głowicę rakiety międzykontynentalnej i **Car-bombę** (50 Mt). Car-bomba jest 250 miliardów razy silniejsza od dynamitu, więc jedna makieta musi działać w skali od centymetrów do setek kilometrów. Fala uderzeniowa liczona fizycznie wybija szyby okno po oknie, burzy budynki, przewraca drzewa i samochody, a błysk wybuchu jądrowego podpala miasto, zanim fala w ogóle do niego dotrze.
 
 ## Jak powstał
 
@@ -43,8 +43,24 @@ Nie trzeba niczego instalować ani budować. Three.js leży w folderze `lib/`, a
 | Car-bomba | 50 Mt | opada na spadochronie, wybuch na 4 km |
 | Port w Bejrucie (2020) | 0,8 kt | pożar magazynu i fajerwerków, potem detonacja saletry |
 | Meteor czelabiński (2013) | 500 kt | wejście w atmosferę pod kątem 18°, rozbłysk 27 km nad ziemią |
-| Katastrofa tunguska (1908) | 12 Mt | ciało kosmiczne eksploduje 8 km nad ziemią |
 | Własny ładunek | 100 g – 100 Mt | skrzynka z zapalnikiem albo bomba jądrowa o dowolnej wysokości wybuchu |
+
+**Meteoryty** (osobna zakładka, od najmniejszego krateru do największego; energie to szacunki):
+
+| Uderzenie | Kiedy | Krater | Równoważnik TNT |
+|---|---|---|---|
+| Katastrofa tunguska | 1908 | brak, rozbłysk 8 km nad ziemią | 12 Mt |
+| Krater Barringera (Arizona) | ok. 50 tys. lat temu | 1,2 km, misa | ok. 10 Mt |
+| Lonar (Indie) | ok. 570 tys. lat temu | 1,9 km, w bazalcie | ok. 40 Mt |
+| Pingualuit (Kanada) | ok. 1,4 mln lat temu | 3,4 km | ok. 300 Mt |
+| Bosumtwi (Ghana) | ok. 1,07 mln lat temu | 10,5 km, centralne wzniesienie | ok. 11 tys. Mt |
+| Ries (Bawaria) | ok. 14,8 mln lat temu | 24 km | ok. 150 tys. Mt |
+| Zatoka Chesapeake (USA) | ok. 35,5 mln lat temu | ok. 40 km | ok. 800 tys. Mt |
+| Siljan (Szwecja) | ok. 380 mln lat temu | ok. 52 km, pierścień szczytów | ok. 1,9 mln Mt |
+| Morokweng (RPA) | ok. 145 mln lat temu | ok. 70 km | ok. 4,9 mln Mt |
+| Manicouagan (Kanada) | ok. 214 mln lat temu | ok. 85 km | ok. 9 mln Mt |
+| Popigaj (Syberia) | ok. 35,7 mln lat temu | ok. 100 km | ok. 15 mln Mt |
+| Chicxulub (Jukatan) | 66 mln lat temu | ok. 180 km | ok. 100 mln Mt |
 
 Bomby jądrowe można zdetonować w powietrzu (na historycznej wysokości) albo przy ziemi: wtedy fala sięga mniej daleko, ale powstaje krater i strefa opadu promieniotwórczego niesiona wiatrem.
 
@@ -98,6 +114,14 @@ Bomby jądrowe można zdetonować w powietrzu (na historycznej wysokości) albo 
 - **Kilka głowic z jednej rakiety (MIRV).** Głowica ICBM ma przełącznik 1 / 3 / 8. Głowice spadają jedna po drugiej w rozrzucie wzdłuż kierunku nadlotu, punkty celowania widać na makiecie jako czerwone kółka, a raport sumuje skutki wszystkich. Przy kilku grzybach naraz każdy dostaje mniej cząstek, żeby starczyło dla wszystkich.
 - **Porównanie dwóch ładunków.** W panelu zasięgów (albo klawiszem `C`) wybiera się drugi ładunek. Jego zasięgi rysują się kropkami wokół tego samego celu, z podpisami, a tabela pokazuje oba ładunki obok siebie: szyby, domy, zawalenia, ciężkie zniszczenia, oparzenia, kula ognia, obszar zawaleń i ile razy jeden jest silniejszy. Porównanie trafia też do linku.
 
+## Rozwój po eksperymencie: runda 3
+
+04.11.2026, dwie rzeczy:
+
+- **12 uderzeń meteorytów, od Tunguski po Chicxulub.** Nowa zakładka „Meteoryty”. Planetoida wpada w atmosferę w prawdziwej skali (od 50 m do 11 km), a po uderzeniu krater powstaje na oczach: najpierw głęboki lej (ok. 1/3 średnicy) z kurtyną skał wylatujących pod kątem ok. 45°, potem ściany osuwają się tarasami, a w dużych kraterach dno wystrzeliwuje ponad teren i opada w centralne wzniesienie (Bosumtwi, Ries) albo pierścień szczytów (Siljan, Chicxulub). Budynki w leju znikają, tuż za wałem zasypują je wyrzucone skały, a skały spadające coraz dalej zostawiają jasne promieniste smugi. Na dnie żarzą się stopione skały. Wstrząs (magnituda do ok. 10) dociera przed falą w powietrzu, z pomrukiem i drżeniem kamery. Panel podaje średnicę i głębokość krateru, czas powstawania, magnitudę i to, ile razy uderzenie jest silniejsze od Car-bomby. Katastrofa tunguska przeszła do tej zakładki, a w „Katastrofach” zostały Bejrut i Czelabińsk.
+- **Bieg świadkiem po ulicach.** W widoku świadka `W` `A` `S` `D` albo strzałki to bieg (5 m/s), `Shift` to sprint (8,5 m/s), na telefonie joystick w rogu ekranu. Świadek omija budynki, nie wchodzi do rzeki (poza mostami), wchodzi tylko na niskie stopnie, spada z dachu, gdy zejdzie z krawędzi albo budynek pod nim się zawali, i zjeżdża do krateru. Słychać kroki, głowa lekko się kołysze. Odliczanie do fali liczy się na bieżąco z miejsca, w którym świadek jest, a gdy biegnie, czas płynie najwyżej normalnie, więc ucieczkę przed falą widać uczciwie.
+- Poprawka: zakładki arsenału naprawdę chowają ładunki z innych grup (wcześniej lista pokazywała wszystkie).
+
 ## Fizyka
 
 - **Nadciśnienie**: wzór Kinneya–Grahama w funkcji odległości skalowanej Z = R / W^(1/3) (skalowanie Hopkinsona–Cranza). Wybuchy przy ziemi mają masę zwiększoną o odbicie od gruntu, a jądrowe w powietrzu także o wzmocnienie fali Macha (wynik zgodny z tablicami dla Hiroszimy: 35 kPa ok. 1,3 km od epicentrum).
@@ -108,9 +132,10 @@ Bomby jądrowe można zdetonować w powietrzu (na historycznej wysokości) albo 
 
 - **Wybuchy kosmiczne** (Czelabińsk, Tunguska): 30% energii jako żar, fala jak przy wybuchu w powietrzu, bez promieniowania i opadu.
 - **Pogoda**: przejrzystość powietrza zmienia drogę tłumienia żaru (80 km w czystym powietrzu, 22 km w zamgleniu, 5 km we mgle). Wiatr wydłuża albo skraca strefę opadu i niesie pożary.
+- **Uderzenia planetoid** (Melosh, „Impact Cratering”; Collins, Melosh i Marcus 2005, Earth Impact Effects Program): kula ognia ok. 0,002 · E^(1/3) m, świeci tylko ok. 0,3% energii. Lej przejściowy ma głębokość ok. 1/3 średnicy i powstaje w ok. 0,8 · √(D/g) s, potem przez ok. 1,6 tego czasu zapada się do kształtu końcowego. Kratery poniżej 4 km zostają misą (głębokość ok. 0,18 średnicy), większe mają płaskie dno ok. 0,25 · D^0,4 km i centralne wzniesienie, a powyżej 40 km pierścień szczytów. Magnituda wstrząsu M = 0,67 · log E − 5,87, słabnąca z odległością. Fala w powietrzu jak przy wybuchu przy ziemi o tej samej energii. Profil krateru liczy ta sama funkcja na procesorze (chodzenie, wybór celu, gruz) i w shaderze.
 - **Wysokość optymalna** własnego ładunku: ok. 215 m × (moc w kt)^(1/3), czyli wysokość, przy której fala 35 kPa obejmuje największy obszar.
 
-Uproszczenia: budynki nie zasłaniają się przed falą, nie ma skutków długofalowych. Liczby ofiar to szacunek dla ludzi w budynkach makiety.
+Uproszczenia: budynki nie zasłaniają się przed falą, nie ma skutków długofalowych. Liczby ofiar to szacunek dla ludzi w budynkach makiety. Ziemia jest płaska, więc przy największych uderzeniach zasięgi w panelu (tysiące kilometrów) wychodzą daleko poza makietę i nie uwzględniają krzywizny Ziemi. Uderzenia w morze (Chicxulub, Chesapeake) trafiają tu w ląd, bez tsunami.
 
 ## Sterowanie
 
@@ -125,6 +150,7 @@ Uproszczenia: budynki nie zasłaniają się przed falą, nie ma skutków długof
 | `P` | pauza |
 | `R` / `F` / `T` | pierścienie zasięgów / kamera filmowa / pora dnia |
 | `O` | świadek: kliknij ulicę albo dach, przeciągaj, żeby się rozglądać, kółkiem przybliżaj |
+| `W` `A` `S` `D` / strzałki | bieg świadka (`Shift`: sprint, na telefonie joystick) |
 | `Z` | powtórka: odbudowa i ten sam wybuch jeszcze raz |
 | `C` | porównanie: kolejny ładunek do porównania (i wyłączenie) |
 | `Delete` | odbudowa miasta |
@@ -155,7 +181,8 @@ js/post.js        – obróbka obrazu: poświata, czoło fali, gorące powietrze
 js/city.js        – generowanie miasta i wsi, skutki wybuchów, hałdy gruzu, pożary, ofiary
 js/fx.js          – cząsteczki, kula ognia, fala, pył, grzyb, gruz, pożary
 js/delivery.js    – modele pocisków, meteory, magazyn w Bejrucie i ich lot do celu
+js/impact.js      – kratery uderzeniowe: siatka i profil w czasie, kurtyna skał, fala pyłu, wstrząs
 js/audio.js       – dźwięk
 js/camera.js      – kamera orbitalna i filmowa
-js/app.js         – pętla, odpalanie, tempo czasu, świadek, pogoda, powtórka, link, interfejs
+js/app.js         – pętla, odpalanie, tempo czasu, świadek i jego bieg, pogoda, powtórka, link, interfejs
 ```

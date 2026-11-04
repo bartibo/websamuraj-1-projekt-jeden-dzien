@@ -91,11 +91,79 @@
       facts: [['Data', '15 lutego 2013, Rosja'], ['Obiekt', 'kamienna planetoida, ok. 19 m'], ['Prędkość', '≈ 19 km/s'], ['Rozpad', '25–30 km nad ziemią'], ['Moc', '≈ 400–500 kt TNT']],
       desc: 'Planetoida weszła w atmosferę pod małym kątem i rozpadła się ok. 27 km nad ziemią, rozbłyskując jaśniej niż Słońce. Energia była 30 razy większa niż w Hiroszimie, ale do ziemi doszła już słaba fala: po ok. 2 minutach wybiła szyby w tysiącach budynków, a szkło zraniło ok. 1500 osób. Naprawdę rozbłysk nastąpił ok. 40 km od miasta, tu nad wskazanym celem.'
     },
+    // ---------- UDERZENIA Z KOSMOSU: od Tunguski po Chicxulub (od najmniejszego krateru) ----------
+    // Energie: szacunki skalowane średnicą krateru (Barringer ok. 10 Mt, Chicxulub ok. 100 mln Mt).
     {
-      id: 'tunguska', name: 'Katastrofa tunguska', short: 'Katastrofa tunguska', group: 'hist', kt: 12000, hob: 8000, cosmic: true,
-      delivery: 'meteor', entry: 35, speed: 15000, icon: 'tunguska',
-      facts: [['Data', '30 czerwca 1908, Syberia'], ['Obiekt', 'planetoida lub kometa, 50–60 m'], ['Wysokość wybuchu', '5–10 km'], ['Moc', '3–15 Mt TNT (tu 12 Mt)'], ['Skutki', '2150 km² powalonej tajgi']],
+      id: 'tunguska', name: 'Katastrofa tunguska', short: 'Tunguska', group: 'impact', kt: 12000, hob: 8000, cosmic: true,
+      delivery: 'meteor', entry: 35, speed: 15000, icon: 'tunguska', era: '1908',
+      facts: [['Data', '30 czerwca 1908, Syberia'], ['Obiekt', 'planetoida lub kometa, 50–60 m'], ['Wysokość wybuchu', '5–10 km'], ['Moc', '3–15 Mt TNT (tu 12 Mt)'], ['Krater', 'brak, rozbłysk w powietrzu'], ['Skutki', '2150 km² powalonej tajgi']],
       desc: 'Ciało kosmiczne eksplodowało kilka kilometrów nad tajgą i nie doleciało do ziemi, więc nie zostawiło krateru. Fala powaliła ok. 80 milionów drzew ułożonych promieniście od epicentrum, a żar podpalił las. Huk słyszano 1000 km dalej. Nad miastem zniszczyłby wszystko w promieniu kilkunastu kilometrów.'
+    },
+    {
+      id: 'barringer', name: 'Krater Barringera (Meteor Crater)', short: 'Krater Barringera', group: 'impact', kt: 1e4, cosmic: true, impact: true,
+      craterD: 1200, dia: 50, speed: 12800, entry: 45, iron: true, delivery: 'meteor', icon: 'crater', era: '50 tys. lat temu',
+      facts: [['Kiedy', 'ok. 50 tys. lat temu, Arizona (USA)'], ['Planetoida', 'żelazna, ok. 50 m'], ['Prędkość', 'ok. 13 km/s'], ['Krater', '1,2 km średnicy, 170 m głębokości'], ['Moc', 'ok. 10 Mt TNT']],
+      desc: 'Najlepiej zachowany krater uderzeniowy na Ziemi. Żelazna bryła wielkości kamienicy przeleciała przez atmosferę prawie w całości i w kilka sekund wyrzuciła ok. 175 mln ton skał, a wał wokół krateru do dziś wznosi się 45 m nad równiną. Właśnie tu udowodniono, że takie kratery robią ciała z kosmosu, a nie wulkany.'
+    },
+    {
+      id: 'lonar', name: 'Krater Lonar', short: 'Lonar', group: 'impact', kt: 4e4, cosmic: true, impact: true,
+      craterD: 1880, dia: 80, speed: 20000, entry: 40, delivery: 'meteor', icon: 'crater', era: '570 tys. lat temu',
+      facts: [['Kiedy', 'ok. 570 tys. lat temu, Indie'], ['Planetoida', 'kamienna, ok. 80 m (szac.)'], ['Krater', '1,9 km w bazalcie, 150 m głębokości'], ['Moc', 'ok. 40 Mt TNT (szac.)']],
+      desc: 'Jeden z niewielu kraterów wybitych w bazalcie, takim samym jak na Księżycu i Marsie, więc badają go planetolodzy. Na dnie leży słone, zasadowe jezioro, które w 2020 r. w kilka dni zabarwiło się na różowo od mikroorganizmów. Uderzenie było prawie tak silne jak Car-bomba.'
+    },
+    {
+      id: 'pingualuit', name: 'Krater Pingualuit', short: 'Pingualuit', group: 'impact', kt: 3e5, cosmic: true, impact: true,
+      craterD: 3440, dia: 160, speed: 20000, entry: 45, delivery: 'meteor', icon: 'crater', era: '1,4 mln lat temu',
+      facts: [['Kiedy', 'ok. 1,4 mln lat temu, Kanada'], ['Planetoida', 'ok. 160 m (szac.)'], ['Krater', '3,4 km, jezioro głębokie na 267 m'], ['Moc', 'ok. 300 Mt TNT (szac.)']],
+      desc: 'Prawie idealnie okrągły krater w granicie kanadyjskiej tundry. Wypełnia go jezioro zasilane tylko deszczem i śniegiem, z wodą tak przejrzystą, że widać na 35 m w głąb. Inuici nazywają je Kryształowym Okiem Nunaviku. Lądolód przesuwał się nad nim wiele razy, a krater przetrwał.'
+    },
+    {
+      id: 'bosumtwi', name: 'Krater Bosumtwi', short: 'Bosumtwi', group: 'impact', kt: 1.1e7, cosmic: true, impact: true,
+      craterD: 10500, dia: 500, speed: 20000, entry: 30, delivery: 'meteor', icon: 'crater', era: '1,07 mln lat temu',
+      facts: [['Kiedy', 'ok. 1,07 mln lat temu, Ghana'], ['Planetoida', 'ok. 0,5 km (szac.)'], ['Krater', '10,5 km, z centralnym wzniesieniem'], ['Moc', 'ok. 11 tys. Mt TNT (szac.)']],
+      desc: 'Krater w lasach Ghany z jedynym naturalnym jeziorem w kraju, świętym dla ludu Aszanti. To już krater złożony: ściany osunęły się tarasami, a środek dna się wypiętrzył. Stopione skały spadły jako szkliste krople (tektyty) aż na terenie dzisiejszego Wybrzeża Kości Słoniowej. Całe miasto z makiety zmieściłoby się w nim z zapasem.'
+    },
+    {
+      id: 'ries', name: 'Krater Ries', short: 'Ries', group: 'impact', kt: 1.5e8, cosmic: true, impact: true,
+      craterD: 24000, dia: 1300, speed: 20000, entry: 40, delivery: 'meteor', icon: 'crater', era: '14,8 mln lat temu',
+      facts: [['Kiedy', 'ok. 14,8 mln lat temu, Bawaria'], ['Planetoida', 'ok. 1,3 km (szac.)'], ['Krater', '24 km, w środku miasto Nördlingen'], ['Moc', 'ok. 150 tys. Mt TNT (szac.)']],
+      desc: 'W kraterze stoi dziś średniowieczne Nördlingen, a jego kościół zbudowano z suewitu, skały powstałej w uderzeniu, pełnej drobniutkich diamentów. Stopione skały poleciały ponad 200 km na wschód i spadły w Czechach jako zielone szkło: mołdawity. Przed lotem na Księżyc trenowali tu astronauci misji Apollo 14.'
+    },
+    {
+      id: 'chesapeake', name: 'Krater zatoki Chesapeake', short: 'Chesapeake', group: 'impact', kt: 8e8, cosmic: true, impact: true,
+      craterD: 40000, dia: 2200, speed: 20000, entry: 45, delivery: 'meteor', icon: 'crater', era: '35,5 mln lat temu',
+      facts: [['Kiedy', 'ok. 35,5 mln lat temu, USA'], ['Planetoida', 'ok. 2–3 km'], ['Krater', 'ok. 40 km, pod zatoką Chesapeake'], ['Moc', 'ok. 800 tys. Mt TNT (szac.)']],
+      desc: 'Planetoida spadła do płytkiego morza u wybrzeży dzisiejszej Wirginii, a krater odkryto dopiero w latach 90., zakopany pod osadami zatoki. Do dziś wpływa na życie regionu: rzeki skręcają wzdłuż jego brzegu, a pod ziemią zostało słone morze sprzed milionów lat. Tutaj uderzenie trafia w ląd.'
+    },
+    {
+      id: 'siljan', name: 'Pierścień Siljan', short: 'Siljan', group: 'impact', kt: 1.9e9, cosmic: true, impact: true,
+      craterD: 52000, dia: 3000, speed: 20000, entry: 45, delivery: 'meteor', icon: 'crater', era: '380 mln lat temu',
+      facts: [['Kiedy', 'ok. 380 mln lat temu (dewon), Szwecja'], ['Planetoida', 'ok. 3–4 km'], ['Krater', 'ok. 52 km, największy w Europie'], ['Moc', 'ok. 1,9 mln Mt TNT (szac.)']],
+      desc: 'Największy krater w Europie, w szwedzkiej Dalarnie. Przez prawie 380 mln lat erozja zdarła jego wał, a po kraterze został pierścień jezior wokół wyniesionego środka, widoczny z kosmosu. Uderzenie przypadło na dewon, gdy pierwsze czworonogi wychodziły z wody na ląd.'
+    },
+    {
+      id: 'morokweng', name: 'Krater Morokweng', short: 'Morokweng', group: 'impact', kt: 4.9e9, cosmic: true, impact: true,
+      craterD: 70000, dia: 4000, speed: 20000, entry: 45, delivery: 'meteor', icon: 'crater', era: '145 mln lat temu',
+      facts: [['Kiedy', 'ok. 145 mln lat temu (koniec jury), RPA'], ['Planetoida', 'ok. 4–5 km'], ['Krater', 'ok. 70 km, pod piaskami Kalahari'], ['Moc', 'ok. 4,9 mln Mt TNT (szac.)']],
+      desc: 'Krater ukryty pod piaskami Kalahari, znany tylko z wierceń i pomiarów grawitacji. W 2006 r. w rdzeniu z głębokości ok. 770 m znaleziono kawałek samej planetoidy, 25 cm skały, która przetrwała uderzenie. To niezwykła rzadkość: zwykle ciało kosmiczne prawie całe odparowuje.'
+    },
+    {
+      id: 'manicouagan', name: 'Krater Manicouagan', short: 'Manicouagan', group: 'impact', kt: 9e9, cosmic: true, impact: true,
+      craterD: 85000, dia: 5000, speed: 20000, entry: 45, delivery: 'meteor', icon: 'crater', era: '214 mln lat temu',
+      facts: [['Kiedy', 'ok. 214 mln lat temu (trias), Kanada'], ['Planetoida', 'ok. 5 km'], ['Krater', 'ok. 85 km, z pierścieniem jeziora'], ['Moc', 'ok. 9 mln Mt TNT (szac.)']],
+      desc: '„Oko Quebecu”: pierścień jeziora o średnicy 70 km otacza wyspę René-Levasseur, wypiętrzone dno krateru. Z orbity wygląda jak tarcza strzelnicza. Planetoida spadła w triasie, gdy żyły pierwsze dinozaury, a wszystkie lądy tworzyły jeszcze jeden kontynent, Pangeę.'
+    },
+    {
+      id: 'popigai', name: 'Krater Popigaj', short: 'Popigaj', group: 'impact', kt: 1.5e10, cosmic: true, impact: true,
+      craterD: 100000, dia: 6000, speed: 20000, entry: 45, delivery: 'meteor', icon: 'crater', era: '35,7 mln lat temu',
+      facts: [['Kiedy', 'ok. 35,7 mln lat temu, Syberia'], ['Planetoida', 'ok. 5–8 km'], ['Krater', 'ok. 100 km, z pierścieniem szczytów'], ['Moc', 'ok. 15 mln Mt TNT (szac.)']],
+      desc: 'Uderzenie w skały z grafitem w ułamku sekundy zamieniło go w diamenty. Pod syberyjską tajgą leżą ich biliony karatów, więcej niż we wszystkich kopalniach świata, choć są za drobne na biżuterię. Popigaj i Chesapeake powstały w odstępie zaledwie kilkuset tysięcy lat.'
+    },
+    {
+      id: 'chicxulub', name: 'Chicxulub: koniec dinozaurów', short: 'Chicxulub', group: 'impact', kt: 1e11, cosmic: true, impact: true,
+      craterD: 180000, dia: 11000, speed: 20000, entry: 60, delivery: 'meteor', icon: 'dino', era: '66 mln lat temu',
+      facts: [['Kiedy', '66 mln lat temu, Jukatan (Meksyk)'], ['Planetoida', 'ok. 10 km, pod kątem ok. 60°'], ['Prędkość', 'ok. 20 km/s'], ['Krater', 'ok. 180 km, z pierścieniem szczytów'], ['Moc', 'ok. 100 mln Mt TNT'], ['Skutki', 'wymarło ok. 75% gatunków']],
+      desc: 'Planetoida większa, niż Mount Everest jest wysoki, uderzyła w płytkie morze. W kilka minut powstał lej głęboki na ok. 30 km, a jego dno wystrzeliło wyżej niż Himalaje i opadło, tworząc pierścień szczytów. Wyrzucone skały wracały z kosmosu jako rozżarzone meteory i podpalały lasy na całym świecie, a pył i sadza zasłoniły Słońce na lata. Zginęły wszystkie dinozaury poza ptakami.'
     },
     {
       id: 'custom', name: 'Własny ładunek', short: 'Własny ładunek', group: 'custom', custom: true, icon: 'custom',
@@ -155,6 +223,8 @@
     warehouse: '<path d="M8 30 L30 16 L52 30 V54 H8z" fill="#8b8f86"/><rect x="14" y="36" width="32" height="18" fill="#5d615a"/><path d="M14 40H46M14 45H46M14 50H46" stroke="#73776f" stroke-width="1.5"/><path d="M40 16 Q36 8 42 4 Q40 10 46 10 Q50 14 44 18z" fill="#ff8a3d"/><circle cx="24" cy="10" r="5" fill="#b07a62" opacity=".8"/><circle cx="31" cy="7" r="4" fill="#c49478" opacity=".7"/>',
     meteor: '<path d="M10 8 L40 40" stroke="#ffd9a0" stroke-width="6" stroke-linecap="round" opacity=".45"/><path d="M18 14 L40 40" stroke="#fff4dc" stroke-width="3" stroke-linecap="round"/><circle cx="42" cy="42" r="8" fill="#fff4dc"/><circle cx="42" cy="42" r="12" fill="#ffb347" opacity=".35"/>',
     tunguska: '<g stroke="#7a5a3a" stroke-width="3" stroke-linecap="round"><path d="M30 46 L10 52"/><path d="M30 46 L50 52"/><path d="M30 46 L14 38"/><path d="M30 46 L46 38"/><path d="M30 46 L30 30"/></g><circle cx="30" cy="16" r="9" fill="#ffd9a0"/><circle cx="30" cy="16" r="14" fill="#ff9e3d" opacity=".3"/>',
+    crater: '<ellipse cx="30" cy="42" rx="25" ry="10" fill="#8a6f52"/><ellipse cx="30" cy="42" rx="17" ry="6.5" fill="#3b2f26"/><ellipse cx="30" cy="44" rx="10" ry="3.2" fill="#ff7a2a" opacity=".85"/><path d="M8 6 L24 30" stroke="#ffd9a0" stroke-width="5" stroke-linecap="round" opacity=".5"/><circle cx="25" cy="31" r="4.5" fill="#fff4dc"/>',
+    dino: '<path d="M8 6 L22 22" stroke="#ffd9a0" stroke-width="5" stroke-linecap="round" opacity=".5"/><circle cx="23" cy="23" r="5" fill="#fff4dc"/><circle cx="23" cy="23" r="9" fill="#ff9e3d" opacity=".3"/><path d="M6 50 C10 42 20 40 28 41 C31 34 34 25 40 21 C43 19 47 21 45 24 C41 27 39 34 38 42 C44 43 50 46 56 52 C50 50 44 48 39 48 L39 55 H35 V49 H27 V55 H23 V48 C17 48 11 50 6 50z" fill="#8c9a62"/>',
     custom: '<circle cx="30" cy="30" r="20" fill="none" stroke="#9aa3ad" stroke-width="3"/><path d="M30 30 L42 18" stroke="#ffd23f" stroke-width="4" stroke-linecap="round"/><circle cx="30" cy="30" r="4" fill="#ffd23f"/><path d="M14 38 A18 18 0 0 1 14 22" stroke="#4dc6ff" stroke-width="3" fill="none"/><path d="M46 22 A18 18 0 0 1 46 38" stroke="#ff3b30" stroke-width="3" fill="none"/>',
     tsar: '<path d="M30 6 C50 6 54 16 50 22 C58 23 58 32 50 33 H10 C2 32 2 23 10 22 C6 16 10 6 30 6z" fill="#ff7a3d"/><path d="M30 10 C42 10 44 16 42 20 H18 C16 16 18 10 30 10z" fill="#ffc46b"/><path d="M24 33 Q26 46 20 56 H40 Q34 46 36 33z" fill="#d06a3a"/><ellipse cx="30" cy="56" rx="20" ry="3.5" fill="#8a4a2c"/>'
   };

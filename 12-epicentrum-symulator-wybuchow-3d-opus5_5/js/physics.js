@@ -90,27 +90,33 @@
     opts = opts || {};
     const nuke = !!w.kt;
     const cosmic = !!w.cosmic;             // rozbłysk ciała kosmicznego: żar i fala, bez promieniowania i opadu
-    const ground = nuke ? !!opts.ground && !cosmic : true;
+    const impact = !!w.impact;             // uderzenie planetoidy w ziemię: krater, wyrzut skał, wstrząs
+    const ground = impact ? true : nuke ? !!opts.ground && !cosmic : true;
     const kt = nuke ? w.kt : w.tnt / 1e6;
     const Wtnt = nuke ? w.kt * 1e6 : w.tnt;      // kg TNT
-    const hob = nuke ? (ground ? Math.max(1, (w.groundHob || 1)) : w.hob) : (opts.hob || 0);
+    const hob = impact ? 1 : nuke ? (ground ? Math.max(1, (w.groundHob || 1)) : w.hob) : (opts.hob || 0);
     // Efektywna masa dla fali uderzeniowej: odbicie od ziemi (i fala Macha dla wybuchów w powietrzu)
     const Weff = nuke ? Wtnt * (ground ? 0.9 : 2.2) : Wtnt * (w.shaped ? 1.2 : 1.8);
     const cbrtW = Math.cbrt(Weff);
     const E = Wtnt * 4.184e6;                     // energia całkowita, J
-    const Eth = nuke ? E * (cosmic ? 0.3 : 0.35) * (ground ? 0.7 : 1) : 0;
+    // uderzenie: tylko ok. 0,3% energii świeci (Collins i in. 2005), reszta idzie w krater, wyrzut i falę
+    const Eth = impact ? E * 0.006 : nuke ? E * (cosmic ? 0.3 : 0.35) * (ground ? 0.7 : 1) : 0;
     const Y4pi = Eth / (4 * Math.PI);
     const ktS = Math.max(kt, 1);
     const burn3 = Ph.TH.burn3 * Math.pow(ktS / 15, 0.08);
     const ignite = Ph.TH.ignite * Math.pow(ktS / 15, 0.08);
 
     let fbR, tfb;
-    if (nuke) { fbR = 62 * Math.pow(kt, 0.4); tfb = 0.9 * Math.pow(kt, 0.25); }
+    if (impact) { fbR = 0.002 * Math.cbrt(E); tfb = Math.max(0.25, fbR / 4000); }
+    else if (nuke) { fbR = 62 * Math.pow(kt, 0.4); tfb = 0.9 * Math.pow(kt, 0.25); }
     else { fbR = 1.93 * Math.pow(Wtnt, 0.32) * (w.fireMul || 1); tfb = Math.max(0.05, 0.12 * Math.pow(Wtnt, 0.25)); }
-    const tpulse = nuke ? tfb * 1.3 : tfb;
+    const tpulse = impact ? tfb * 3 : nuke ? tfb * 1.3 : tfb;
 
-    let craterR = 0;
-    if (nuke) {
+    let craterR = 0, cr = null;
+    if (impact) {
+      cr = craterModel(w.craterD);
+      craterR = cr.R;
+    } else if (nuke) {
       if (ground) craterR = 25 * Math.cbrt(kt);
       else if (fbR > hob) craterR = 0; // kula ognia dotyka ziemi – szkliwienie, bez dużego krateru
     } else {
@@ -121,7 +127,12 @@
 
     // Chmura / słup dymu
     let Htop, capR, tRise;
-    if (cosmic) {
+    if (impact) {
+      // pióropusz pary i pyłu nad kraterem
+      Htop = Math.min(5500 * Math.pow(kt, 0.23), 120000);
+      capR = Math.max(Htop * 0.62, craterR * 1.4);
+      tRise = Math.min(150 * Math.pow(kt, 0.12), 900);
+    } else if (cosmic) {
       Htop = hob + fbR * 2.5;
       capR = fbR * 1.2;
       tRise = 150 * Math.pow(kt, 0.12);
@@ -154,16 +165,95 @@
       rad: nuke && !cosmic ? slantToGround(720 * Math.pow(kt, 0.19)) : 0,
       frag: w.frag ? w.frag : 0
     };
-    const Rmax = Math.max(Ph.radiusForP(1.2, cbrtW), fbR * 3, 10) * 1.05;
+    const Rmax = Math.min(Math.max(Ph.radiusForP(1.2, cbrtW), fbR * 3, 10) * 1.05, 4e6);
     const front = Ph.buildFront(cbrtW, Rmax);
 
     // Opad promieniotwórczy (tylko wybuch przy ziemi)
-    const fallout = nuke && ground ? { len: 4500 * Math.pow(kt, 0.45), wid: 900 * Math.pow(kt, 0.35) } : null;
+    const fallout = nuke && ground && !cosmic ? { len: 4500 * Math.pow(kt, 0.45), wid: 900 * Math.pow(kt, 0.35) } : null;
 
     return {
-      nuke, cosmic, ground, kt, lambda, Wtnt, Weff, cbrtW, hob, E, Eth, Y4pi, burn3, ignite,
+      nuke, cosmic, impact, cr, ground, kt, lambda, Wtnt, Weff, cbrtW, hob, E, Eth, Y4pi, burn3, ignite,
       fbR, tfb, tpulse, craterR, scorchR, Htop, capR, tRise, radii, front, Rmax, fallout,
-      tShockGlass: Ph.arrival(front, Math.max(Ph.radiusForP(Ph.TH.glass, cbrtW), hob + 1))
+      // magnituda wstrząsu (Schultz i Gault, wg Collinsa i in. 2005)
+      mag: impact ? 0.67 * Math.log10(E) - 5.87 : 0,
+      // dalej niż na skraj makiety (400 km) fala nie jest oglądana
+      tShockGlass: Ph.arrival(front, Math.min(Math.max(Ph.radiusForP(Ph.TH.glass, cbrtW), hob + 1), 400000))
     };
+  };
+
+  // Krater uderzeniowy: wymiary lejów i czasy (Melosh; Collins i in. 2005; Pike)
+  //  type 0: prosty (misa), 1: złożony z centralnym wzniesieniem, 2: z pierścieniem szczytów
+  function craterModel(Dm) {
+    const R = Dm / 2, Dkm = Dm / 1000;
+    const type = Dm < 4000 ? 0 : Dm < 40000 ? 1 : 2;
+    const Rt = R * (type === 0 ? 0.8 : type === 1 ? 0.62 : 0.53);   // lej przejściowy
+    const dT = 0.65 * Rt;                                              // jego głębokość (ok. 1/3 średnicy)
+    const dF = type === 0 ? 0.36 * R : 250 * Math.pow(Dkm, 0.4);       // głębokość końcowa
+    const hRim = type === 0 ? 0.072 * R : 36 * Math.pow(Dkm, 0.4);     // wysokość wału
+    const tEx = 0.8 * Math.sqrt(2 * Rt / 9.81);                        // czas wykopu
+    const tCol = type === 0 ? 0.6 * tEx : 1.6 * tEx;                   // osuwanie się ścian, wypiętrzenie dna
+    return {
+      R, D: Dm, type, Rt, dT, dF, hRim, lipT: hRim * 1.3, tEx, tCol, tForm: tEx + tCol,
+      Hover: type === 2 ? 0.3 * dT : type === 1 ? 0.15 * dT : 0, cover: 1.7,
+      melt: 0.35 + 0.65 * Math.min(1, Dkm / 20)
+    };
+  }
+  Ph.craterModel = craterModel;
+  // Stan krateru po czasie t: parametry profilu (te same co w shaderze)
+  Ph.craterState = function (cr, t, out) {
+    const aT = cr.Rt / cr.R;
+    const o = out || {};
+    o.upH = 0; o.upW = 0.15; o.blend = 0;
+    if (t < cr.tEx) {
+      const x = Math.max(t, 0) / cr.tEx, k = Math.pow(x, 0.4);
+      o.a = Math.max(1e-3, aT * k); o.d = cr.dT * k; o.lip = cr.lipT * Math.sqrt(x); o.rim = o.a;
+    } else {
+      const tau = Math.min(1, (t - cr.tEx) / cr.tCol);
+      o.a = aT; o.d = cr.dT; o.lip = cr.lipT;
+      o.blend = tau * tau * (3 - 2 * tau);
+      if (cr.type > 0 && tau < 1) {
+        const tt = Math.min(1, tau * 1.15);
+        o.upH = (cr.Hover + cr.dT) * Math.pow(Math.sin(Math.PI * tt), 1.5);
+        o.upW = cr.type === 2 ? 0.12 + 0.3 * tau : 0.1 + 0.08 * tau;
+      }
+      o.rim = aT + (1 - aT) * o.blend;
+    }
+    // wyrzucone skały spadają coraz dalej (lot balistyczny)
+    o.ej = Math.min(7, o.rim + 9.81 * t * t / (2 * cr.R));
+    o.glow = cr.melt * Math.exp(-Math.max(0, t) / (cr.tForm * 4)) * Math.min(1, Math.max(0, t) / (cr.tEx * 0.3 + 1e-3));
+    return o;
+  };
+  function ej(rho, r0, cov) {
+    if (rho <= r0) return 1;
+    const c = Math.pow(r0 / cov, 3);
+    return Math.max(0, (Math.pow(r0 / rho, 3) - c) / (1 - c));
+  }
+  function step4(s) { const x = s * 4, f = x - Math.floor(x); const t = Math.min(1, Math.max(0, (f - 0.65) / 0.35)); return (Math.floor(x) + t * t * (3 - 2 * t)) / 4; }
+  // Wysokość względem pierwotnego terenu w odległości rho = r / R (identyczna z GLSL w shaders.js)
+  Ph.craterH = function (cr, s, rho) {
+    const cov = cr.cover;
+    if (rho >= cov) return 0;
+    const x = rho / s.a;
+    const hT = x < 1 ? -s.d + (s.d + s.lip) * x * x : s.lip * ej(x, 1, cov / s.a);
+    const dF = cr.dF, hr = cr.hRim;
+    let hF;
+    if (rho >= 1) hF = hr * ej(rho, 1, cov);
+    else if (cr.type === 0) hF = -dF + (dF + hr) * rho * rho;
+    else {
+      const rf = cr.type === 1 ? 0.55 : 0.6;
+      if (rho < rf) {
+        hF = -dF;
+        if (cr.type === 1) hF += 0.55 * dF * Math.exp(-Math.pow(rho / 0.13, 2));
+        else hF += 0.4 * dF * Math.exp(-Math.pow((rho - 0.45) / 0.07, 2));
+      } else {
+        const q = (rho - rf) / (1 - rf);
+        const st = q + (step4(q) - q) * 0.35;
+        hF = -dF + (dF + hr) * Math.pow(st, 1.4);
+      }
+    }
+    let h = hT + (hF - hT) * s.blend;
+    h += s.upH * Math.exp(-Math.pow(rho / Math.max(s.upW, 1e-3), 2));
+    const e = Math.min(1, Math.max(0, (rho - cov * 0.94) / (cov * 0.06)));
+    return h * (1 - e * e * (3 - 2 * e));
   };
 })();

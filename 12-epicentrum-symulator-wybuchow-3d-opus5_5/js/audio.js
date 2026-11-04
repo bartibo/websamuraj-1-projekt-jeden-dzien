@@ -182,6 +182,34 @@
     env(g, now, 0.05, Math.min(0.5, 0.6 / (1 + dist / 300)), d);
     s.connect(f); f.connect(g); g.connect(master);
   };
+  // Wstrząs ziemi: długi, niski pomruk narastający i gasnący
+  A.quake = function (k) {
+    if (!ctx || !on) return;
+    const t0 = ctx.currentTime, dur = 4 + 10 * k;
+    const s = noise(true, dur, t0), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    f.type = 'lowpass'; f.frequency.value = 90 + 60 * k;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.25 + 0.6 * k, t0 + 0.8 + dur * 0.15);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(f); f.connect(g); g.connect(master);
+    const o = ctx.createOscillator(), g2 = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(34, t0); o.frequency.linearRampToValueAtTime(22, t0 + dur);
+    env(g2, t0, 0.6, 0.2 + 0.4 * k, dur);
+    o.connect(g2); g2.connect(master); o.start(t0); o.stop(t0 + dur + 0.6);
+  };
+  // Kroki świadka (bieg)
+  A.step = function (hard) {
+    if (!ctx || !on) return;
+    const t0 = ctx.currentTime;
+    const s = noise(false, 0.07, t0), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    f.type = 'bandpass'; f.frequency.value = 600 + Math.random() * 500; f.Q.value = 1.1;
+    env(g, t0, 0.004, (hard ? 0.09 : 0.06) * (0.8 + Math.random() * 0.4), 0.06);
+    s.connect(f); f.connect(g); g.connect(master);
+    const s2 = noise(true, 0.1, t0), f2 = ctx.createBiquadFilter(), g3 = ctx.createGain();
+    f2.type = 'lowpass'; f2.frequency.value = 180;
+    env(g3, t0, 0.005, hard ? 0.18 : 0.12, 0.08);
+    s2.connect(f2); f2.connect(g3); g3.connect(master);
+  };
   // Tło: lekki szum miasta i trzask pożarów
   let amb, fireG;
   function ambient() {

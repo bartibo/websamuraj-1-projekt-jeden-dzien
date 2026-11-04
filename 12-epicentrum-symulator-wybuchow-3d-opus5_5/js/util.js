@@ -69,7 +69,9 @@ window.EP = window.EP || {};
     if (kg < 1000) return U.num(kg, kg < 10 ? 1 : 0) + ' kg';
     if (kg < 1e6) return U.num(kg / 1000, kg < 1e4 ? 1 : 0) + ' t';
     if (kg < 1e9) return U.num(kg / 1e6, kg < 1e7 ? 2 : 0) + ' kt';
-    return U.num(kg / 1e9, 0) + ' Mt';
+    if (kg < 1e13) return U.num(kg / 1e9, 0) + ' Mt';
+    if (kg < 1e15) return U.num(kg / 1e12, 0) + ' tys. Mt';
+    return U.num(kg / 1e15, kg < 1e16 ? 1 : 0) + ' mln Mt';
   };
   U.pressure = function (kpa) {
     if (kpa >= 1000) return U.num(kpa / 1000, 1) + ' MPa';
@@ -79,7 +81,9 @@ window.EP = window.EP || {};
     if (n < 1e4) return U.num(Math.round(n), 0);
     if (n < 1e6) return U.num(n / 1000, n < 1e5 ? 1 : 0) + ' tys.';
     if (n < 1e9) return U.num(n / 1e6, n < 1e7 ? 1 : 0) + ' mln';
-    return U.num(n / 1e9, 1) + ' mld';
+    if (n < 1e12) return U.num(n / 1e9, n < 1e10 ? 1 : 0) + ' mld';
+    if (n < 1e15) return U.num(n / 1e12, n < 1e13 ? 1 : 0) + ' bln';
+    return U.num(n / 1e15, n < 1e16 ? 1 : 0) + ' bld';
   };
   U.time = function (s) {
     if (s < 1) return U.num(s * 1000, 0) + ' ms';

@@ -411,9 +411,11 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       scene.add(wi); fx.wilson = wi; fx.meshes.push(wi);
     }
     // grzyb / słup dymu
-    if (!D.cosmic && (D.nuke || D.Wtnt >= 300)) fx.cloud = makeCloud(bl);
+    if ((!D.cosmic || D.impact) && (D.nuke || D.Wtnt >= 300)) fx.cloud = makeCloud(bl);
     if (!D.nuke) convBurst(bl);
     fx.fireT = 0;
+    // uderzenie planetoidy: krater, kurtyna wyrzuconych skał, wstrząs
+    if (D.impact && EP.impact) EP.impact.spawn(bl);
   };
 
   function convBurst(bl) {
@@ -538,21 +540,23 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
     const gy = Wd.groundY(P.x, P.z);
     const x = t / D.tRise;
     const rise = 1 - Math.exp(-2.4 * x);
-    const z0 = D.hob + D.fbR * (D.hob > D.fbR ? 0.2 : 0.6);
+    // chmura po uderzeniu zaczyna mniejsza niż kula ognia, żeby nie zakryć od razu całego krateru
+    const f0 = D.impact ? Math.min(D.fbR, D.capR * 0.3) : D.fbR;
+    const z0 = D.hob + f0 * (D.hob > f0 ? 0.2 : 0.6);
     const zc = gy + z0 + (D.Htop * 0.8 - z0) * rise;
     const grow = 1 - Math.exp(-2.0 * x);
-    const Rr = D.fbR * 0.45 + (D.capR * 0.6 - D.fbR * 0.45) * grow;
-    const rr = D.fbR * 0.8 + (D.capR * 0.46 - D.fbR * 0.8) * grow;
+    const Rr = f0 * 0.45 + (D.capR * 0.6 - f0 * 0.45) * grow;
+    const rr = f0 * 0.8 + (D.capR * 0.46 - f0 * 0.8) * grow;
     const flat = nuke ? 0.6 : 0.75;
-    const stemR = D.fbR * 0.3 + (D.capR * (nuke ? 0.15 : 0.22) - D.fbR * 0.3) * grow;
+    const stemR = f0 * 0.3 + (D.capR * (nuke ? 0.15 : 0.22) - f0 * 0.3) * grow;
     const roll = 6.283 * 1.4 * (1 - Math.exp(-x * 1.3));
     const fadeIn = Ut.smooth(D.tfb * 0.5, D.tfb * 2.6, t);
-    const late = nuke ? 1 - Ut.smooth(D.tRise * 5, D.tRise * 9, t) : 1 - Ut.smooth(D.tRise * 3, D.tRise * 6, t);
+    const late = D.impact ? 1 - Ut.smooth(D.tRise * 1.5, D.tRise * 3, t) : nuke ? 1 - Ut.smooth(D.tRise * 5, D.tRise * 9, t) : 1 - Ut.smooth(D.tRise * 3, D.tRise * 6, t);
     const tn = tint();
     const sp = smoke.p, cur = smoke.cur, col = smoke.col;
     const s = Wd.sunDir;
     const ageRed = nuke ? Ut.smooth(D.tRise * 0.5, 0, t) : 0;
-    const base = nuke ? [0.86, 0.8, 0.74] : bl.w.cloudCol || [0.44, 0.41, 0.38];
+    const base = D.impact ? [0.62, 0.55, 0.47] : nuke ? [0.86, 0.8, 0.74] : bl.w.cloudCol || [0.44, 0.41, 0.38];
     const day = Wd.preset.night > 0.9 ? 0.12 : Wd.preset.night > 0.4 ? 0.6 : 1;
     const night = Wd.preset.night;
     // chmura dryfuje z wiatrem, im wyżej, tym bardziej
@@ -596,7 +600,7 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       cur[i * 4 + 1] = 0.7 * vis * Ut.smooth(0, 0.08, sfrac) * Ut.smooth(1, 0.82, sfrac) * fadeIn * late;
       cur[i * 4 + 2] = nuke ? 0.6 * Math.exp(-t / (D.tfb * 4)) * sfrac : 0;
       const lc = dl * (0.6 + 0.4 * Math.max(0, Math.cos(th) * s.x + Math.sin(th) * s.z));
-      const bc = nuke ? [0.72, 0.66, 0.6] : bl.w.cloudCol ? bl.w.cloudCol.map((c) => c * 1.1) : [0.4, 0.37, 0.34];
+      const bc = D.impact ? [0.5, 0.44, 0.37] : nuke ? [0.72, 0.66, 0.6] : bl.w.cloudCol ? bl.w.cloudCol.map((c) => c * 1.1) : [0.4, 0.37, 0.34];
       const ug = night * 0.22 * (1 - sfrac) * (nuke ? 1 : 0.4);
       col[i * 3] = bc[0] * tn[0] * lc + ug; col[i * 3 + 1] = bc[1] * tn[1] * lc + ug * 0.4; col[i * 3 + 2] = bc[2] * tn[2] * lc + ug * 0.12;
       smoke.lit[i] = 1;
@@ -644,8 +648,9 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       let R, temp, alpha, smk = 0;
       if (D.nuke) {
         R = D.fbR * Math.min(1, Math.pow(t / D.tfb, 0.4)) * (1 + 0.25 * Ut.smooth(D.tfb, D.tfb * 6, t));
-        temp = 1.7 * (t < D.tfb ? 1 : Math.exp(-(t - D.tfb) / (D.tfb * 3.2)));
-        alpha = 1 - Ut.smooth(D.tfb * 3, D.tfb * 8, t);
+        // kula ognia uderzenia: szybko stygnie i rzednie, żeby odsłonić powstający krater
+        temp = 1.7 * (t < D.tfb ? 1 : Math.exp(-(t - D.tfb) / (D.tfb * (D.impact ? 1.5 : 3.2))));
+        alpha = D.impact ? 1 - Ut.smooth(D.tfb * 1.5, D.tfb * 4, t) : 1 - Ut.smooth(D.tfb * 3, D.tfb * 8, t);
         const cz = fx.cloud && fx.cloud.zc ? fx.cloud.zc : P.y;
         fb.position.set(P.x, Ut.lerp(P.y, cz, Ut.smooth(D.tfb * 0.6, D.tfb * 4, t)), P.z);
         fb.scale.set(R, R * Ut.lerp(1, 0.7, Ut.smooth(D.tfb, D.tfb * 4, t)), R);
@@ -710,7 +715,9 @@ void main(){ float n = f3(vec3(vUv.x*90.0, vUv.y*3.0 - uT*0.4, uT*0.1));
       fx.wall.visible = Rg > D.fbR * 0.6 && str > 0.01;
       fx.wall.scale.set(Math.max(Rg, 0.1), H, Math.max(Rg, 0.1));
       const mu = fx.wall.material.uniforms;
-      mu.uA.value = str * 0.85; mu.uT.value = t; mu.uFogD.value = fogD; mu.uFogC.value.setRGB(fogC[0], fogC[1], fogC[2]);
+      // po uderzeniu kamera bywa wewnątrz pierścienia pyłu: wtedy ściana jest bledsza, żeby nie zasłaniała krateru
+      const inside = D.impact && Math.hypot(camPos.x - P.x, camPos.z - P.z) < Rg;
+      mu.uA.value = str * (D.impact ? (inside ? 0.18 : 0.5) : 0.85); mu.uT.value = t; mu.uFogD.value = fogD; mu.uFogC.value.setRGB(fogC[0], fogC[1], fogC[2]);
       const lc = litFor(0, 0.6, 0.8);
       mu.uCol.value.setRGB(0.62 * lc, 0.56 * lc, 0.48 * lc);
       if (pg < 2.5 && Rg > D.fbR * 3) { scene.remove(fx.wall); fx.wall.material.dispose(); fx.wall = null; }

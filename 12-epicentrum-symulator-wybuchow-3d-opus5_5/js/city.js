@@ -479,9 +479,11 @@
   }
   function setRubble(b, k) {
     if (b.rub < 0) return;
+    if (b.gone) k = 0;
     _p.set(b.x + b.tdx * b.sx * 0.12 * k, b.y, b.z + b.tdz * b.sz * 0.12 * k);
     _q.setFromAxisAngle(_up, b.rotY + b.seed * 0.6);
     _s.set(b.sx * (0.85 + 0.45 * k), Math.max(0.01, b.rubH * k), b.sz * (0.85 + 0.45 * k));
+    if (b.gone) { _p.y = -1e5; _s.set(1e-4, 1e-4, 1e-4); }
     _m.compose(_p, _q, _s);
     rubbleMesh.setMatrixAt(b.rub, _m);
     rubbleMesh.instanceMatrix.needsUpdate = true;
@@ -489,13 +491,17 @@
 
   // ---------- SIATKA SĄSIEDZTWA (rozprzestrzenianie pożarów) ----------
   const GC = 60, grid = new Map();
+  let gridR = 1;
   function buildGrid() {
+    let mh = 0;
     for (const b of B) {
       if (b.parent >= 0) continue;
+      mh = Math.max(mh, Math.hypot(b.sx, b.sz) / 2);
       const k = Math.floor(b.x / GC) + ',' + Math.floor(b.z / GC);
       if (!grid.has(k)) grid.set(k, []);
       grid.get(k).push(b.i);
     }
+    gridR = Math.max(1, Math.ceil((mh + 2) / GC));
   }
   function neighbours(b) {
     if (b.nb) return b.nb;
@@ -569,6 +575,14 @@
 
   const _m = new T.Matrix4(), _q = new T.Quaternion(), _q2 = new T.Quaternion(), _p = new T.Vector3(), _s = new T.Vector3(), _ax = new T.Vector3(), _up = new T.Vector3(0, 1, 0);
   function setMatrix(b) {
+    if (b.gone) {
+      // wyrzucony razem z lejem krateru: znika
+      _p.set(b.x, -1e5, b.z); _q.identity(); _s.set(1e-4, 1e-4, 1e-4);
+      _m.compose(_p, _q, _s);
+      const mm = meshes[b.shape];
+      mm.setMatrixAt(b.inst, _m); mm.userData.dirtyM = true;
+      return;
+    }
     let y = b.y;
     if (b.parent >= 0) { const p = B[b.parent]; y = p.y + p.sy * p.hf; }
     _p.set(b.x, y, b.z);
@@ -584,6 +598,7 @@
   }
   const _e = new T.Euler();
   function setCarMatrix(c, i) {
+    if (c.gone) { _p.set(c.x, -1e5, c.z); _q.identity(); _s.set(1e-4, 1e-4, 1e-4); _m.compose(_p, _q, _s); carMesh.setMatrixAt(i, _m); return; }
     _p.set(c.x, c.y, c.z);
     _e.set(c.rx, c.ry, c.rz, 'YXZ');
     _q.setFromEuler(_e);
@@ -629,15 +644,24 @@
       if (p > th[0] * v) L = 1;
       if (p > th[1] * v) L = 2;
       if (p > th[2] * v) L = 3;
-      if (D.nuke && !D.cosmic && dNear < fbR * 0.85) L = 4;
+      if (D.nuke && (!D.cosmic || D.impact) && dNear < fbR * 0.85) L = 4;
+      // uderzenie planetoidy: budynek w leju znika, tuż za wałem zasypują go wyrzucone skały
+      let gone = 0, tGone = 0;
+      if (D.impact) {
+        const rh = Math.hypot(b.x - bx, b.z - bz) / D.cr.R;
+        if (rh < 1.02) { gone = 5; tGone = craterTime(D.cr, rh); }
+        else if (rh < 1.35) { gone = 4; tGone = ejectaTime(D.cr, rh); }
+      }
       const glass = pMax > 2.8 + 3.5 * b.seed || L >= 2;
       let fire = 0;
       if (D.nuke && L < 4 && q > D.ignite * (0.6 + b.seed * 0.8)) fire = 1;
       if (D.nuke && L === 3 && Ut.hash2(b.i, 7) < 0.35) fire = 1;
       if (conv && L >= 3 && D.Wtnt > 40 && Ut.hash2(b.i, bl.id) < 0.3) fire = 1;
       if (conv && dNear < fbR * 1.4 && D.Wtnt > 2 && Ut.hash2(b.i, bl.id + 3) < 0.55) fire = 1;
+      if (gone) ev.push({ t: tGone, kind: 'b', i: b.i, L: gone, glass: true, p, dir: [dx0, dz0], all: true });
       if (L === 0 && !glass && !fire) continue;
       const t = Ph.arrival(D.front, dNear);
+      if (gone && t > tGone) continue;
       ev.push({ t, kind: 'b', i: b.i, L, glass, p, dir: [dx0, dz0] });
       if (fire) ev.push({ t: D.nuke ? D.tpulse * (0.3 + 0.7 * Ut.hash2(b.i, 3)) : t + 0.4, kind: 'f', i: b.i });
       // ofiary (szacunkowo, ludzie w budynkach)
@@ -663,6 +687,10 @@
       if (Math.abs(dx) > maxR || Math.abs(dz) > maxR) continue;
       const d = Math.hypot(dx, c.y + 1 - by, dz);
       if (d > maxR) continue;
+      if (D.impact) {
+        const rh = Math.hypot(dx, dz) / D.cr.R;
+        if (rh < 1.35) ev.push({ t: rh < 1.02 ? craterTime(D.cr, rh) : ejectaTime(D.cr, rh), kind: 'cg', i });
+      }
       const p = Ph.overpressure(Math.max(d, 0.3), D.cbrtW);
       const q = Ph.thermal(Math.max(d, 1), D.Y4pi, D.lambda);
       const burn = q > 300e3 || (conv && d < fbR * 2.2 && D.Wtnt > 1) || (p > 200 && Ut.hash2(i, 9) < 0.4);
@@ -698,6 +726,12 @@
     bl.events = ev; bl.evPtr = 0;
   };
 
+  // Kiedy lej krateru dosięga odległości rho (×R), a kiedy spadają tam wyrzucone skały
+  function craterTime(cr, rho) {
+    const aT = cr.Rt / cr.R;
+    return rho <= aT ? cr.tEx * Math.pow(rho / aT, 2.5) : cr.tEx + cr.tCol * 0.5 * Math.min(1, (rho - aT) / (1 - aT));
+  }
+  function ejectaTime(cr, rho) { return Math.max(cr.tEx * 0.8, Math.sqrt(2 * cr.R * Math.max(0, rho - 0.8) / 9.81)); }
   const _sp = [0, 0, 0, 0, 0];
   function pressureOn(b, D, bx, by, bz, by0, dNear) {
     const hx = b.sx / 2, hz = b.sz / 2;
@@ -721,7 +755,8 @@
     if (p > th[0] * v) L = 1;
     if (p > th[1] * v) L = 2;
     if (p > th[2] * v) L = 3;
-    if (D.nuke && !D.cosmic && dNear < D.fbR * 0.85) L = 4;
+    if (D.nuke && (!D.cosmic || D.impact) && dNear < D.fbR * 0.85) L = 4;
+    if (D.impact && Math.hypot(b.x - bx, b.z - bz) < D.cr.R * 1.02) L = 5;
     return L;
   };
   function bakeTree(t, u) {
@@ -743,6 +778,7 @@
       if (e.kind === 'b') {
         const b = B[e.i];
         if (e.dead) { st.dead += e.dead; st.inj += e.inj; b.alive = Math.max(0, b.alive - e.dead); }
+        if (e.all && b.alive > 0) { st.dead += b.alive; b.alive = 0; }
         let changed = false;
         if (e.glass && !b.glass) { b.glass = 1; st.glass++; changed = true; EP.fx && EP.fx.glassBurst(b, bl); }
         if (e.L > b.dmg) {
@@ -763,6 +799,13 @@
         if (b.burnT < 0 && b.dmg < 4) { b.burnT = bl.simNow; b.burnSim = 0; b.burnBl = bl; b.spreadT = 40 + 80 * b.seed; st.fires++; C.burning.push(b.i); }
       } else if (e.kind === 'c') {
         hitCar(e, bl);
+      } else if (e.kind === 'cg') {
+        const c = CARS[e.i];
+        if (!c.gone) {
+          c.gone = true; c.dyn = false;
+          if (!c.hit) { c.hit = 1; st.cars++; }
+          setCarMatrix(c, e.i); carMesh.instanceMatrix.needsUpdate = true;
+        }
       }
     }
   };
@@ -786,7 +829,14 @@
         b.adur = 1.0 + Math.sqrt(2 * b.sy / 9.81) * 1.35;
       }
     }
-    else { b.hT = 0.015; b.tiltT = 0; b.adur = 0.25; b.burnT = -1; b.burn = 0; }
+    else {
+      b.hT = 0.015; b.tiltT = 0; b.adur = 0.25; b.burnT = -1; b.burn = 0;
+      if (L >= 5) {
+        b.gone = true;
+        if (b.rub >= 0) setRubble(b, 0);
+        for (let c = b.child; c >= 0; c = B[c].child) { B[c].gone = true; B[c].dmg = 5; setMatrix(B[c]); }
+      }
+    }
     b.anim = 0;
     if (L === 3) addRubble(b);
     if (!b.inAnim) { b.inAnim = true; C.animating.push(b.i); }
@@ -892,6 +942,7 @@
       const still = [];
       for (const i of C.carsMoving) {
         const c = CARS[i];
+        if (c.gone) { c.inMove = false; continue; }
         const dt = Math.min(dtA, 0.05);
         c.vy -= 9.81 * dt;
         c.x += c.vx * dt; c.y += c.vy * dt; c.z += c.vz * dt;
@@ -935,7 +986,7 @@
   // Odbudowa miasta
   C.reset = function () {
     for (const b of B) {
-      b.dmg = 0; b.hf = 1; b.hT = 1; b.tilt = 0; b.tiltT = 0; b.anim = 1; b.glass = 0; b.burn = 0; b.burnT = -1; b.alive = b.pop; b.rub = -1; b.burnBl = null; b.prog = false; b.surge = false; b._aSent = 0;
+      b.gone = false; b.dmg = 0; b.hf = 1; b.hT = 1; b.tilt = 0; b.tiltT = 0; b.anim = 1; b.glass = 0; b.burn = 0; b.burnT = -1; b.alive = b.pop; b.rub = -1; b.burnBl = null; b.prog = false; b.surge = false; b._aSent = 0;
       setMatrix(b); setDmgAttr(b);
     }
     rubbleN = 0; rubbleMesh.count = 0;
@@ -946,7 +997,7 @@
     const col = new T.Color();
     CARS.forEach((c, i) => {
       c.x = c.x0 !== undefined ? c.x0 : c.x; c.z = c.z0 !== undefined ? c.z0 : c.z;
-      c.y = 0; c.vx = c.vy = c.vz = 0; c.wx = c.wz = 0; c.rx = 0; c.rz = 0; c.dyn = false; c.burned = 0; c.hit = 0;
+      c.y = 0; c.vx = c.vy = c.vz = 0; c.wx = c.wz = 0; c.rx = 0; c.rz = 0; c.dyn = false; c.burned = 0; c.hit = 0; c.gone = false;
       col.setRGB(c.col[0], c.col[1], c.col[2]); carMesh.setColorAt(i, col); setCarMatrix(c, i);
     });
     carMesh.instanceMatrix.needsUpdate = true; carMesh.instanceColor.needsUpdate = true;
@@ -1008,6 +1059,33 @@
       if (hit) return true;
     }
     return false;
+  };
+
+  // Najwyższy dach stojącego budynku pod punktem (x, z), z marginesem pad; -Infinity, gdy pod nogami nie ma budynku
+  function insideB(o, x, z, pad) {
+    const dx = x - o.x, dz = z - o.z, c = Math.cos(o.rotY), sn = Math.sin(o.rotY);
+    const lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+    return Math.abs(lx) < o.sx / 2 + pad && Math.abs(lz) < o.sz / 2 + pad;
+  }
+  C.roofAt = function (x, z, pad) {
+    let top = -Infinity;
+    const ci = Math.floor(x / GC), cj = Math.floor(z / GC);
+    for (let dj = -gridR; dj <= gridR; dj++) for (let di = -gridR; di <= gridR; di++) {
+      const arr = grid.get((ci + di) + ',' + (cj + dj));
+      if (!arr) continue;
+      for (const j of arr) {
+        const b = B[j];
+        if (b.gone || b.dmg >= 3 || !insideB(b, x, z, pad)) continue;
+        let h = b.y + b.sy * b.hf;
+        for (let k = b.child; k >= 0; k = B[k].child) {
+          const o = B[k], pp = B[o.parent];
+          if (o.gone || o.dmg >= 3 || !insideB(o, x, z, pad)) break;
+          h = pp.y + pp.sy * pp.hf + o.sy * o.hf;
+        }
+        if (h > top) top = h;
+      }
+    }
+    return top;
   };
 
   // Liczba obiektów w strefie (do podglądu przed odpaleniem)

@@ -137,6 +137,7 @@
       e.fov = Ut.lerp(e.fov, e.tFov, a);
       if (Math.abs(camera.fov - e.fov) > 0.01) { camera.fov = e.fov; camera.updateProjectionMatrix(); }
       camera.position.copy(e.pos);
+      camera.position.y += e.bob || 0;
       if (K.shake > 0.0001) {
         const s = K.shake * 0.35;
         camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s * 0.6; camera.position.z += (Math.random() - 0.5) * s;

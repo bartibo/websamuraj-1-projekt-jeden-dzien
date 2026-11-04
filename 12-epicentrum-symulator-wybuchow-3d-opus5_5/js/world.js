@@ -228,8 +228,24 @@
     scene.add(terrain);
     Wd.terrain = terrain;
   }
-  // Wysokość siatki terenu w punkcie (dokładnie tak, jak jest narysowana)
+  // Wysokość ziemi: siatka terenu i kratery uderzeniowe (Wd.extraH ustawia impact.js)
+  Wd.extraH = null;
   Wd.groundY = function (x, z) {
+    const h = Wd.groundY0(x, z);
+    return Wd.extraH ? h + Wd.extraH(x, z) : h;
+  };
+  // Woda (rzeka i jeziora), do chodzenia świadkiem; mosty co dwa kwartały
+  Wd.isWater = function (x, z) {
+    const rd = Math.abs(x - Wd.riverX(z));
+    if (rd < 54) {
+      const zb = Math.round(z / 240) * 240;
+      const onBridge = Math.abs(z - zb) < 7.5 && Math.abs(zb) <= 2700 && Math.abs(x - Wd.riverX(zb)) < 66 && Math.hypot(Wd.riverX(zb), zb) < 3030;
+      return !onBridge;
+    }
+    return Math.hypot(x, z) > 4200 && Wd.landAt(x, z, 2) > 0.5;
+  };
+  // Wysokość siatki terenu w punkcie (dokładnie tak, jak jest narysowana)
+  Wd.groundY0 = function (x, z) {
     const r = Math.hypot(x, z);
     if (r < 4000) return 0;
     const fi = TR.rings * Math.pow(r / TR.R, 1 / TR.pow);

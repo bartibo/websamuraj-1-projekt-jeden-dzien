@@ -32,7 +32,12 @@
     uFallDir: { value: new T.Vector2(1, 0) },
     uFallA: { value: 0 },
     uLand: { value: null },
-    uCity: { value: null }
+    uCity: { value: null },
+    // kratery uderzeniowe (impact.js): do 4 naraz
+    uImp: { value: vec4s().slice(0, 4) },    // x, z środka, R krateru, zasięg siatki krateru (×R)
+    uImpS: { value: vec4s().slice(0, 4) },   // brzeg leja (×R), żar stopionych skał, zasięg wyrzutu (×R), typ krateru
+    uImpA: { value: vec4s().slice(0, 4) },   // lej przejściowy: promień (×R), głębokość, wał, przejście do kształtu końcowego
+    uImpB: { value: vec4s().slice(0, 4) }    // wypiętrzenie dna: wysokość, szerokość (×R); głębokość końcowa, wysokość wału
   };
 
   S.COMMON = /* glsl */`
@@ -47,6 +52,8 @@ uniform float uNight;
 uniform float uBlackout;
 uniform vec4 uBlack[4];
 uniform sampler2D uFire;
+uniform vec4 uImp[4];
+uniform vec4 uImpS[4];
 // 1 tam, gdzie po wybuchu zgasło zasilanie (kaskada od strefy zniszczeń)
 float epBlk(vec2 p){
   float k = 0.0;
@@ -106,6 +113,45 @@ EPB epBlast(vec3 wp, vec3 n, float useN){
 }
 `;
 
+  // Profil krateru (ta sama funkcja co Ph.craterH w physics.js)
+  S.CRATER_VERT = /* glsl */`
+uniform vec4 uImp[4]; uniform vec4 uImpS[4]; uniform vec4 uImpA[4]; uniform vec4 uImpB[4];
+attribute vec2 aCr;
+float epEj(float rho, float r0, float cov){
+  if (rho <= r0) return 1.0;
+  float c = pow(r0/cov, 3.0);
+  return max(0.0, (pow(r0/rho, 3.0) - c)/(1.0 - c));
+}
+float epStep4(float s){ float x = s*4.0; return (floor(x) + smoothstep(0.65, 1.0, fract(x)))/4.0; }
+float epCrH(float rho, vec4 I, vec4 Sv, vec4 A, vec4 B){
+  float cov = I.w;
+  if (rho >= cov) return 0.0;
+  float a = max(A.x, 1e-3);
+  float x = rho/a;
+  float hT = x < 1.0 ? -A.y + (A.y + A.z)*x*x : A.z*epEj(x, 1.0, cov/a);
+  float dF = B.z, hr = B.w, ty = Sv.w;
+  float hF;
+  if (rho >= 1.0) hF = hr*epEj(rho, 1.0, cov);
+  else if (ty < 0.5) hF = -dF + (dF + hr)*rho*rho;
+  else {
+    float rf = ty < 1.5 ? 0.55 : 0.6;
+    if (rho < rf){
+      hF = -dF;
+      float v = ty < 1.5 ? rho/0.13 : (rho - 0.45)/0.07;
+      hF += (ty < 1.5 ? 0.55 : 0.4)*dF*exp(-v*v);
+    } else {
+      float q = (rho - rf)/(1.0 - rf);
+      float st = q + (epStep4(q) - q)*0.35;
+      hF = -dF + (dF + hr)*pow(max(st, 0.0), 1.4);
+    }
+  }
+  float h = mix(hT, hF, A.w);
+  float u = rho/max(B.y, 1e-3);
+  h += B.x*exp(-u*u);
+  return h*(1.0 - smoothstep(cov*0.94, cov, rho));
+}
+`;
+
   function hookUniforms(shader) {
     for (const k in U) shader.uniforms[k] = U[k];
   }
@@ -133,6 +179,17 @@ vec3 epEm = vec3(0.0);
 float epRough = 0.95;
 vec3 epNW = vec3(0.0, 1.0, 0.0);
 {
+#ifdef EP_CRATER
+  // siatka krateru: normalna z nachylenia trójkąta
+  epNW = normalize(cross(dFdx(vEpW), dFdy(vEpW)));
+  if (epNW.y < 0.0) epNW = -epNW;
+#else
+  // teren pod kraterem rysuje osobna siatka
+  for (int k = 0; k < 4; k++){
+    vec4 ci = uImp[k];
+    if (ci.z > 0.0 && length(vEpW.xz - ci.xy) < ci.z*ci.w*0.985) discard;
+  }
+#endif
   vec2 p = vEpW.xz;
   float r = length(p);
   vec2 fw = fwidth(p);
@@ -311,6 +368,40 @@ vec3 epNW = vec3(0.0, 1.0, 0.0);
       epEm += vec3(1.0,0.45,0.12)*g*exp(-uE1[i].z/(uE2[i].w*10.0))*3.0;
     }
   }
+  // kratery uderzeniowe: wyrzucone skały z promienistymi smugami, lej, stopione skały
+  for (int k = 0; k < 4; k++){
+    vec4 ci = uImp[k];
+    if (ci.z <= 0.0) continue;
+    vec4 cs = uImpS[k];
+    vec2 dc = p - ci.xy;
+    float rr = length(dc), rho = rr/ci.z;
+    if (rho > 7.0) continue;
+    float ang = atan(dc.y, dc.x);
+    float nz = epN(p/(ci.z*0.06));
+    float nz2 = epN(p/(ci.z*0.012) + 7.0);
+    float rays = smoothstep(0.5, 0.85, epN(vec2(ang*11.0, rho*0.6)))*(1.0 - smoothstep(1.5, 6.5, rho));
+    float blanket = clamp((1.0 - smoothstep(1.0, 2.4 + nz*0.6, rho)) + rays*0.8, 0.0, 1.0);
+    float arrived = 1.0 - smoothstep(cs.z*0.85, cs.z, rho);
+    vec3 ejC = mix(vec3(0.50,0.45,0.38), vec3(0.66,0.61,0.53), nz2)*(0.85 + 0.3*nz);
+    col = mix(col, ejC, blanket*arrived*0.92);
+    float inside = 1.0 - smoothstep(cs.x*0.96, cs.x*1.02, rho);
+    vec3 brec = mix(vec3(0.17,0.14,0.12), vec3(0.34,0.30,0.26), nz2)*(0.8 + 0.4*nz);
+    col = mix(col, brec, inside);
+    epRough = mix(epRough, 0.96, max(inside, blanket*arrived));
+    // krater złożony: jaśniejsze wypiętrzone skały (centralne wzniesienie albo pierścień szczytów) i ciemne krawędzie tarasów
+    float cty = floor(cs.w + 0.01), cbl = fract(cs.w + 0.01)/0.49;
+    if (cty > 0.5 && rho < 1.0){
+      float v = cty < 1.5 ? rho/0.15 : (rho - 0.45)/0.08;
+      float up = exp(-v*v)*cbl;
+      col = mix(col, vec3(0.62,0.56,0.48)*(0.8 + 0.4*nz2), up*0.75);
+      float q = clamp((rho - (cty < 1.5 ? 0.55 : 0.6))/(cty < 1.5 ? 0.45 : 0.4), 0.0, 1.0);
+      float terr = smoothstep(0.75, 0.95, fract(q*4.0))*step(0.01, q)*cbl;
+      col *= 1.0 - 0.35*terr;
+    }
+    float melt = cs.y*inside*smoothstep(0.35, 0.75, nz*0.6 + nz2*0.4 + (1.0 - rho/max(cs.x, 0.01))*0.35);
+    col = mix(col, vec3(0.08,0.06,0.05), melt*0.8);
+    epEm += vec3(1.0,0.36,0.08)*melt*(2.4 + 0.6*sin(uTime*1.7 + nz2*20.0));
+  }
   // strefa opadu promieniotwórczego (podgląd)
   if (uFallA > 0.0){
     vec2 dp = p - uFall.xy;
@@ -344,12 +435,23 @@ vec3 epNW = vec3(0.0, 1.0, 0.0);
 }
 `;
 
-  S.patchGround = function (mat) {
+  S.patchGround = function (mat, crater) {
+    if (crater) mat.defines = Object.assign(mat.defines || {}, { EP_CRATER: '' });
     mat.onBeforeCompile = function (shader) {
       hookUniforms(shader);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vEpW;')
+        .replace('#include <common>', '#include <common>\nvarying vec3 vEpW;' + (crater ? S.CRATER_VERT : ''))
         .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvEpW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      if (crater) {
+        // wysokość terenu w kraterze zmienia się z czasem: wykop, zapadanie, wypiętrzenie
+        shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+{
+  int ci = int(aCr.y + 0.5);
+  vec4 I = uImp[0], Sv = uImpS[0], A = uImpA[0], B = uImpB[0];
+  for (int k = 1; k < 4; k++) if (k == ci) { I = uImp[k]; Sv = uImpS[k]; A = uImpA[k]; B = uImpB[k]; }
+  if (I.z > 0.0) transformed.y += epCrH(aCr.x, I, Sv, A, B);
+}`);
+      }
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', '#include <common>\n' + S.COMMON + S.GROUND_FRAG)
         .replace('#include <map_fragment>', S.GROUND_BODY)
@@ -357,7 +459,7 @@ vec3 epNW = vec3(0.0, 1.0, 0.0);
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize((viewMatrix * vec4(epNW, 0.0)).xyz);')
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += epEm;');
     };
-    mat.customProgramCacheKey = () => 'epGround';
+    mat.customProgramCacheKey = () => (crater ? 'epGroundCr' : 'epGround');
   };
 
   // ---------- BUDYNKI ----------
@@ -526,6 +628,14 @@ void epTree(){
   float fall = 0.0;
   vec2 dir = vec2(1.0, 0.0);
   epStrip = 0.0; epCharV = 0.0; epBurnV = 0.0;
+  // drzewa wyrzucone razem z lejem albo zasypane wyrzuconymi skałami znikają
+  for (int k = 0; k < 4; k++){
+    vec4 ci = uImp[k];
+    if (ci.z <= 0.0) continue;
+    vec4 cs = uImpS[k];
+    float rr = length(tb.xz - ci.xy)/ci.z;
+    if (rr < max(cs.x*1.03, min(cs.z, ci.w))) { epR = mat3(0.0); return; }
+  }
   if (aHit.x > -0.5){
     int s = int(aHit.x + 0.5);
     float since = uE0[s].w - aHit.y;

@@ -2,7 +2,7 @@
 // świadek, pogoda, powtórka, zdjęcie i link do scenariusza
 (function () {
   const T = THREE;
-  const Ut = EP.util, Ph = EP.phys, Wd = EP.world, C = EP.city, F = EP.fx, K = EP.cam, Dl = EP.delivery, A = EP.audio, SH = EP.shaders, PP = EP.post;
+  const Ut = EP.util, Ph = EP.phys, Wd = EP.world, C = EP.city, F = EP.fx, K = EP.cam, Dl = EP.delivery, A = EP.audio, SH = EP.shaders, PP = EP.post, IM = EP.impact;
   const $ = (s) => document.querySelector(s);
   const WEAP = EP.weapons;
 
@@ -18,7 +18,8 @@
   const RING_DEF = {
     fireball: ['Kula ognia', '#ffffff'], heavy: ['Ciężkie zniszczenia · 140 kPa', '#ff3b30'], rad: ['Śmiertelne promieniowanie · 5 Sv', '#7dff5a'],
     moderate: ['Zawalenia budynków · 35 kPa', '#ff8a1c'], burn3: ['Oparzenia III stopnia', '#ff5fb0'], light: ['Zniszczone domy · 14 kPa', '#ffc94d'],
-    frag: ['Zasięg odłamków', '#d0d0d0'], glass: ['Wybite szyby · 5 kPa', '#4dc6ff'], glass3: ['Pękające szyby · 3 kPa', '#8fb8ff']
+    frag: ['Zasięg odłamków', '#d0d0d0'], glass: ['Wybite szyby · 5 kPa', '#4dc6ff'], glass3: ['Pękające szyby · 3 kPa', '#8fb8ff'],
+    crater: ['Krater uderzeniowy', '#e0a96a']
   };
   // pogoda: wiatr (m/s), kierunek co 45°, przejrzystość powietrza
   const WINDS = [[0, 'cisza'], [4, 'słaby'], [12, 'silny']];
@@ -48,6 +49,7 @@
     }
     if (best) st.target.point.set(best.cx + 60, 0, best.cz + 60);
     if (mobile) Wd.sun.shadow.mapSize.set(2048, 2048);
+    if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
     const pf = loadPrefs();
     if (pf.wind >= 0 && pf.wind < 3) st.wind = pf.wind;
     if (pf.dir >= 0 && pf.dir < 8) st.windDir = pf.dir;
@@ -105,6 +107,7 @@
       cam.setViewOffset(w, h, ox, oy, w, h);
     } else if (cam.view) cam.clearViewOffset();
     cam.updateProjectionMatrix();
+    if (K.eye) placeJoy();
   }
   let perfT = 0, perfAcc = 0, perfN = 0, goodT = 0, bootT = 0;
   function adaptRes(dtR) {
@@ -177,6 +180,7 @@
     return Ph.derive(w, { ground: groundFor(w), hob: w.kt ? 0 : Math.max(0, st.target.point.y - gy), lambda: st.lambda });
   }
   function previewDist(D) {
+    if (D.impact) return Ut.clamp(Math.max(D.craterR * 9, D.radii.moderate * 2.2, 3000), 3000, 260000);
     return Ut.clamp(Math.max(D.radii.glass * 1.15, D.radii.glass3 * (D.cosmic ? 0.8 : 0), D.radii.moderate * 3.2, D.Htop * (D.nuke ? 1.4 : 0.8), 7), 7, 260000);
   }
   function selectWeapon(w, instant) {
@@ -326,11 +330,21 @@
     const R = Ph.frontAt(D.front, t);
     const Rg = R > dy ? Math.sqrt(R * R - dy * dy) : 0;
     const top = F.cloudTop(bl) - Wd.groundY(bl.pos.x, bl.pos.z);
+    if (D.impact) {
+      // najpierw powstający krater z boku, potem coraz szerzej razem z falą i pyłem
+      const cr = D.cr;
+      const d0 = Math.min(Math.max(cr.R * 4.2, D.fbR * 2.5, 600), 300000);
+      const dF = Ut.clamp(Math.max(d0, D.radii.moderate * 1.6, D.Htop * 1.6), d0, 300000);
+      let d = d0;
+      if (t > cr.tForm * 0.7) d = Ut.clamp(Math.max(Rg * 1.3, top * 1.7), d0, dF);
+      return { d, phi: t < cr.tForm ? 1.02 : 1.12, ty: t < cr.tForm ? cr.R * 0.05 : Math.min(top * 0.35, d * 0.2) };
+    }
     const d0 = Math.max(D.fbR * 7, dy * 2.2, 4);
     const dF = Math.max(D.radii.moderate * 3, D.Htop * (D.nuke ? 1.5 : 0.9), D.radii.glass * (D.nuke ? 0.9 : 1.3), D.cosmic ? D.radii.glass3 * 0.9 : 0, 10);
     let d = Ut.clamp(Math.max(d0, Rg * 2.0, top * 1.7), d0, dF);
     if (bl.w.salvo) d = Math.max(d, 650);
     if (bl.multiR) d = Math.max(d, bl.multiR * 3.2);
+    d = Math.min(d, 300000);
     return { d, phi: D.nuke ? 1.22 : d < 60 ? 1.15 : 0.98, ty: D.nuke ? Math.max(dy * 0.6, top * 0.42) : Math.min(top * 0.3, d * 0.15) };
   }
 
@@ -339,11 +353,11 @@
   function showRings(center, D, preview) {
     ringCenter.copy(center); ringCenter.y = Wd.groundY(center.x, center.z);
     const r = D.radii;
-    const keys = D.nuke ? ['glass', 'light', 'burn3', 'moderate', 'rad', 'heavy', 'fireball'] : ['glass', 'frag', 'light', 'moderate', 'heavy', 'fireball'];
+    const keys = D.impact ? ['glass', 'light', 'burn3', 'moderate', 'heavy', 'fireball', 'crater'] : D.nuke ? ['glass', 'light', 'burn3', 'moderate', 'rad', 'heavy', 'fireball'] : ['glass', 'frag', 'light', 'moderate', 'heavy', 'fireball'];
     if (!r.glass && r.glass3) keys.unshift('glass3');
     ringList = [];
     for (const k of keys) {
-      let R = k === 'fireball' ? (D.nuke ? (D.cosmic ? 0 : D.fbR) : r.fireball) : r[k];
+      let R = k === 'crater' ? D.craterR : k === 'fireball' ? (D.nuke ? (D.cosmic && !D.impact ? 0 : D.fbR) : r.fireball) : r[k];
       if (!R || R <= 0) continue;
       ringList.push({ k, R, name: RING_DEF[k][0], col: RING_DEF[k][1] });
     }
@@ -462,6 +476,8 @@
         lt = Math.min(lt, Math.log(Ut.clamp(Rc / (U * 4), 0.02, 40)));
       }
     }
+    // krater powstaje w tempie, w którym da się go obejrzeć (kilka-kilkanaście sekund)
+    if (D.impact && t < D.cr.tForm * 1.1) lt = Math.min(lt, Math.log(Ut.clamp(D.cr.tForm / 8, 0.05, 40)));
     // świadek: czekanie na falę przyspieszone, ostatnie sekundy przed jej dotarciem zwolnione
     if (bl.eyeT !== undefined && !bl.heard) {
       const left = bl.eyeT - t;
@@ -471,7 +487,13 @@
     }
     return Math.exp(lt);
   }
-  function curTs() { if (st.paused) return 0; return st.tsMode === 'auto' ? autoTs() : st.tsFixed; }
+  function curTs() {
+    if (st.paused) return 0;
+    if (st.tsMode !== 'auto') return st.tsFixed;
+    const ts = autoTs();
+    // biegnący świadek: czas płynie najwyżej normalnie, żeby ucieczka przed falą była uczciwa
+    return K.eye && K.eye.moving && !(st.delivery && !st.delivery.done) ? Math.min(ts, 1) : ts;
+  }
 
   // ---------- PĘTLA ----------
   let last = 0, uiT = 0, hoverT = 0, flash = 0, exposureK = 0, dust = 0;
@@ -511,7 +533,7 @@
       // po zakończeniu fala liczy się tylko tam, gdzie nadciśnienie mogło coś zmienić
       U.uE0.value[i].set(bl.pos.x, bl.pos.y, bl.pos.z, bl.done ? bl.doneR : bl.frontR);
       U.uE1.value[i].set(D.cbrtW, D.Y4pi, bl.t, D.fbR);
-      U.uE2.value[i].set(D.nuke ? 1 : bl.w.frag ? 2 : 0, D.craterR, D.scorchR, D.tpulse);
+      U.uE2.value[i].set(D.nuke ? 1 : bl.w.frag ? 2 : 0, D.impact ? 0 : D.craterR, D.scorchR, D.tpulse);
       const dy = bl.pos.y - Wd.groundY(bl.pos.x, bl.pos.z);
       const vit = D.nuke && !D.cosmic ? (D.ground ? D.fbR * 0.8 : D.fbR > dy ? Math.sqrt(D.fbR * D.fbR - dy * dy) * 0.9 : 0) : 0;
       U.uHob.value[i].set(dy, vit, D.lambda || 80000, bl.done ? 0 : 1);
@@ -539,6 +561,8 @@
       } else if (!D.nuke && t < D.tfb * 2 && D.Wtnt > 100) {
         flash = Math.max(flash, 0.12 * Math.exp(-t / (D.tfb * 0.5)));
       }
+      // świadek w ruchu: czas dotarcia fali liczony na bieżąco
+      if (K.eye && !bl.heard && bl.eyeT !== undefined) bl.eyeT = Ph.arrival(D.front, camPosW.distanceTo(bl.pos));
       // dźwięk i wstrząs, gdy czoło fali dotrze do kamery
       if (!bl.heard) {
         const dc = camPosW.distanceTo(bl.pos);
@@ -594,6 +618,7 @@
       l.color.setRGB(1, 0.93, 0.85);
     }
 
+    if (IM.active()) IM.update(dtSim, dtA, Wd.camera);
     C.update(dtA, dtSim, st.simNow);
     F.update(dtA, dtSim, Wd.camera, st.paused ? 0 : dtR * Math.min(ts, 4));
     // cień przeliczany tylko, gdy coś się rusza
@@ -619,6 +644,7 @@
       K.tPhi = Ut.lerp(K.tPhi, fr.phi, 1 - Math.exp(-dtR));
       if (st.follow.done) st.follow = null;
     }
+    if (K.eye) walk(dtR);
     K.update(dtR, Wd.camera);
     if (K.eye) Wd.frame(Math.max(50, K.eye.pos.distanceTo(st.target.point)), _v.copy(K.eye.pos).addScaledVector(Wd.camera.getWorldDirection(_r), 600), true);
     else Wd.frame(K.viewDist || K.dist, K.target);
@@ -760,7 +786,9 @@
     const gy = Wd.groundY(st.target.point.x, st.target.point.z);
     const look = new T.Vector3(st.target.point.x, gy + (st.weapon.kt ? Math.min(D.hob, 2000) * 0.6 : 8), st.target.point.z);
     K.enterEye(p, look);
+    K.eye.vy = 0; K.eye.bob = 0; K.eye.moving = false;
     K.film.w = 0; K.film.cur = null;
+    if (mobileUI()) document.body.classList.add('collapsed');
     eyeMarker.position.copy(p).add(new T.Vector3(0, -1.7, 0));
     $('#aEye').classList.add('on');
     document.body.classList.add('eye');
@@ -769,6 +797,8 @@
     updateEyeHud();
   }
   function exitEye() {
+    for (const k in keys) keys[k] = false;
+    joyReset();
     K.exitEye(Wd.camera);
     st.placingEye = false;
     $('#aEye').classList.remove('on');
@@ -782,10 +812,12 @@
     if (st.follow) st.follow = null;
     viewOffset();
   }
-  function eyeVerdict(p, q, D, d) {
+  function eyeVerdict(p, q, D, d, dh) {
     const out = [];
     let cls = 'ok';
-    if (D.nuke && !D.cosmic && d < D.fbR) { out.push('Świadek jest wewnątrz kuli ognia.'); cls = 'dead'; }
+    if (D.impact && dh < D.craterR * 1.02) { out.push('Świadek stoi tam, gdzie powstaje krater: skały wyparowują albo są wyrzucane w górę.'); cls = 'dead'; }
+    else if (D.impact && dh < D.craterR * 1.35) { out.push('Tu spadną skały wyrzucone z krateru i zasypią wszystko.'); cls = 'dead'; }
+    else if (D.nuke && (!D.cosmic || D.impact) && d < D.fbR) { out.push('Świadek jest wewnątrz kuli ognia.'); cls = 'dead'; }
     else if (p > 140) { out.push('Fala niszczy nawet budynki żelbetowe. Brak szans przeżycia.'); cls = 'dead'; }
     else if (p > 35) { out.push('Budynki wokół się zawalają. Szansa przeżycia na ulicy niewielka.'); cls = 'dead'; }
     else if (p > 14) { out.push('Fala przewraca człowieka, lecą gruz i szkło. Grożą ciężkie obrażenia.'); cls = 'bad'; }
@@ -813,16 +845,127 @@
     const p = Ph.overpressure(sl, D.cbrtW);
     const q = Ph.thermal(Math.max(sl, 1), D.Y4pi, D.lambda);
     const at = Ph.arrival(D.front, sl);
-    const v = eyeVerdict(p, q, D, sl);
+    const v = eyeVerdict(p, q, D, sl, dist);
+    const me = D.impact ? IM.feltMag(D, dist) : 0;
+    const walkTip = document.body.classList.contains('touch') ? 'Joystick: bieg (wychylenie do końca: sprint)' : '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / strzałki: bieg · <kbd>Shift</kbd>: sprint';
+    const run = K.eye.moving ? ` · <b>${Ut.num(K.eye.speed || 0, 1)} m/s</b>` : '';
     let state;
     if (!bl) state = `Fala dotarłaby po <b>${Ut.time(at)}</b>, dźwięk po <b>${Ut.time(sl / 343)}</b> (błysk od razu)`;
-    else if (!bl.heard) state = `<span class="cd">Fala dotrze za <b>${Ut.time(Math.max(0, at - bl.t))}</b></span>`;
+    else if (!bl.heard) state = `<span class="cd">Fala dotrze za <b>${Ut.time(Math.max(0, at - bl.t))}</b></span>` + (D.impact && bl.t < dist / 6000 ? ` · wstrząs za <b>${Ut.time(dist / 6000 - bl.t)}</b>` : '');
     else state = `<span class="cd hit">Fala dotarła po ${Ut.time(at)}</span>`;
     hud.innerHTML = `<div class="eh"><b>Świadek</b> · ${Ut.dist(dist)} od epicentrum${ep.y - Wd.groundY(ep.x, ep.z) > 4 ? ' · na dachu' : ''}<button id="eyeX" title="Wróć do widoku z góry (Esc)">✕</button></div>
       <div class="es">${state}</div>
-      <div class="eg"><span>Nadciśnienie <b>${Ut.pressure(p)}</b></span>${D.nuke ? `<span>Żar <b>${Ut.num(q / 1000, q < 1e4 ? 1 : 0)} kJ/m²</b></span>` : ''}</div>
-      <div class="ev ${v.cls}">${v.txt}</div>`;
+      <div class="eg"><span>Nadciśnienie <b>${Ut.pressure(p)}</b></span>${D.nuke ? `<span>Żar <b>${Ut.num(q / 1000, q < 1e4 ? 1 : 0)} kJ/m²</b></span>` : ''}${D.impact && me > 1 ? `<span>Wstrząs <b>M ${Ut.num(me, 1)}</b></span>` : ''}</div>
+      <div class="ev ${v.cls}">${v.txt}</div>
+      <div class="ew">${walkTip}${run}</div>`;
     $('#eyeX').onclick = exitEye;
+  }
+
+  // ---------- BIEG ŚWIADKA ----------
+  // WASD / strzałki (Shift: sprint) albo joystick na telefonie. Świadek omija budynki, wchodzi
+  // tylko na niskie stopnie, spada z dachu i do krateru, nie wchodzi do rzeki (poza mostami).
+  const WALK = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
+  const keys = {};
+  const joy = { x: 0, y: 0, on: false, id: -1, cx: 0, cy: 0 };
+  const EYE_H = 1.7, BODY_R = 0.6, STEP_UP = 0.7;
+  let stepPh = 0, stepN = 0;
+  function supportAt(x, z) { return Math.max(Wd.groundY(x, z), C.roofAt(x, z, BODY_R)); }
+  function canStand(x, z, feet) {
+    const roof = C.roofAt(x, z, BODY_R);
+    const sup = Math.max(Wd.groundY(x, z), roof);
+    if (sup > feet + STEP_UP) return false;
+    if (roof === -Infinity && Wd.isWater(x, z) && IM.inside(x, z) < 0) return false;
+    return true;
+  }
+  function walk(dtR) {
+    const e = K.eye;
+    let f = 0, sd = 0;
+    if (keys.KeyW || keys.ArrowUp) f += 1;
+    if (keys.KeyS || keys.ArrowDown) f -= 1;
+    if (keys.KeyD || keys.ArrowRight) sd += 1;
+    if (keys.KeyA || keys.ArrowLeft) sd -= 1;
+    if (joy.on) { f -= joy.y; sd += joy.x; }
+    const mag = Math.min(1, Math.hypot(f, sd));
+    const sprint = keys.ShiftLeft || keys.ShiftRight || (joy.on && Math.hypot(joy.x, joy.y) > 0.92);
+    const bl = st.lastBlast;
+    // w trakcie wybuchu świadek biegnie w czasie symulacji (w zwolnionym tempie wolniej, w pauzie wcale)
+    const k = bl && !bl.done ? Ut.clamp(st.ts || 0, 0, 1) : 1;
+    const dt = Math.min(dtR, 0.05) * k;
+    let x = e.pos.x, z = e.pos.z, feet = e.pos.y - EYE_H;
+    e.moving = mag > 0.05;
+    let moved = 0;
+    if (e.moving && dt > 0) {
+      e.user = true;
+      const sp = (sprint ? 8.5 : 5) * mag;
+      const fx = Math.sin(e.yaw), fz = Math.cos(e.yaw), rx = -Math.cos(e.yaw), rz = Math.sin(e.yaw);
+      let mx = fx * f + rx * sd, mz = fz * f + rz * sd;
+      const ml = Math.hypot(mx, mz) || 1;
+      mx = mx / ml * sp * dt; mz = mz / ml * sp * dt;
+      const n = Math.max(1, Math.ceil(Math.hypot(mx, mz) / 0.4));
+      for (let i = 0; i < n; i++) {
+        const nx = x + mx / n, nz = z + mz / n;
+        if (canStand(nx, nz, feet)) { x = nx; z = nz; }
+        else if (canStand(nx, z, feet)) x = nx;
+        else if (canStand(x, nz, feet)) z = nz;
+        else break;
+      }
+      moved = Math.hypot(x - e.pos.x, z - e.pos.z);
+      e.speed = dt > 0 ? moved / dt : 0;
+    } else e.speed = 0;
+    // podłoże: wejście na stopień, spadanie z dachu albo do krateru
+    const sup = supportAt(x, z);
+    if (feet > sup + 0.05) {
+      e.vy = (e.vy || 0) - 9.81 * dt;
+      feet = Math.max(sup, feet + e.vy * dt);
+      if (feet <= sup) { if (e.vy < -7 && !RM) K.shake = Math.max(K.shake, Ut.clamp(-e.vy / 40, 0.1, 0.6)); if (e.vy < -5) A.step(true); e.vy = 0; }
+    } else { feet = sup; e.vy = 0; }
+    // kołysanie głowy i kroki
+    const onGround = feet <= sup + 0.05;
+    if (moved > 0 && onGround) {
+      stepPh += moved / (sprint ? 1.25 : 0.95) * Math.PI;
+      const sN = Math.floor(stepPh / Math.PI);
+      if (sN !== stepN) { stepN = sN; A.step(sprint); }
+    }
+    const bobT = moved > 0 && onGround ? Math.sin(stepPh) * (sprint ? 0.06 : 0.04) : 0;
+    e.bob = Ut.lerp(e.bob || 0, bobT, 1 - Math.exp(-dtR * 12));
+    if (x !== e.pos.x || z !== e.pos.z || Math.abs(feet + EYE_H - e.pos.y) > 1e-4) {
+      e.pos.set(x, feet + EYE_H, z);
+      eyeMarker.position.set(x, feet, z);
+    }
+  }
+  // Joystick na ekranie dotykowym (lewy dolny róg nad panelem)
+  function initJoy() {
+    const el = $('#joy'), knob = el.querySelector('i');
+    const R = 46;
+    const set = (cx, cy) => {
+      let dx = cx - joy.cx, dy = cy - joy.cy;
+      const l = Math.hypot(dx, dy);
+      if (l > R) { dx *= R / l; dy *= R / l; }
+      joy.x = dx / R; joy.y = dy / R;
+      knob.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+    };
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      try { el.setPointerCapture(e.pointerId); } catch (err) { /* bez przechwycenia */ }
+      const r = el.getBoundingClientRect();
+      joy.cx = r.left + r.width / 2; joy.cy = r.top + r.height / 2; joy.on = true; joy.id = e.pointerId;
+      set(e.clientX, e.clientY);
+    });
+    el.addEventListener('pointermove', (e) => { if (joy.on && e.pointerId === joy.id) set(e.clientX, e.clientY); });
+    const up = (e) => { if (e.pointerId === joy.id) joyReset(); };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+  function joyReset() {
+    joy.on = false; joy.x = joy.y = 0; joy.id = -1;
+    const k = document.querySelector('#joy i'); if (k) k.style.transform = '';
+  }
+  function placeJoy() {
+    const el = $('#joy');
+    if (!el) return;
+    const r = $('#left').getBoundingClientRect();
+    const h = window.innerHeight;
+    const bottom = window.innerWidth <= 760 && r.top > 0 ? h - r.top + 14 : 74;
+    el.style.bottom = bottom + 'px';
   }
 
   // ---------- CO DALEJ ----------
@@ -835,7 +978,7 @@
     const bl = st.lastBlast;
     if (!bl || bl.nextShown || (st.delivery && !st.delivery.done)) return;
     const D = bl.d;
-    const tReady = D.nuke ? Math.max(D.tShockGlass * 1.2, D.tRise * (D.cosmic ? 0.5 : 1.1)) : Math.max(D.tShockGlass * 1.5, Math.min(D.tRise, 12));
+    const tReady = D.impact ? Math.max(D.cr.tForm * 1.4, Math.min(D.tShockGlass, Ph.arrival(D.front, 30000)) * 1.1) : D.nuke ? Math.max(D.tShockGlass * 1.2, D.tRise * (D.cosmic ? 0.5 : 1.1)) : Math.max(D.tShockGlass * 1.5, Math.min(D.tRise, 12));
     if (bl.t < tReady) return;
     bl.nextShown = true;
     const nw = nextWeapon(bl.w);
@@ -936,9 +1079,9 @@
   }
   function keyFor(i) { return i < 9 ? String(i + 1) : i === 9 ? '0' : i === 10 ? '−' : i === 11 ? '=' : i === 12 ? ']' : ''; }
   function wYield(w) { return w.custom ? Ut.tnt(w.kt ? w.kt * 1e6 : w.tnt) : Ut.tnt(w.kt ? w.kt * 1e6 : w.tnt) + (w.salvo ? ' ×' + w.salvo : ''); }
-  const GROUPS = ['conv', 'nuke', 'hist', 'custom'];
-  const GN = { conv: 'Konwencjonalne', nuke: 'Jądrowe', hist: 'Katastrofy i kosmos', custom: 'Laboratorium' };
-  const GT = { conv: 'Konwencj.', nuke: 'Jądrowe', hist: 'Katastrofy', custom: 'Własny' };
+  const GROUPS = ['conv', 'nuke', 'hist', 'impact', 'custom'];
+  const GN = { conv: 'Konwencjonalne', nuke: 'Jądrowe', hist: 'Katastrofy', impact: 'Meteoryty: 12 uderzeń od Tunguski po Chicxulub', custom: 'Laboratorium' };
+  const GT = { conv: 'Konwencj.', nuke: 'Jądrowe', hist: 'Katastrofy', impact: 'Meteoryty', custom: 'Własny' };
   function showGroup(g) {
     st.group = g;
     document.querySelectorAll('#wtabs button').forEach((b) => { b.classList.toggle('on', b.dataset.g === g); b.setAttribute('aria-selected', b.dataset.g === g); });
@@ -947,12 +1090,12 @@
   function buildUI() {
     const list = $('#wlist');
     let html = '';
-    $('#wtabs').innerHTML = GROUPS.map((g) => `<button role="tab" data-g="${g}" class="${g === 'nuke' ? 'nuke' : ''}" title="${GN[g]}">${GT[g]}</button>`).join('');
+    $('#wtabs').innerHTML = GROUPS.map((g) => `<button role="tab" data-g="${g}" class="${g === 'nuke' ? 'nuke' : g === 'impact' ? 'imp' : ''}" title="${GN[g]}">${GT[g]}</button>`).join('');
     $('#wtabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; showGroup(b.dataset.g); const first = WEAP.find((w) => w.group === b.dataset.g); if (first && st.weapon.group !== b.dataset.g) selectWeapon(first); });
     for (const g of GROUPS) {
       WEAP.filter((w) => w.group === g).forEach((w) => {
         const n = WEAP.indexOf(w);
-        html += `<button class="wpn ${g}" data-id="${w.id}" data-g="${g}"><span class="ic">${WEAP.icon(w)}</span><span class="nm">${w.short}</span><span class="yl">${wYield(w)}</span><kbd>${keyFor(n)}</kbd></button>`;
+        html += `<button class="wpn ${g}" data-id="${w.id}" data-g="${g}" title="${w.era ? w.name + ' · ' + w.era : w.name}"><span class="ic">${WEAP.icon(w)}</span><span class="nm">${w.short}</span><span class="yl">${wYield(w)}</span><kbd>${keyFor(n)}</kbd></button>`;
       });
     }
     list.innerHTML = html;
@@ -1030,6 +1173,9 @@
     Wd.renderer.domElement.addEventListener('pointerleave', () => { $('#tip').hidden = true; });
     Wd.renderer.domElement.addEventListener('pointerdown', () => { if (K.eye) K.eye.user = true; });
     window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', (e) => { if (WALK.has(e.code)) keys[e.code] = false; });
+    window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+    initJoy();
   }
   function customChanged(final) {
     const w = st.weapon;
@@ -1066,6 +1212,8 @@
   }
   function onKey(e) {
     if (e.target.tagName === 'INPUT') { if (e.key === 'Enter') e.target.blur(); return; }
+    // bieg świadka
+    if (K.eye && WALK.has(e.code)) { keys[e.code] = true; if (e.code.startsWith('Arrow')) e.preventDefault(); return; }
     if (!$('#intro').hidden) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#introGo').click(); } return; }
     const k = e.key;
     if (k >= '1' && k <= '9') { const w = WEAP[parseInt(k, 10) - 1]; if (w) selectWeapon(w); }
@@ -1099,6 +1247,7 @@
     if (st.delivery) { if (st.delivery.abort) st.delivery.abort(); st.delivery.done = true; }
     if (st.lastTank) { st.lastTank(); st.lastTank = null; }
     F.clear();
+    IM.clear();
     C.reset();
     const U = SH.uniforms;
     for (let i = 0; i < SH.MAXE; i++) { U.uE1.value[i].z = -1; U.uE2.value[i].set(0, 0, 0, 1); }
@@ -1121,13 +1270,14 @@
     const dyn = total / 0.2, hiro = total / 15e6;
     let cmp = '';
     if (w.id !== 'dynamit') cmp = `= <b>${Ut.bigCount(dyn)}</b> ${Ut.plural(dyn, 'laska', 'laski', 'lasek')} dynamitu`;
-    if (total >= 1e5 && w.id !== 'littleboy') cmp += `<br>= <b>${hiro >= 1 ? Ut.num(hiro, hiro < 10 ? 1 : 0) + '×' : Ut.num(hiro * 100, hiro < 0.01 ? 2 : 1) + '%'}</b> bomby z Hiroszimy`;
+    if (total >= 1e5 && w.id !== 'littleboy') cmp += `<br>= <b>${hiro >= 1e4 ? Ut.bigCount(hiro) + ' ×' : hiro >= 1 ? Ut.num(hiro, hiro < 10 ? 1 : 0) + '×' : Ut.num(hiro * 100, hiro < 0.01 ? 2 : 1) + '%'}</b> bomby z Hiroszimy`;
+    if (total >= 1e10 && w.id !== 'car') { const car = total / 5e10; cmp += `<br>= <b>${car >= 1e4 ? Ut.bigCount(car) + ' ×' : Ut.num(car, car < 10 ? 1 : 0) + '×'}</b> Car-bomby`; }
     return `<div class="cmp">${cmp}</div>`;
   }
   function renderCard() {
     const w = st.weapon;
     const kg = w.kt ? w.kt * 1e6 : w.tnt;
-    const GL = { conv: 'Broń konwencjonalna', nuke: 'Broń jądrowa', hist: w.cosmic ? 'Zjawisko naturalne' : 'Katastrofa', custom: 'Laboratorium' };
+    const GL = { conv: 'Broń konwencjonalna', nuke: 'Broń jądrowa', hist: w.cosmic ? 'Zjawisko naturalne' : 'Katastrofa', impact: (w.impact ? 'Uderzenie planetoidy' : 'Rozbłysk w atmosferze') + (w.era ? ' · ' + w.era : ''), custom: 'Laboratorium' };
     if (w.custom) {
       const nuke = w.ck === 'nuke';
       $('#card').innerHTML = `
@@ -1167,7 +1317,13 @@
     let h = `<div class="rings">`;
     for (const r of ringList) h += `<div class="ring"><i style="background:${r.col}"></i><span>${r.name}</span><b>${Ut.dist(r.R)}</b></div>`;
     h += `</div>`;
-    if (D.cosmic) h += `<div class="mini">Rozbłysk na wysokości <b>${Ut.dist(D.hob)}</b> · kula ognia <b>${Ut.dist(D.fbR * 2)}</b></div>`;
+    if (D.impact) {
+      const cr = D.cr;
+      h += `<div class="mini">Krater: <b>${Ut.dist(cr.D)}</b> średnicy. Lej sięga najpierw ok. <b>${Ut.dist(cr.dT)}</b> w głąb, potem ściany się osuwają${cr.type ? ', a dno wypiętrza' : ''} (końcowo <b>${Ut.dist(cr.dF)}</b>)</div>`;
+      h += `<div class="mini">Wstrząs: magnituda ok. <b>${Ut.num(D.mag, 1)}</b> · kula ognia <b>${Ut.dist(D.fbR * 2)}</b> · pył do <b>${Ut.dist(D.Htop)}</b></div>`;
+      h += `<div class="mini">Krater powstaje w ok. <b>${Ut.time(cr.tForm)}</b></div>`;
+      if (cr.R > 2500) h += `<div class="mini warn">Całe miasto (6 km) mieści się w kraterze. Najlepiej oglądać z daleka albo postawić świadka <b>${Ut.dist(Math.max(cr.R * 3, 20000))}</b> dalej.</div>`;
+    } else if (D.cosmic) h += `<div class="mini">Rozbłysk na wysokości <b>${Ut.dist(D.hob)}</b> · kula ognia <b>${Ut.dist(D.fbR * 2)}</b></div>`;
     else if (D.nuke) h += `<div class="mini">Kula ognia: <b>${Ut.dist(D.fbR * 2)}</b> średnicy · grzyb do <b>${Ut.dist(D.Htop)}</b></div>`;
     else h += `<div class="mini">Kula ognia: <b>${Ut.dist(D.fbR * 2)}</b> średnicy${D.craterR ? ` · lej: <b>${Ut.dist(D.craterR * 2)}</b>` : ''}</div>`;
     if (D.fallout) h += `<div class="mini warn">Opad promieniotwórczy z wiatrem: ok. <b>${Ut.dist(D.fallout.len * [0.35, 1, 1.8][st.wind])}</b></div>`;
@@ -1269,7 +1425,9 @@
       const pr = Ph.overpressure(sl, D.cbrtW);
       const q = Ph.thermal(Math.max(sl, 1), D.Y4pi, D.lambda);
       let fx = pr > 140 ? 'zniszczone nawet budynki żelbetowe' : pr > 35 ? 'większość budynków się zawala' : pr > 14 ? 'domy zniszczone, bloki poważnie uszkodzone' : pr > 7 ? 'zerwane dachy, popękane ściany' : pr > 3 ? 'wybite szyby, latające szkło' : pr > 1 ? 'pojedyncze pęknięte szyby' : 'fala niegroźna';
-      if (D.nuke && !D.cosmic && sl < D.fbR) fx = 'wnętrze kuli ognia, wszystko odparowuje';
+      if (D.nuke && (!D.cosmic || D.impact) && sl < D.fbR) fx = 'wnętrze kuli ognia, wszystko odparowuje';
+      if (D.impact && dist < D.craterR * 1.02) fx = 'tu powstaje krater, skały odparowują i są wyrzucane';
+      else if (D.impact && dist < D.craterR * 1.35) fx = 'zasypane skałami wyrzuconymi z krateru';
       let th = '';
       if (D.nuke) th = q > D.ignite ? ' · zapłon budynków i drzew' : q > D.burn3 ? ' · oparzenia III stopnia' : q > Ph.TH.burn1 ? ' · oparzenia skóry' : '';
       const at = Ph.arrival(D.front, sl);

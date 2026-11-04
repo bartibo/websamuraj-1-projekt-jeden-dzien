@@ -426,27 +426,39 @@
     } else if (kind === 'meteor') {
       // ciało kosmiczne: wejście w atmosferę pod małym kątem, widziane z ziemi jak na nagraniach z Czelabińska
       const end = burstPos.clone();
+      const imp = !!w.impact;
       const ang = (w.entry || 20) * Math.PI / 180;
       const hdir = dir.clone();
       const L = (95000 - end.y) / Math.sin(ang);
       const start = end.clone().addScaledVector(hdir, L * Math.cos(ang)); start.y = end.y + L * Math.sin(ang);
       const speed = w.speed || 18000;
       const dur = L / speed;
-      const head = add(MODELS.rock(Math.max(40, w.kt > 1000 ? 150 : 60)));
+      // planetoida w prawdziwej skali (Chicxulub: ok. 10 km)
+      const rockR = imp ? Math.max(20, (w.dia || 50) / 2) : Math.max(40, w.kt > 1000 ? 150 : 60);
+      const head = add(MODELS.rock(rockR));
       const fwd = end.clone().sub(start).normalize();
       const side = v3(-hdir.z, 0, hdir.x);
-      const camP = end.clone().addScaledVector(side, end.y * 1.6).addScaledVector(hdir, -end.y * 0.7);
-      camP.y = Wd.groundY(camP.x, camP.z) + 400;
+      let camP;
+      if (imp) {
+        // uderzenie w ziemię: kamera z boku, w bezpiecznej odległości od przyszłego krateru
+        const dv = Ut.clamp(Math.max(w.craterD * 5, 4000), 4000, 260000);
+        camP = end.clone().addScaledVector(side, dv * 0.9).addScaledVector(hdir, -dv * 0.45);
+        camP.y = Wd.groundY(camP.x, camP.z) + Math.max(400, dv * 0.12);
+      } else {
+        camP = end.clone().addScaledVector(side, end.y * 1.6).addScaledVector(hdir, -end.y * 0.7);
+        camP.y = Wd.groundY(camP.x, camP.z) + 400;
+      }
       let lastS = 0;
       // meteor leci w ciszy: huk przychodzi dopiero z falą, nieraz po kilku minutach
-      D.ts = () => 0.7;
+      D.ts = () => (imp ? 1 : 0.7);
       D.glow = { pos: v3(0, 0, 0), k: 0 };
       D.update = function (dt) {
         D.t += dt;
         const k = Math.min(1, D.t / dur);
         const p = start.clone().lerp(end, k);
         head.position.copy(p);
-        const hs = Ut.clamp(p.distanceTo(camP) * 0.007, 60, 900) * (0.4 + 0.6 * Ut.smooth(0, 0.3, k));
+        head.rotation.x += dt * 0.7; head.rotation.y += dt * 0.4;
+        const hs = Math.max(Ut.clamp(p.distanceTo(camP) * 0.007, 60, 900), imp ? rockR * 2.2 : 0) * (0.4 + 0.6 * Ut.smooth(0, 0.3, k));
         for (let i = 0; i < 3; i++) {
           const q = p.clone().addScaledVector(fwd, -i * speed * dt / 3);
           F.trail(q.x, q.y, q.z, hs, 'meteor');
@@ -455,11 +467,11 @@
         while (lastS + 900 < sNow) {
           lastS += 900;
           const q = start.clone().addScaledVector(fwd, lastS);
-          if (q.y < 70000) F.trail(q.x, q.y, q.z, Ut.clamp(q.distanceTo(camP) * 0.02, 300, 1800), 'meteorSmoke');
+          if (q.y < 70000) F.trail(q.x, q.y, q.z, Math.max(Ut.clamp(q.distanceTo(camP) * 0.02, 300, 1800), imp ? rockR * 1.6 : 0), 'meteorSmoke');
         }
         look.copy(p).lerp(end, 0.25);
         camSet(camP, look);
-        D.glow.pos.copy(p); D.glow.k = Ut.smooth(0.1, 0.95, k) * (w.kt > 1000 ? 1.4 : 1);
+        D.glow.pos.copy(p); D.glow.k = Ut.smooth(0.1, 0.95, k) * (w.kt > 1000 ? 1.4 : 1) * (imp ? Ut.clamp(0.6 + Math.log10(w.kt) / 12, 0.8, 1.5) : 1);
         if (k >= 1) { burst(end.clone(), fwd, 0); finish(); }
       };
     } else if (kind === 'parachute') {
