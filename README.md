@@ -25,6 +25,7 @@ Strona z projektami: **[projekty.vibemaster.pl](https://projekty.vibemaster.pl)*
 | 11 | [Iskrolandia](11-iskrolandia-obwody-elektryczne-3d-opus5_5/) | [jeden-prompt/11-iskrolandia-obwody-elektryczne-3d-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/11-iskrolandia-obwody-elektryczne-3d-opus5_5) |
 | 12 | [Epicentrum](12-epicentrum-symulator-wybuchow-3d-opus5_5/) | [jeden-prompt/12-epicentrum-symulator-wybuchow-3d-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/12-epicentrum-symulator-wybuchow-3d-opus5_5) |
 | 13 | [Bezpiecznik](13-bezpiecznik-sprawdzanie-linkow-opus5_5/) | [jeden-prompt/13-bezpiecznik-sprawdzanie-linkow-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/13-bezpiecznik-sprawdzanie-linkow-opus5_5) |
+| 14 | [Jednogłośnie](14-jednoglosnie-wybor-obiadu-i-filmu-opus5_5/) | [jeden-prompt/14-jednoglosnie-wybor-obiadu-i-filmu-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/14-jednoglosnie-wybor-obiadu-i-filmu-opus5_5) |
 
 ## Jak to działa
 
