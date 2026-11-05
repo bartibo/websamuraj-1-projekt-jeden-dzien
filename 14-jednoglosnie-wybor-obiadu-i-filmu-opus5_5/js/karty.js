@@ -9,6 +9,10 @@
     return e;
   }
 
+  /* Windows nie ma emoji flag – zamiast flagi Włoch pokazałby litery „IT”. Tam zostawiamy samą nazwę kraju. */
+  const BEZ_FLAG = /Windows/i.test(navigator.userAgent || '');
+  function kraj(k) { return BEZ_FLAG ? String(k || '').replace(/[\u{1F1E6}-\u{1F1FF}]{2}\s*/gu, '') : (k || ''); }
+
   function czas(m) {
     if (!m) return '';
     const h = Math.floor(m / 60), r = m % 60;
@@ -25,7 +29,7 @@
     if (typ === 'obiad') {
       const e = el('div', 'karta-emoji'); e.appendChild(el('span', '', item.e)); a.appendChild(e);
       const info = el('div', 'karta-info');
-      info.appendChild(el('p', 'karta-kraj', item.k));
+      info.appendChild(el('p', 'karta-kraj', kraj(item.k)));
       info.appendChild(el('h3', 'karta-nazwa', item.n));
       info.appendChild(el('p', 'karta-opis', item.o));
       if (item.t && item.t.length) {
@@ -51,7 +55,7 @@
     } else {
       const e = el('div', 'karta-emoji'); e.appendChild(el('span', '', item.e || '💡')); a.appendChild(e);
       const info = el('div', 'karta-info');
-      info.appendChild(el('p', 'karta-kraj', 'Propozycja z listy pokoju'));
+      info.appendChild(el('p', 'karta-kraj', item.a ? '✨ Dorzuca: ' + item.a : 'Propozycja z listy pokoju'));
       const t = el('h3', 'karta-nazwa', item.n);
       if (item.n.length > 28) t.classList.add('dluga');
       info.appendChild(t);
@@ -60,8 +64,42 @@
     return a;
   }
 
+  /** Druga strona karty: więcej informacji i linki (zwiastun, przepis…). */
+  function szczegoly(item, linki) {
+    const typ = item.id[0] === 'f' ? 'film' : item.id[0] === 'o' ? 'obiad' : 'wlasne';
+    const d = el('div', 'karta-szczegoly');
+    d.setAttribute('role', 'region');
+    d.setAttribute('aria-label', 'Szczegóły: ' + item.n);
+    d.appendChild(el('p', 'sz-nad', typ === 'film' ? 'Film' : typ === 'obiad' ? kraj(item.k) || 'Danie' : 'Propozycja'));
+    d.appendChild(el('h3', 'sz-tytul', (item.e ? item.e + ' ' : '') + item.n));
+    if (typ === 'film') {
+      d.appendChild(el('p', 'sz-meta', [item.r, item.g, czas(item.m)].filter(Boolean).join(' · ')));
+      if (item.d) d.appendChild(el('p', 'sz-meta', 'Reżyseria: ' + item.d));
+    }
+    if (item.o) d.appendChild(el('p', 'sz-opis', item.o));
+    if (item.t && item.t.length) {
+      const ul = el('ul', 'karta-tagi');
+      for (const t of item.t) ul.appendChild(el('li', '', t));
+      d.appendChild(ul);
+    }
+    if (item.a) d.appendChild(el('p', 'sz-meta', 'Dorzuca: ' + item.a));
+    if (linki) {
+      const box = el('div', 'sz-linki');
+      for (const [t, h] of linki(item)) {
+        const a = el('a', 'btn btn-ciemny', t);
+        a.href = h; a.target = '_blank'; a.rel = 'noopener';
+        box.appendChild(a);
+      }
+      d.appendChild(box);
+    }
+    d.appendChild(el('p', 'sz-wroc', 'Dotknij karty, żeby wrócić · przesuwasz jak zwykle'));
+    // linki działają normalnie – nie zaczynają przeciągania karty
+    d.addEventListener('pointerdown', (e) => { if (e.target.closest('a, button')) e.stopPropagation(); });
+    return d;
+  }
+
   class Stos {
-    /** @param {HTMLElement} root  @param {object} o { onSwipe(id, wartosc), onRysuj() } */
+    /** @param {HTMLElement} root  @param {object} o { onSwipe(id, wartosc), linki(item) } */
     constructor(root, o) {
       this.root = root;
       this.o = o;
@@ -89,6 +127,7 @@
         k.style.zIndex = String(100 - i);
         k.dataset.poz = String(Math.min(i, 3));
         k.classList.toggle('wierzch', i === 0);
+        if (i !== 0) k.classList.remove('odwrocona');
         k.setAttribute('aria-hidden', i === 0 ? 'false' : 'true');
         this.goraco(k, goraco ? goraco(id) : null);
       });
@@ -113,10 +152,29 @@
       k.dataset.id = item.id;
       k.appendChild(tresc(item));
       const g = el('p', 'goraco'); g.hidden = true; k.appendChild(g);
+      k.appendChild(szczegoly(item, this.o.linki));
+      const info = el('button', 'karta-i', 'i');
+      info.type = 'button';
+      info.setAttribute('aria-label', 'Szczegóły i linki (spacja)');
+      info.setAttribute('aria-expanded', 'false');
+      info.title = 'Szczegóły i linki (spacja)';
+      info.addEventListener('pointerdown', (e) => e.stopPropagation());
+      info.addEventListener('click', () => this.odwroc(k));
+      k.appendChild(info);
       k.appendChild(el('span', 'pieczec pieczec-tak', 'TAK!'));
       k.appendChild(el('span', 'pieczec pieczec-nie', 'NIE'));
+      k.appendChild(el('span', 'pieczec pieczec-weto', 'WETO'));
       this.gesty(k);
       return k;
+    }
+
+    /** Pokazuje / chowa szczegóły karty z wierzchu. */
+    odwroc(k) {
+      k = k || this.wierzch();
+      if (!k || !k.classList.contains('wierzch')) return;
+      const on = !k.classList.contains('odwrocona');
+      k.classList.toggle('odwrocona', on);
+      k.querySelector('.karta-i').setAttribute('aria-expanded', String(on));
     }
 
     wierzch() {
@@ -165,9 +223,7 @@
           tak.style.opacity = nie.style.opacity = '0';
           k.style.setProperty('--blask', '0');
           k.dataset.kier = '';
-          if (Math.abs(dx) < 4 && Math.abs(dy) < 4 && performance.now() - t0 < 300) {
-            k.classList.remove('stuk'); void k.offsetWidth; k.classList.add('stuk');
-          }
+          if (Math.abs(dx) < 6 && Math.abs(dy) < 6 && performance.now() - t0 < 350) this.odwroc(k);
         }
       };
       k.addEventListener('pointerup', koniec);
@@ -175,15 +231,15 @@
       k.addEventListener('lostpointercapture', koniec);
     }
 
-    /** Wyrzuca kartę z wierzchu: kier 1 = tak, -1 = nie. */
-    rzuc(kier, k, dy, v) {
+    /** Wyrzuca kartę z wierzchu: kier 1 = tak, -1 = nie. `wartosc` – zapisany głos (np. 2 = weto). */
+    rzuc(kier, k, dy, v, wartosc) {
       k = k || this.wierzch();
       if (!k) return false;
       const id = k.dataset.id;
       k.classList.add('leci');
-      k.classList.remove('wierzch');
+      k.classList.remove('wierzch', 'odwrocona');
       k.dataset.kier = kier > 0 ? 'tak' : 'nie';
-      (kier > 0 ? k.querySelector('.pieczec-tak') : k.querySelector('.pieczec-nie')).style.opacity = '1';
+      (wartosc === 2 ? k.querySelector('.pieczec-weto') : kier > 0 ? k.querySelector('.pieczec-tak') : k.querySelector('.pieczec-nie')).style.opacity = '1';
       const w = Math.max(window.innerWidth, 600);
       const dur = this.redukcja ? 160 : Math.max(220, Math.min(480, 420 - (v || 0) * 120));
       k.style.transition = `transform ${dur}ms cubic-bezier(.2,.7,.3,1), opacity ${dur}ms ease`;
@@ -193,7 +249,7 @@
       });
       setTimeout(() => { k.remove(); if (this.karty.get(id) === k) this.karty.delete(id); }, dur + 40);
       this.kolejnosc = this.kolejnosc.filter(x => x !== id);
-      this.o.onSwipe(id, kier > 0 ? 1 : 0);
+      this.o.onSwipe(id, wartosc !== undefined ? wartosc : kier > 0 ? 1 : 0);
       return true;
     }
 
@@ -216,5 +272,5 @@
     }
   }
 
-  global.Karty = { tresc, Stos, czas };
+  global.Karty = { tresc, Stos, czas, kraj };
 })(window);

@@ -1,6 +1,8 @@
 /* Jednogłośnie – minimalny klient MQTT 3.1.1 po WebSocket.
    Obsługuje tylko to, czego potrzebuje aplikacja: CONNECT (z „ostatnią wolą”),
    SUBSCRIBE, PUBLISH QoS 0 (z flagą retain), PINGREQ i automatyczne wznawianie.
+   Brak odpowiedzi na PING = martwe połączenie (typowe po uśpieniu telefonu) – zrywamy je
+   i łączymy od nowa; wake() pozwala połączyć się od razu po powrocie do karty.
    Działa w przeglądarce i w Node 22+ (globalny WebSocket). */
 (function (global) {
   'use strict';
@@ -59,15 +61,20 @@
       try { ws = new WebSocket(this.url, ['mqtt']); }
       catch (e) { this.scheduleReconnect(); return; }
       ws.binaryType = 'arraybuffer';
+      const stary = this.ws;
+      if (stary) { stary.onclose = stary.onmessage = stary.onopen = null; try { stary.close(); } catch (e) {} }
       this.ws = ws;
-      const timeout = setTimeout(() => { if (this.state !== 'ok') { try { ws.close(); } catch (e) {} } }, 9000);
+      this.buf = new Uint8Array(0);
+      const timeout = setTimeout(() => { if (this.ws === ws && this.state !== 'ok') this.breakLink(true); }, 9000);
       ws.onopen = () => this.sendConnect();
-      ws.onmessage = (e) => this.onData(new Uint8Array(e.data));
+      ws.onmessage = (e) => { if (this.ws === ws) this.onData(new Uint8Array(e.data)); };
       ws.onerror = () => {};
       ws.onclose = () => {
         clearTimeout(timeout);
+        if (this.ws !== ws) return; // stare gniazdo – już zastąpione nowym
         clearInterval(this.ping);
-        if (this.ws === ws) this.ws = null;
+        clearTimeout(this.pingWait); this.pingWait = 0;
+        this.ws = null;
         if (!this.stopped) { this.setState('off'); this.scheduleReconnect(); }
       };
     }
@@ -77,6 +84,34 @@
       clearTimeout(this.rt);
       const delay = Math.min(15000, 800 * Math.pow(1.7, this.retry++)) + Math.random() * 500;
       this.rt = setTimeout(() => this.connect(), delay);
+    }
+
+    /** Zrywa połączenie, które wygląda na martwe (np. po uśpieniu telefonu), i od razu łączy od nowa. */
+    breakLink(keepRetry) {
+      clearTimeout(this.pingWait);
+      clearInterval(this.ping);
+      const ws = this.ws;
+      this.ws = null;
+      if (ws) { ws.onclose = ws.onmessage = ws.onopen = null; try { ws.close(); } catch (e) {} }
+      if (this.stopped) return;
+      this.setState('off');
+      if (!keepRetry) this.retry = 0;
+      this.scheduleReconnect();
+    }
+
+    /** Wywoływane po powrocie do karty / odzyskaniu sieci: sprawdza połączenie albo łączy bez czekania. */
+    wake() {
+      if (this.stopped) return;
+      if (this.state === 'ok') { this.sendPing(4000); return; }
+      if (this.ws && this.ws.readyState === 0) return; // właśnie się łączy
+      clearTimeout(this.rt);
+      this.retry = 0;
+      this.connect();
+    }
+
+    sendPing(wait) {
+      if (!this.raw(Uint8Array.of(0xC0, 0))) { this.breakLink(); return; }
+      if (!this.pingWait) this.pingWait = setTimeout(() => { this.pingWait = 0; this.breakLink(); }, wait || 8000);
     }
 
     sendConnect() {
@@ -113,12 +148,14 @@
 
     handle(h, body) {
       const type = h >> 4;
+      // cokolwiek przyszło – połączenie żyje
+      clearTimeout(this.pingWait); this.pingWait = 0;
       if (type === 2) { // CONNACK
         if (body[1] === 0) {
           this.retry = 0;
           this.setState('ok');
           clearInterval(this.ping);
-          this.ping = setInterval(() => this.raw(Uint8Array.of(0xC0, 0)), (this.keepalive * 1000) * 0.6);
+          this.ping = setInterval(() => this.sendPing(), (this.keepalive * 1000) * 0.6);
           for (const t of this.subs) this.sendSub(t);
           const q = this.queue; this.queue = [];
           for (const p of q) this.raw(p);
@@ -165,6 +202,7 @@
       this.stopped = true;
       clearTimeout(this.rt);
       clearInterval(this.ping);
+      clearTimeout(this.pingWait); this.pingWait = 0;
       if (this.ws) {
         this.raw(Uint8Array.of(0xE0, 0));
         try { this.ws.close(); } catch (e) {}

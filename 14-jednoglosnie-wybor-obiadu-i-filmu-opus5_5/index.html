@@ -6,8 +6,16 @@
 <title>Jednogłośnie – co jemy, co oglądamy?</title>
 <meta name="description" content="Załóż pokój jednym kliknięciem, wyślij link znajomym i przesuwajcie propozycje obiadu albo filmu jak w aplikacji randkowej. Gdy wszyscy polubią to samo – Jednogłośnie od razu ogłasza zwycięzcę. Bez rejestracji.">
 <meta name="theme-color" content="#120f1d">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pl_PL">
+<meta property="og:site_name" content="Projekty – 1 prompt, 1 zdanie">
 <meta property="og:title" content="Jednogłośnie – co jemy, co oglądamy?">
-<meta property="og:description" content="Przesuwajcie propozycje razem, aż wszyscy polubią to samo.">
+<meta property="og:description" content="Przesuwajcie propozycje razem, aż wszyscy polubią to samo. Bez rejestracji – wystarczy link.">
+<meta property="og:url" content="https://projekty.vibemaster.pl/14-jednoglosnie-wybor-obiadu-i-filmu-opus5_5/">
+<meta property="og:image" content="https://projekty.vibemaster.pl/galeria/projekt-14.jpg">
+<meta property="og:image:width" content="1920">
+<meta property="og:image:height" content="1080">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff5f6d'/%3E%3Cstop offset='1' stop-color='%23ffc371'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%23120f1d'/%3E%3Cpath d='M32 52 13 33a11 11 0 0 1 19-12 11 11 0 0 1 19 12z' fill='url(%23g)'/%3E%3Cpath d='m23 31 6 6 12-12' fill='none' stroke='%23120f1d' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,7 +80,8 @@
   </section>
 
   <footer class="stopka">
-    <p>Pokój żyje kilka dni na publicznych serwerach MQTT (EMQX i HiveMQ). Trafiają tam tylko pseudonim, emoji i Twoje „tak” i „nie”. Nie podawaj tu danych osobowych.</p>
+    <p>Pokój działa przez publiczne serwery MQTT (EMQX i HiveMQ), ale wszystko, co tam trafia, jest zaszyfrowane kluczem z linku. Serwer nie widzi ani propozycji, ani pseudonimów, ani głosów – widzi je tylko ten, kto ma link.</p>
+    <a class="wszystkie" href="../index.html#jednoglosnie">← Wszystkie projekty</a>
   </footer>
 </main>
 
@@ -128,14 +137,26 @@
     <span id="zacheta-tekst">Na razie tylko Ty w pokoju. <b>Wyślij link znajomym</b> – dopasowanie wymaga co najmniej 2 osób.</span>
   </button>
 
+  <button type="button" class="zacheta nast" id="nast" hidden>
+    <span aria-hidden="true">🔁</span>
+    <span id="nast-tekst"></span>
+  </button>
+
   <section class="tablica" aria-label="Propozycje do oceny">
     <div class="stos" id="stos" aria-live="polite"></div>
     <div class="koniec" id="koniec" hidden></div>
   </section>
 
   <footer class="akcje">
-    <p class="licznik" id="licznik"></p>
+    <div class="licznik-wiersz">
+      <p class="licznik" id="licznik"></p>
+      <span class="czas" id="czas" hidden></span>
+      <button type="button" class="mini" id="btn-dorzuc" hidden><span aria-hidden="true">＋</span> Dorzuć</button>
+    </div>
     <div class="akcje-przyciski">
+      <button type="button" class="okragly okragly-weto" id="btn-weto" hidden aria-label="Weto – blokuje propozycję, jedno na osobę (W)" title="Weto – jedno na osobę (W)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M6 18 18 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+      </button>
       <button type="button" class="okragly okragly-nie" id="btn-nie" aria-label="Nie (strzałka w lewo)" title="Nie (←)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>
       </button>
@@ -146,7 +167,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21 3.5 12.6a5.2 5.2 0 0 1 8.5-6 5.2 5.2 0 0 1 8.5 6z" fill="currentColor"/></svg>
       </button>
     </div>
-    <p class="podpowiedz" id="podpowiedz">Przeciągnij kartę: w prawo <b>tak</b>, w lewo <b>nie</b> · klawisze ← →</p>
+    <p class="podpowiedz" id="podpowiedz">Przeciągnij kartę: w prawo <b>tak</b>, w lewo <b>nie</b> · klawisze ← → · spacja – szczegóły</p>
   </footer>
 </main>
 
@@ -200,9 +221,22 @@
   <div id="wyniki-tresc"></div>
 </dialog>
 
+<dialog class="arkusz" id="arkusz-dorzuc" aria-labelledby="dorzuc-tytul">
+  <form method="dialog" class="arkusz-zamknij-form"><button class="arkusz-zamknij" aria-label="Zamknij">✕</button></form>
+  <h2 id="dorzuc-tytul">Dorzuć propozycję</h2>
+  <p class="arkusz-lead">Trafi do talii wszystkich osób w pokoju. Ty od razu jesteś na „tak”, więc inni zobaczą ją na początku.</p>
+  <form id="dorzuc-form" class="link-wiersz">
+    <input id="dorzuc-pole" class="pole" maxlength="80" placeholder="np. 🥟 Pierogarnia na rogu" autocomplete="off" enterkeyhint="send" aria-label="Twoja propozycja">
+    <button type="submit" class="btn btn-glowny">Dodaj</button>
+  </form>
+  <p class="male" id="dorzuc-info"></p>
+  <ul class="dorzuc-lista" id="dorzuc-lista"></ul>
+</dialog>
+
 <dialog class="arkusz arkusz-szeroki" id="arkusz-dostosuj" aria-labelledby="dostosuj-tytul">
   <form method="dialog" class="arkusz-zamknij-form"><button class="arkusz-zamknij" aria-label="Zamknij">✕</button></form>
   <h2 id="dostosuj-tytul">Nowy pokój</h2>
+  <p class="arkusz-lead" id="dostosuj-runda-info" hidden>Wszyscy z obecnego pokoju dostaną zaproszenie i dołączą jednym kliknięciem – bez wysyłania nowego linku.</p>
   <div class="zakladki" role="tablist">
     <button type="button" role="tab" data-zakladka="obiad" aria-selected="true">🍽️ Obiad</button>
     <button type="button" role="tab" data-zakladka="film" aria-selected="false">🍿 Film</button>
@@ -243,6 +277,22 @@
         <label><input type="radio" name="liczba" value="999"><span>wszystkie</span></label>
       </div>
     </div>
+    <div class="liczba-wiersz">
+      <p class="etykieta">Kiedy ogłaszamy dopasowanie</p>
+      <div class="segment" role="radiogroup" aria-label="Kiedy ogłaszamy dopasowanie">
+        <label><input type="radio" name="prog" value="wszyscy" checked><span>Wszyscy na tak</span></label>
+        <label><input type="radio" name="prog" value="bez1"><span>Wszyscy oprócz 1</span></label>
+      </div>
+    </div>
+    <div class="liczba-wiersz">
+      <p class="etykieta">Czas na decyzję</p>
+      <div class="segment" role="radiogroup" aria-label="Czas na decyzję">
+        <label><input type="radio" name="limit" value="0" checked><span>bez limitu</span></label>
+        <label><input type="radio" name="limit" value="120"><span>2 min</span></label>
+        <label><input type="radio" name="limit" value="300"><span>5 min</span></label>
+        <label><input type="radio" name="limit" value="600"><span>10 min</span></label>
+      </div>
+    </div>
     <p class="dostosuj-podsumowanie" id="dostosuj-podsumowanie"></p>
     <button type="button" class="btn btn-glowny btn-duzy" id="dostosuj-zaloz">Załóż pokój</button>
   </div>
@@ -259,7 +309,8 @@
     <div class="dop-awatary" id="dop-awatary"></div>
     <div class="dop-linki" id="dop-linki"></div>
     <div class="dop-przyciski">
-      <button type="button" class="btn btn-jasny" id="dop-udostepnij"><span aria-hidden="true">📣</span> Pochwal się wynikiem</button>
+      <button type="button" class="btn btn-jasny" id="dop-udostepnij"><span aria-hidden="true">📣</span> Pochwal się</button>
+      <button type="button" class="btn btn-ciemny" id="dop-runda" hidden><span aria-hidden="true">🔁</span> Nowa runda</button>
       <button type="button" class="btn btn-ciemny" id="dop-dalej">Szukajmy dalej</button>
     </div>
   </div>

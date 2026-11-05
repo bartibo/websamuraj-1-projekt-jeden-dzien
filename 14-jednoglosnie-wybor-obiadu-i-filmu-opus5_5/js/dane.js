@@ -126,6 +126,46 @@
     ['prada', 'Diabeł ubiera się u Prady', 2006, 'komedia', 109, 'David Frankel', 'Absolwentka dziennikarstwa zostaje asystentką najgroźniejszej redaktorki w modzie.', '👠', 345],
     ['bekarty', 'Bękarty wojny', 2009, 'wojenny', 153, 'Quentin Tarantino', 'Oddział żołnierzy-łowców poluje na nazistów w okupowanej Francji.', '🎬', 10],
     ['br2049', 'Blade Runner 2049', 2017, 'sci-fi', 164, 'Denis Villeneuve', 'Łowca androidów odkrywa sekret, który może zmienić porządek świata.', '🌆', 28],
+    // polskie
+    ['kiler', 'Kiler', 1997, 'komedia', 104, 'Juliusz Machulski', 'Warszawski taksówkarz zostaje wzięty za płatnego zabójcę, którego szuka cała policja.', '🚕', 50],
+    ['rejs', 'Rejs', 1970, 'komedia', 69, 'Marek Piwowski', 'Pasażer na gapę zostaje kaowcem statku na Wiśle. Absurd, który cytuje cała Polska.', '🚢', 200],
+    ['samiswoi', 'Sami swoi', 1967, 'komedia', 80, 'Sylwester Chęciński', 'Kargul i Pawlak – sąsiedzka kłótnia o miedzę przeniesiona zza Buga na Ziemie Odzyskane.', '🐄', 90],
+    ['zimnawojna', 'Zimna wojna', 2018, 'romans', 88, 'Paweł Pawlikowski', 'Pianista i śpiewaczka z zespołu ludowego kochają się przez kilkanaście lat i kilka granic.', '🎹', 220],
+    ['ida', 'Ida', 2013, 'dramat', 82, 'Paweł Pawlikowski', 'Nowicjuszka przed ślubami poznaje ciotkę i rodzinną tajemnicę z czasów wojny.', '🕊️', 240],
+    ['bogowie', 'Bogowie', 2014, 'dramat', 120, 'Łukasz Palkowski', 'Zbigniew Religa wbrew wszystkim przeszczepia w Zabrzu pierwsze serce w Polsce.', '🫀', 0],
+    ['chlopi', 'Chłopi', 2023, 'animacja', 114, 'DK Welchman, Hugh Welchman', 'Jagna, Boryna i cała wieś Lipce w malarskiej animacji – każda klatka to obraz olejny.', '🌾', 45],
+    ['salasamobojcow', 'Sala samobójców', 2011, 'dramat', 117, 'Jan Komasa', 'Licealista po upokorzeniu w szkole ucieka w świat wirtualnej społeczności.', '💻', 270],
+    // familijne i animacje
+    ['odlot', 'Odlot', 2009, 'animacja', 96, 'Pete Docter', 'Zrzędliwy wdowiec przywiązuje do domu tysiące balonów i leci do Ameryki Południowej. Z małym harcerzem na ganku.', '🎈', 195],
+    ['smok', 'Jak wytresować smoka', 2010, 'animacja', 98, 'Dean DeBlois, Chris Sanders', 'Chudy syn wodza wikingów zaprzyjaźnia się ze smokiem, którego miał zabić.', '🐉', 170],
+    ['nemo', 'Gdzie jest Nemo', 2003, 'animacja', 100, 'Andrew Stanton', 'Przewrażliwiony błazenek przemierza ocean, żeby odnaleźć syna. Z Dory, która wszystko zapomina.', '🐠', 190],
+    ['zwierzogrod', 'Zwierzogród', 2016, 'animacja', 108, 'Byron Howard, Rich Moore', 'Królicza policjantka i lis-kombinator tropią spisek w mieście zwierząt.', '🦊', 30],
+    ['dzikirobot', 'Dziki robot', 2024, 'animacja', 102, 'Chris Sanders', 'Robot rozbity na bezludnej wyspie uczy się przetrwać – i wychować osieroconą gąskę.', '🤖', 120],
+    ['flow', 'Flow', 2024, 'animacja', 85, 'Gints Zilbalodis', 'Kot ucieka przed wielką powodzią na łodzi z innymi zwierzętami. Bez słów, za to z Oscarem.', '🐈', 185],
+    ['wglowie2', 'W głowie się nie mieści 2', 2024, 'animacja', 96, 'Kelsey Mann', 'Riley wchodzi w nastoletnie lata, a w centrali emocji rządy próbuje przejąć Lęk.', '😬', 280],
+    ['totoro', 'Mój sąsiad Totoro', 1988, 'familijny', 86, 'Hayao Miyazaki', 'Dwie siostry przeprowadzają się na wieś i odkrywają w lesie wielkiego, puchatego ducha.', '🌳', 110],
+    ['charlie', 'Charlie i fabryka czekolady', 2005, 'familijny', 115, 'Tim Burton', 'Pięcioro dzieci ze złotymi biletami zwiedza fabrykę ekscentrycznego Willy’ego Wonki.', '🍫', 25],
+    ['paddington1', 'Paddington', 2014, 'familijny', 95, 'Paul King', 'Miś z Peru przyjeżdża do Londynu z walizką i słoikiem marmolady. Szuka domu.', '🧳', 20],
+    // fantasy
+    ['harrypotter', 'Harry Potter i Kamień Filozoficzny', 2001, 'fantasy', 152, 'Chris Columbus', 'Jedenastolatek spod schodów dowiaduje się, że jest czarodziejem, i jedzie do Hogwartu.', '⚡', 45],
+    ['labiryntfauna', 'Labirynt fauna', 2006, 'fantasy', 118, 'Guillermo del Toro', 'Hiszpania, 1944. Dziewczynka ucieka przed okrutnym ojczymem w świat baśni – równie mrocznej.', '🗝️', 150],
+    ['mononoke', 'Księżniczka Mononoke', 1997, 'fantasy', 134, 'Hayao Miyazaki', 'Młody książę trafia w sam środek wojny między ludźmi a bogami lasu.', '🐺', 140],
+    ['narzeczona', 'Narzeczona dla księcia', 1987, 'fantasy', 98, 'Rob Reiner', 'Dziadek czyta wnukowi baśń o szermierce, olbrzymach, piratach i prawdziwej miłości.', '🗡️', 330],
+    // westerny
+    ['dobryzly', 'Dobry, zły i brzydki', 1966, 'western', 161, 'Sergio Leone', 'Trzech rewolwerowców szuka skarbu ukrytego w czasie wojny secesyjnej. I ta muzyka Morricone.', '🤠', 35],
+    ['bezprzebaczenia', 'Bez przebaczenia', 1992, 'western', 130, 'Clint Eastwood', 'Zabójca na emeryturze bierze ostatnie zlecenie, choć dawno obiecał, że skończył.', '🐎', 25],
+    ['prawdziwemestwo', 'Prawdziwe męstwo', 2010, 'western', 110, 'Joel i Ethan Coen', 'Uparta czternastolatka wynajmuje jednookiego szeryfa, żeby dopaść zabójcę ojca.', '⭐', 40],
+    // nowości
+    ['diuna2', 'Diuna: Część druga', 2024, 'sci-fi', 166, 'Denis Villeneuve', 'Paul Atryda łączy siły z Fremenami i szykuje zemstę na rodzie Harkonnenów.', '🏜️', 35],
+    ['wicked', 'Wicked', 2024, 'musical', 160, 'Jon M. Chu', 'Zielonoskóra Elfaba i popularna Glinda poznają się w szkole magii, zanim jedna z nich zostanie Złą Czarownicą.', '🧹', 130],
+    ['konklawe', 'Konklawe', 2024, 'thriller', 120, 'Edward Berger', 'Papież nie żyje, drzwi Kaplicy Sykstyńskiej się zamykają, a kardynał Lawrence odkrywa sekrety kandydatów.', '🕯️', 0],
+    ['anora', 'Anora', 2024, 'dramat', 139, 'Sean Baker', 'Tancerka z Brooklynu bierze szybki ślub z synem rosyjskiego oligarchy. Rodzina pana młodego ma inne zdanie.', '💍', 320],
+    ['substancja', 'Substancja', 2024, 'horror', 141, 'Coralie Fargeat', 'Gwiazda fitnessu po pięćdziesiątce próbuje specyfiku, który tworzy jej młodszą wersję.', '💉', 90],
+    ['grzesznicy', 'Grzesznicy', 2025, 'horror', 137, 'Ryan Coogler', 'Bliźniacy otwierają klub bluesowy na Południu USA w 1932 roku. Pierwszej nocy przychodzą nieproszeni goście.', '🎸', 15],
+    ['jednabitwa', 'Jedna bitwa po drugiej', 2025, 'akcja', 161, 'Paul Thomas Anderson', 'Były rewolucjonista musi wrócić do gry, gdy dawny wróg porywa mu córkę.', '💣', 10],
+    ['f1', 'F1', 2025, 'akcja', 155, 'Joseph Kosinski', 'Weteran wyścigów wraca do Formuły 1, żeby ratować najsłabszy zespół i nauczyć czegoś młodego kierowcę.', '🏎️', 0],
+    ['prawdziwybol', 'Prawdziwy ból', 2024, 'komedia', 90, 'Jesse Eisenberg', 'Dwaj skłóceni kuzyni jadą do Polski śladami babci. Wycieczka po Lublinie i rodzinnych ranach.', '🎒', 210],
+    ['gladiator2', 'Gladiator II', 2024, 'akcja', 148, 'Ridley Scott', 'Lucjusz, wnuk Marka Aureliusza, trafia na arenę Koloseum jako niewolnik.', '🏛️', 30],
   ].map(([id, n, r, g, m, d, o, e, h]) => ({ id: 'f-' + id, n, r, g, m, d, o, e, h }));
 
   const GATUNKI = ['komedia', 'dramat', 'sci-fi', 'akcja', 'thriller', 'horror', 'animacja', 'romans', 'kryminał', 'przygoda', 'fantasy', 'musical', 'wojenny', 'western', 'familijny'];
