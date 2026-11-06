@@ -10,8 +10,9 @@
 'use strict';
 
 const Kod = (() => {
-  const LIMITY = { imie: 80, rola: 90, miasto: 70, bio: 480, stawka: 60, awatar: 400, tytul: 80, url: 400, opis: 200, tag: 60, email: 120, tel: 40 };
+  const LIMITY = { imie: 80, rola: 90, miasto: 70, bio: 480, stawka: 60, awatar: 400, tytul: 80, url: 400, opis: 200, tag: 60, email: 120, tel: 40, usl: 60, cena: 40, czas: 40, cytat: 220, autor: 80 };
   const MAX_PROJ = 3;
+  const MAX_PAK = 3;
   const MAX_LINKI = 4;
   const MOTYWY = 6;
   const STATUSY = 3;
@@ -53,12 +54,23 @@ const Kod = (() => {
   const N = (x, max) => (Number.isInteger(x) && x >= 0 && x <= max ? x : 0);
   const t = (x) => (x || '').trim();
 
+  /* ---------- daty: liczba dni od 1.01.2026 (3–4 cyfry w linku) ---------- */
+  const DZIEN0 = Date.UTC(2026, 0, 1) / 864e5;
+  const dzis = () => { const n = new Date(); return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()) / 864e5 - DZIEN0; };
+  const naDate = (dni) => new Date((dni + DZIEN0) * 864e5);
+  /** „2026-01-12” ↔ liczba dni (0 = brak daty) */
+  const zIso = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); if (!m) return 0; const n = Date.UTC(+m[1], m[2] - 1, +m[3]) / 864e5 - DZIEN0; return n > 0 ? n : 0; };
+  const doIso = (dni) => (dni > 0 ? naDate(dni).toISOString().slice(0, 10) : '');
+
   /* ---------- obiekt ↔ tablica ---------- */
   function pusty() {
     return {
       imie: '', rola: '', miasto: '', bio: '', status: 0, stawka: '', awatar: '', motyw: 0, akcent: '',
       projekty: Array.from({ length: MAX_PROJ }, () => ({ tytul: '', url: '', opis: '', tag: '' })),
       email: '', tel: '', linki: Array.from({ length: MAX_LINKI }, () => ''),
+      wydano: 0, wolneOd: 0,
+      pakiety: Array.from({ length: MAX_PAK }, () => ({ nazwa: '', cena: '', czas: '' })),
+      opinia: { cytat: '', autor: '' },
     };
   }
 
@@ -70,6 +82,11 @@ const Kod = (() => {
       d.projekty.map((p) => pusteNaKoncu([t(p.tytul), skroc(p.url), t(p.opis), t(p.tag)])).filter((a) => a.length),
       t(d.email), t(d.tel),
       d.linki.map(skroc).filter(Boolean),
+      // od tu pola dodane po pierwszej wersji – stare linki ich nie mają i działają bez zmian
+      dzis(),
+      d.status === 2 || d.status === 3 ? d.wolneOd | 0 : 0,
+      (d.pakiety || []).map((p) => pusteNaKoncu([t(p.nazwa), t(p.cena), t(p.czas)])).filter((a) => a.length && a[0]),
+      d.opinia && t(d.opinia.cytat) ? pusteNaKoncu([t(d.opinia.cytat), t(d.opinia.autor)]) : [],
     ]);
   }
 
@@ -95,6 +112,14 @@ const Kod = (() => {
     if (Array.isArray(a[12])) {
       a[12].slice(0, MAX_LINKI).forEach((u, i) => { d.linki[i] = rozwin(S(u, LIMITY.url)); });
     }
+    d.wydano = N(a[13], 99999);
+    d.wolneOd = N(a[14], 99999);
+    if (Array.isArray(a[15])) {
+      a[15].filter(Array.isArray).slice(0, MAX_PAK).forEach((p, i) => {
+        d.pakiety[i] = { nazwa: S(p[0], LIMITY.usl), cena: S(p[1], LIMITY.cena), czas: S(p[2], LIMITY.czas) };
+      });
+    }
+    if (Array.isArray(a[16])) d.opinia = { cytat: S(a[16][0], LIMITY.cytat), autor: S(a[16][1], LIMITY.autor) };
     return d;
   }
 
@@ -133,5 +158,5 @@ const Kod = (() => {
     return rozpakuj(JSON.parse(new TextDecoder().decode(surowe)));
   }
 
-  return { zakoduj, odkoduj, pusty, rozwin, MAX_PROJ, MAX_LINKI };
+  return { zakoduj, odkoduj, pusty, rozwin, dzis, naDate, zIso, doIso, MAX_PROJ, MAX_LINKI, MAX_PAK };
 })();

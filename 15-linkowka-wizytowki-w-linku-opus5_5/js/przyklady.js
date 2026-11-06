@@ -13,6 +13,12 @@ const PRZYKLADY = [
     ],
     email: 'marta@ziarno.example', tel: '+48 123 456 789',
     linki: ['https://www.linkedin.com/in/przykladowy-profil-linkowka', 'https://dribbble.com/przyklad-linkowka', 'https://www.behance.net/przyklad-linkowka', ''],
+    pakiety: [
+      { nazwa: 'Audyt UX strony lub aplikacji', cena: 'od 2 500 zł', czas: '5 dni roboczych' },
+      { nazwa: 'Identyfikacja wizualna', cena: 'od 6 000 zł', czas: '3–4 tygodnie' },
+      { nazwa: 'Projekt sklepu internetowego', cena: 'od 9 000 zł', czas: '4–6 tygodni' },
+    ],
+    opinia: { cytat: 'Marta skróciła nam rezerwację z siedmiu kroków do trzech. I oddała projekt tydzień przed terminem.', autor: 'Anna Nowak, Kliniq' },
   },
   {
     imie: 'Kuba Zieliński', rola: 'Front-end developer · React, Astro, TypeScript', miasto: 'Gdańsk', status: 2, stawka: 'wycena projektu w 48 h', awatar: '🧑‍💻', motyw: 1, akcent: '',
@@ -22,7 +28,7 @@ const PRZYKLADY = [
       { tytul: 'Panel floty Trakto', url: 'trakto.example/demo', opis: 'Mapa 3000 pojazdów na żywo w przeglądarce, 60 klatek na sekundę na zwykłym laptopie.', tag: 'React · WebGL' },
       { tytul: 'tiny-forms', url: 'github.com/przyklad-linkowka/tiny-forms', opis: 'Biblioteka formularzy w 2 kB. 1,2 tys. gwiazdek na GitHubie.', tag: 'Open source' },
     ],
-    email: 'kuba@trakto.example', tel: '',
+    email: 'kuba@trakto.example', tel: '', wolneOd: Kod.dzis() + 24,
     linki: ['https://github.com/przyklad-linkowka', 'https://www.linkedin.com/in/przykladowy-profil-linkowka', 'https://bsky.app/profile/przyklad-linkowka', ''],
   },
   {
@@ -34,6 +40,11 @@ const PRZYKLADY = [
       { tytul: 'Seria Rolek „Szybki przepis”', url: 'instagram.com/przyklad-linkowka', opis: '40 krótkich filmów dla marki spożywczej. Średnio 9 s dłużej oglądane niż poprzednie.', tag: 'Social · 2025' },
     ],
     email: 'nina@falafm.example', tel: '+48 123 456 789',
+    pakiety: [
+      { nazwa: 'Animowane logo', cena: 'od 1 500 zł', czas: '1 tydzień' },
+      { nazwa: 'Explainer 60–90 s', cena: 'od 6 500 zł', czas: '3–4 tygodnie' },
+      { nazwa: 'Pakiet 10 rolek do social mediów', cena: '4 800 zł', czas: '2 tygodnie' },
+    ],
     linki: ['https://vimeo.com/przyklad-linkowka', 'https://www.instagram.com/przyklad-linkowka', 'https://www.behance.net/przyklad-linkowka', ''],
   },
   {
@@ -45,6 +56,11 @@ const PRZYKLADY = [
       { tytul: 'Menu Bistro Pod Lipą', url: 'podlipa.example', opis: 'Każde danie z karty w jednym świetle. Zamówienia przez aplikację +27%.', tag: 'Food · 2025' },
     ],
     email: 'ola@podlipa.example', tel: '+48 123 456 789',
+    opinia: { cytat: 'Po nowych zdjęciach goście zamawiają oczami. Pierwszy raz menu w aplikacji sprzedaje lepiej niż kelner.', autor: 'Michał, właściciel Bistro Pod Lipą' },
+    pakiety: [
+      { nazwa: 'Packshoty na białym tle', cena: '900 zł / 20 zdjęć', czas: 'gotowe w 5 dni' },
+      { nazwa: 'Sesja lifestyle w studiu', cena: 'od 2 400 zł', czas: 'pół dnia zdjęć' },
+    ],
     linki: ['https://www.instagram.com/przyklad-linkowka', 'https://www.pinterest.com/przyklad-linkowka', 'https://calendly.com/przyklad-linkowka', ''],
   },
   {
@@ -66,7 +82,8 @@ const PRZYKLADY = [
       { tytul: 'Newsletter Hala 7', url: 'hala7.example/newsletter', opis: 'Cotygodniowy list do klientów hurtowni. 46% otwarć przy branżowej średniej 21%.', tag: 'E-mail' },
       { tytul: 'Język marki Betonix', url: 'betonix.example', opis: 'Słownik i zasady tonu dla firmy budowlanej: od ofert przetargowych po LinkedIn.', tag: 'Strategia · 2024' },
     ],
-    email: 'piotr@hala7.example', tel: '+48 123 456 789',
+    email: 'piotr@hala7.example', tel: '+48 123 456 789', wolneOd: Kod.dzis() + 46,
+    opinia: { cytat: 'Po zmianie tekstów na stronie liczba zapisów na wersję próbną wzrosła o połowę. Bez zmiany ani jednego piksela.', autor: 'Karolina Mazur, Księgowa w Chmurze' },
     linki: ['https://www.linkedin.com/in/przykladowy-profil-linkowka', 'https://przyklad-linkowka.substack.com', '', ''],
   },
 ];

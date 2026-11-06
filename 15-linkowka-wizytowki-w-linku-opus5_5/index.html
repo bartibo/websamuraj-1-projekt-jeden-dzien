@@ -6,22 +6,56 @@
 <title>Linkówka – wizytówka freelancera zapisana w linku</title>
 <meta name="description" content="Wypełnij kilka pól i dostań estetyczną stronę-wizytówkę zakodowaną w całości w jej adresie. Bez konta, bez bazy danych, bez serwera.">
 <meta name="theme-color" content="#f3f1ec">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pl_PL">
+<meta property="og:site_name" content="Projekty – 1 prompt, 1 zdanie">
 <meta property="og:title" content="Linkówka – wizytówka zapisana w linku">
 <meta property="og:description" content="Strona-wizytówka dla freelancera, która mieści się w całości w swoim adresie URL. Bez konta i bez bazy danych.">
+<meta property="og:url" content="https://projekty.vibemaster.pl/15-linkowka-wizytowki-w-linku-opus5_5/">
+<meta property="og:image" content="https://projekty.vibemaster.pl/galeria/projekt-15.jpg">
+<meta property="og:image:width" content="1920">
+<meta property="og:image:height" content="1080">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23ff5a36'/%3E%3Cpath d='M27 37a8 8 0 0 0 11.3 0l6-6a8 8 0 0 0-11.3-11.3l-2 2M37 27a8 8 0 0 0-11.3 0l-6 6A8 8 0 0 0 31 44.3l2-2' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
-<!-- Tryb rozpoznajemy przed narysowaniem czegokolwiek, żeby wizytówka nie mignęła edytorem -->
-<script>document.documentElement.dataset.tryb = /^#w./.test(location.hash) ? 'karta' : 'edytor';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Fonty ładują się w tle (media=print → all), strona nie czeka na nie ani chwili -->
-<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@400..800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400..700&family=Space+Grotesk:wght@400..700&display=swap">
+<!-- Tryb rozpoznajemy przed narysowaniem czegokolwiek, żeby wizytówka nie mignęła edytorem.
+     Fonty ładują się w tle (arkusz dodany skryptem nie blokuje rysowania): kreator dostaje wszystkie kroje,
+     a wizytówka tylko te ze swojego motywu – app.js woła wczytajFonty(motyw) zaraz po odczytaniu linku. -->
+<script>
+(function () {
+  var G = 'https://fonts.googleapis.com/css2?display=swap&family=';
+  var F = {
+    fraunces: 'Fraunces:ital,opsz,wght@0,144,500;0,144,600;1,9..144,400',
+    frauncesK: 'Fraunces:ital,opsz,wght@0,144,500;1,9..144,400',
+    inter: 'Inter:wght@400..800', serif: 'Instrument+Serif:ital@0;1',
+    mono: 'JetBrains+Mono:wght@400..700', grot: 'Space+Grotesk:wght@400..700'
+  };
+  var ZESTAWY = {
+    edytor: [F.fraunces, F.inter, F.serif, F.mono, F.grot],
+    papier: [F.frauncesK, F.inter], atrament: [F.grot, F.inter], brutal: [F.grot],
+    mgielka: [F.serif, F.inter], terminal: [F.mono], raster: [F.inter]
+  };
+  window.wczytajFonty = function (klucz) {
+    if (document.querySelector('link[data-fonty="edytor"],link[data-fonty="' + klucz + '"]') || !ZESTAWY[klucz]) return;
+    var l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = G + ZESTAWY[klucz].join('&family=');
+    l.setAttribute('data-fonty', klucz);
+    document.head.appendChild(l);
+  };
+  var karta = /^#w./.test(location.hash);
+  document.documentElement.dataset.tryb = karta ? 'karta' : 'edytor';
+  if (!karta) window.wczytajFonty('edytor');
+})();
+</script>
 <link rel="stylesheet" href="css/karta.css">
 <link rel="stylesheet" href="css/edytor.css">
 </head>
 <body>
 
 <!-- ============ TRYB WIZYTÓWKI (adres z #w…) ============ -->
-<div id="karta-widok" class="widok" aria-live="polite"></div>
+<div id="karta-widok" class="widok"></div>
 
 <!-- ============ TRYB KREATORA ============ -->
 <div id="edytor" class="ed">
@@ -47,7 +81,7 @@
           <svg class="ik" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 14h6v6h-6z"/><path d="M14 7h6M17 4v6M4 17h6"/></svg>
           Wypełnij przykładem
         </button>
-        <button type="button" class="btn btn-tekst" id="b-wyczysc">Wyczyść wszystko</button>
+        <button type="button" class="btn btn-tekst" id="b-wyczysc">Wyczyść <span class="dl">wszystko</span></button>
         <span class="f-zapis" id="f-zapis" aria-live="polite"></span>
       </div>
 
@@ -82,6 +116,12 @@
             <label class="chip"><input type="radio" name="status" value="2"><span><i class="kropka k2"></i>Wolne terminy wkrótce</span></label>
             <label class="chip"><input type="radio" name="status" value="3"><span><i class="kropka k3"></i>Grafik pełny</span></label>
           </div>
+          <label class="pole-data" id="pole-wolne" hidden>
+            <span id="wolne-etykieta">Wolne terminy od</span>
+            <input type="date" id="wolne-od">
+            <small>Po tej dacie wizytówka sama pokaże „Przyjmuję zlecenia”.</small>
+          </label>
+          <p class="podpowiedz">Po 4 miesiącach bez nowego linku zielona kropka zmienia się w uczciwe „Zapytaj o wolne terminy”.</p>
         </fieldset>
 
         <div class="rzad">
@@ -92,6 +132,7 @@
           <label class="pole">
             <span class="etykieta">Awatar <i class="opc">puste = inicjały</i></span>
             <input data-k="awatar" maxlength="300" placeholder="emoji albo https://…/zdjecie.jpg" autocapitalize="off" spellcheck="false">
+            <small class="blad-pola" data-blad="awatar" hidden></small>
           </label>
         </div>
         <div class="emoji-szybkie" id="emoji-szybkie" aria-label="Szybki wybór awatara"></div>
@@ -104,34 +145,64 @@
         <div id="projekty"></div>
       </section>
 
-      <!-- 3. Kontakt -->
+      <!-- 3. Oferta i opinia -->
       <section class="sekcja">
-        <header class="sek-g"><span class="sek-nr">3</span><div><h2>Kontakt</h2><p>Na wizytówce pojawi się też przycisk „Zapisz kontakt”, który dodaje Cię do telefonu klienta.</p></div></header>
+        <header class="sek-g"><span class="sek-nr">3</span><div><h2>Oferta i opinia <i class="opc">opcjonalnie</i></h2><p>Co klient może zamówić i za ile. Na wizytówce każda usługa prowadzi do formularza zapytania, który sam składa maila do Ciebie.</p></div></header>
+        <div class="pole">
+          <div class="pakiety-g" aria-hidden="true"><span></span><span>Usługa</span><span>Cena</span><span>Czas lub zakres</span></div>
+          <div class="pakiety" id="pakiety"></div>
+        </div>
+        <label class="pole">
+          <span class="etykieta">Opinia klienta</span>
+          <textarea data-op="cytat" maxlength="200" rows="2" placeholder="Skróciła nam rezerwację z siedmiu kroków do trzech. I to przed terminem."></textarea>
+        </label>
+        <label class="pole pole-krotkie">
+          <span class="etykieta">Kto to powiedział</span>
+          <input data-op="autor" maxlength="60" placeholder="Anna Nowak, CEO Kliniq">
+        </label>
+      </section>
+
+      <!-- 4. Kontakt -->
+      <section class="sekcja">
+        <header class="sek-g"><span class="sek-nr">4</span><div><h2>Kontakt</h2><p>Na wizytówce pojawi się przycisk „Zapisz kontakt”, który dodaje Cię do telefonu klienta, i formularz zapytania o wycenę.</p></div></header>
         <div class="rzad">
           <label class="pole">
             <span class="etykieta">E-mail</span>
             <input data-k="email" type="email" maxlength="80" placeholder="kontakt@twojadomena.pl" autocomplete="email" autocapitalize="off" spellcheck="false">
+            <small class="blad-pola" data-blad="email" hidden></small>
           </label>
           <label class="pole">
             <span class="etykieta">Telefon</span>
             <input data-k="tel" type="tel" maxlength="30" placeholder="+48 123 456 789" autocomplete="tel">
+            <small class="blad-pola" data-blad="tel" hidden></small>
           </label>
         </div>
         <div class="pole">
           <span class="etykieta">Profile i strony <i class="opc">do 4, platformę rozpoznam sam</i></span>
           <div class="linki" id="linki"></div>
+          <small class="blad-pola" data-blad="linki" hidden></small>
         </div>
       </section>
 
-      <!-- 4. Wygląd -->
+      <!-- 5. Wygląd -->
       <section class="sekcja">
-        <header class="sek-g"><span class="sek-nr">4</span><div><h2>Wygląd</h2><p>Sześć motywów, każdy działa na telefonie i dużym ekranie.</p></div></header>
+        <header class="sek-g"><span class="sek-nr">5</span><div><h2>Wygląd</h2><p>Sześć motywów, każdy działa na telefonie i dużym ekranie.</p></div></header>
         <div class="motywy" id="motywy" role="radiogroup" aria-label="Motyw"></div>
         <div class="pole akcent-pole">
           <span class="etykieta">Kolor akcentu</span>
           <div class="akcenty" id="akcenty" role="radiogroup" aria-label="Kolor akcentu"></div>
         </div>
       </section>
+
+      <div class="f-koniec">
+        <div>
+          <b>Gotowe?</b>
+          <span>Link aktualizuje się na bieżąco. Skopiuj go i wyślij klientowi, a na spotkanie wydrukuj wizytówki z kodem QR.</span>
+        </div>
+        <button type="button" class="btn btn-glowny" id="b-kopiuj2" disabled>
+          <svg class="ik" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Kopiuj link
+        </button>
+      </div>
     </form>
 
     <aside class="kol-podglad" id="kol-podglad">
@@ -155,6 +226,18 @@
             <svg class="ik" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Udostępnij
           </button>
         </div>
+        <div class="ud-wiecej">
+          <button type="button" class="ud-w" id="b-hiper" disabled title="Wkleja się jako klikalne „Imię – rola” zamiast długiego adresu">
+            <svg class="ik" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg>Kopiuj jako hiperłącze
+          </button>
+          <button type="button" class="ud-w" id="b-stopka" disabled>
+            <svg class="ik" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h6M7 11h10"/></svg>Stopka maila
+          </button>
+          <button type="button" class="ud-w" id="b-druk" disabled title="Arkusz A4 z pięcioma wizytówkami do wycięcia, z kodem QR na odwrocie">
+            <svg class="ik" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3"/><path d="M7 14h10v7H7z"/></svg>Wydrukuj wizytówki
+          </button>
+        </div>
+        <p class="ud-ostrzezenie" id="ud-ostrzezenie" hidden>Na wizytówce nie ma żadnego kontaktu, więc klient nie będzie mógł się odezwać. Dodaj e-mail, telefon albo profil.</p>
         <p class="ud-nota" id="ud-nota" hidden></p>
       </div>
 
@@ -202,12 +285,20 @@
     </ol>
     <div class="faq">
       <details>
+        <summary>Co się stanie, gdy status się zestarzeje?</summary>
+        <p>Wizytówka zna datę, kiedy powstał jej link. Jeśli ustawisz „Wolne terminy od 12 stycznia”, po tej dacie sama pokaże „Przyjmuję zlecenia”. Po czterech miesiącach bez nowego linku zamiast zielonej kropki pojawi się „Zapytaj o wolne terminy”, żeby klient nie trafił na nieaktualną obietnicę.</p>
+      </details>
+      <details>
+        <summary>Jak klient do mnie napisze?</summary>
+        <p>Przycisk „Napisz do mnie” prowadzi do krótkiego formularza: usługa, budżet, termin i kilka zdań. Wizytówka składa z tego gotowego maila i otwiera program pocztowy klienta. Nic nie przechodzi przez żaden serwer, wiadomość idzie prosto do Ciebie.</p>
+      </details>
+      <details>
         <summary>Jak zmienić coś na wizytówce?</summary>
-        <p>Link to zamrożony stan, więc zmiana oznacza nowy link. Otwórz swoją wizytówkę i kliknij w stopce „Edytuj kopię”. Formularz wypełni się danymi z linku. Popraw, skopiuj nowy adres i gotowe.</p>
+        <p>Link to zamrożony stan, więc zmiana oznacza nowy link. Otwórz swoją wizytówkę i kliknij w stopce „Edytuj w kreatorze”. Formularz wypełni się danymi z linku. Popraw, skopiuj nowy adres i gotowe.</p>
       </details>
       <details>
         <summary>Czy taki długi link na pewno zadziała?</summary>
-        <p>Typowa wizytówka to 600–1500 znaków. E-mail, Messenger, WhatsApp, Slack, LinkedIn i SMS radzą sobie z tym bez problemu. Jeśli wolisz krótki adres, przepuść go przez dowolny skracacz linków albo pokaż kod QR.</p>
+        <p>Typowa wizytówka to 800–1200 znaków. E-mail, Messenger, WhatsApp, Slack, LinkedIn i SMS radzą sobie z tym bez problemu. Żeby nie wklejać długiego adresu, użyj „Kopiuj jako hiperłącze” (wkleja się jako Twoje imię) albo gotowej stopki maila. Na spotkaniu pokaż kod QR.</p>
       </details>
       <details>
         <summary>Gdzie są przechowywane moje dane?</summary>
@@ -223,10 +314,11 @@
   <footer class="ed-stopka">
     <span>Linkówka · cała aplikacja to jeden plik HTML, dwa arkusze stylów i trochę JavaScriptu.</span>
     <span>Twoje dane nie opuszczają tej przeglądarki, dopóki sam nie wyślesz linku.</span>
+    <a class="wszystkie" href="../index.html#linkowka">← Wszystkie projekty</a>
   </footer>
 
   <div class="pasek-mob" id="pasek-mob">
-    <button type="button" class="btn btn-jasny" id="m-podglad">
+    <button type="button" class="btn btn-jasny" id="m-podglad" aria-controls="kol-podglad" aria-expanded="false">
       <svg class="ik" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Podgląd
     </button>
     <button type="button" class="btn btn-glowny" id="m-kopiuj" disabled>
@@ -249,9 +341,25 @@
   </div>
 </dialog>
 
+<!-- Stopka maila -->
+<dialog class="okno okno-szerokie" id="stopka-okno" aria-labelledby="stopka-tytul">
+  <form method="dialog"><button class="okno-x" aria-label="Zamknij">×</button></form>
+  <h3 id="stopka-tytul">Stopka maila</h3>
+  <p class="okno-pod">Zamiast długiego adresu klient zobaczy krótki podpis z linkiem do wizytówki.</p>
+  <div class="stopka-podglad" id="stopka-podglad"></div>
+  <p class="qr-info">Gmail: Ustawienia → Podpis → wklej. Outlook: Ustawienia → Poczta → Podpisy → wklej.</p>
+  <div class="okno-btny">
+    <button type="button" class="btn btn-glowny" id="stopka-kopiuj">
+      <svg class="ik" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Kopiuj stopkę
+    </button>
+  </div>
+</dialog>
+
+<!-- Arkusz do druku (widoczny tylko na wydruku) -->
+<div id="druk" class="druk" aria-hidden="true"></div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="lib/qrcode.js"></script>
 <script src="js/kod.js"></script>
 <script src="js/karta.js"></script>
 <script src="js/przyklady.js"></script>
