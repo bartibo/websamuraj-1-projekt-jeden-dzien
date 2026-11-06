@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Linkówka – wizytówka freelancera zapisana w linku</title>
+<meta name="description" content="Wypełnij kilka pól i dostań estetyczną stronę-wizytówkę zakodowaną w całości w jej adresie. Bez konta, bez bazy danych, bez serwera.">
+<meta name="theme-color" content="#f3f1ec">
+<meta property="og:title" content="Linkówka – wizytówka zapisana w linku">
+<meta property="og:description" content="Strona-wizytówka dla freelancera, która mieści się w całości w swoim adresie URL. Bez konta i bez bazy danych.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23ff5a36'/%3E%3Cpath d='M27 37a8 8 0 0 0 11.3 0l6-6a8 8 0 0 0-11.3-11.3l-2 2M37 27a8 8 0 0 0-11.3 0l-6 6A8 8 0 0 0 31 44.3l2-2' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<!-- Tryb rozpoznajemy przed narysowaniem czegokolwiek, żeby wizytówka nie mignęła edytorem -->
+<script>document.documentElement.dataset.tryb = /^#w./.test(location.hash) ? 'karta' : 'edytor';</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Fonty ładują się w tle (media=print → all), strona nie czeka na nie ani chwili -->
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@400..800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400..700&family=Space+Grotesk:wght@400..700&display=swap">
+<link rel="stylesheet" href="css/karta.css">
+<link rel="stylesheet" href="css/edytor.css">
+</head>
+<body>
+
+<!-- ============ TRYB WIZYTÓWKI (adres z #w…) ============ -->
+<div id="karta-widok" class="widok" aria-live="polite"></div>
+
+<!-- ============ TRYB KREATORA ============ -->
+<div id="edytor" class="ed">
+  <header class="ed-top">
+    <a class="logo" href="./" aria-label="Linkówka – strona główna">
+      <span class="logo-znak" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span>
+      Linkówka
+    </a>
+    <ul class="zera" aria-label="Czego tu nie ma">
+      <li><b>0</b> kont</li><li><b>0</b> baz danych</li><li><b>0</b> serwerów</li>
+    </ul>
+  </header>
+
+  <section class="ed-hero">
+    <h1>Wizytówka freelancera, która <em>mieści się w&nbsp;linku</em>.</h1>
+    <p>Wpisz imię, kilka zdań o sobie, trzy najlepsze projekty i kontakt. Dostaniesz estetyczną, responsywną stronę i&nbsp;adres, który zawiera ją w całości. Wyślij go klientowi, wklej w stopkę maila albo pokaż jako kod QR.</p>
+  </section>
+
+  <main class="warsztat">
+    <form class="formularz" id="formularz" autocomplete="on" novalidate>
+      <div class="f-akcje">
+        <button type="button" class="btn btn-jasny" id="b-przyklad">
+          <svg class="ik" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 14h6v6h-6z"/><path d="M14 7h6M17 4v6M4 17h6"/></svg>
+          Wypełnij przykładem
+        </button>
+        <button type="button" class="btn btn-tekst" id="b-wyczysc">Wyczyść wszystko</button>
+        <span class="f-zapis" id="f-zapis" aria-live="polite"></span>
+      </div>
+
+      <!-- 1. Ty -->
+      <section class="sekcja">
+        <header class="sek-g"><span class="sek-nr">1</span><div><h2>Kim jesteś</h2><p>To, co klient zobaczy w pierwszej sekundzie.</p></div></header>
+
+        <label class="pole">
+          <span class="etykieta">Imię i nazwisko <i class="wymagane">wymagane</i></span>
+          <input data-k="imie" maxlength="60" placeholder="np. Marta Wiśniewska" autocomplete="name">
+        </label>
+        <div class="rzad">
+          <label class="pole">
+            <span class="etykieta">Czym się zajmujesz</span>
+            <input data-k="rola" maxlength="70" placeholder="Projektantka UX/UI i brandingu" autocomplete="organization-title">
+          </label>
+          <label class="pole">
+            <span class="etykieta">Gdzie pracujesz</span>
+            <input data-k="miasto" maxlength="50" placeholder="Wrocław · zdalnie" autocomplete="address-level2">
+          </label>
+        </div>
+        <label class="pole">
+          <span class="etykieta">Krótkie bio <span class="licznik" data-licznik="bio"></span></span>
+          <textarea data-k="bio" maxlength="360" rows="4" placeholder="Dwa, trzy zdania: komu pomagasz, w czym jesteś najlepsza/najlepszy i co klient z tego ma. Enter robi nowy akapit."></textarea>
+        </label>
+
+        <fieldset class="pole">
+          <legend class="etykieta">Dostępność</legend>
+          <div class="chipy" role="radiogroup">
+            <label class="chip"><input type="radio" name="status" value="0" checked><span>Bez statusu</span></label>
+            <label class="chip"><input type="radio" name="status" value="1"><span><i class="kropka k1"></i>Przyjmuję zlecenia</span></label>
+            <label class="chip"><input type="radio" name="status" value="2"><span><i class="kropka k2"></i>Wolne terminy wkrótce</span></label>
+            <label class="chip"><input type="radio" name="status" value="3"><span><i class="kropka k3"></i>Grafik pełny</span></label>
+          </div>
+        </fieldset>
+
+        <div class="rzad">
+          <label class="pole">
+            <span class="etykieta">Stawka <i class="opc">opcjonalnie</i></span>
+            <input data-k="stawka" maxlength="40" placeholder="od 160 zł/h">
+          </label>
+          <label class="pole">
+            <span class="etykieta">Awatar <i class="opc">puste = inicjały</i></span>
+            <input data-k="awatar" maxlength="300" placeholder="emoji albo https://…/zdjecie.jpg" autocapitalize="off" spellcheck="false">
+          </label>
+        </div>
+        <div class="emoji-szybkie" id="emoji-szybkie" aria-label="Szybki wybór awatara"></div>
+        <p class="podpowiedz">Zdjęcie musi już gdzieś wisieć w sieci, bo plik nie zmieści się w linku. Najprościej: <code>https://github.com/twojlogin.png</code>.</p>
+      </section>
+
+      <!-- 2. Projekty -->
+      <section class="sekcja">
+        <header class="sek-g"><span class="sek-nr">2</span><div><h2>Trzy najlepsze projekty</h2><p>Lepiej trzy mocne niż dziesięć przeciętnych. Liczy się efekt.</p></div></header>
+        <div id="projekty"></div>
+      </section>
+
+      <!-- 3. Kontakt -->
+      <section class="sekcja">
+        <header class="sek-g"><span class="sek-nr">3</span><div><h2>Kontakt</h2><p>Na wizytówce pojawi się też przycisk „Zapisz kontakt”, który dodaje Cię do telefonu klienta.</p></div></header>
+        <div class="rzad">
+          <label class="pole">
+            <span class="etykieta">E-mail</span>
+            <input data-k="email" type="email" maxlength="80" placeholder="kontakt@twojadomena.pl" autocomplete="email" autocapitalize="off" spellcheck="false">
+          </label>
+          <label class="pole">
+            <span class="etykieta">Telefon</span>
+            <input data-k="tel" type="tel" maxlength="30" placeholder="+48 123 456 789" autocomplete="tel">
+          </label>
+        </div>
+        <div class="pole">
+          <span class="etykieta">Profile i strony <i class="opc">do 4, platformę rozpoznam sam</i></span>
+          <div class="linki" id="linki"></div>
+        </div>
+      </section>
+
+      <!-- 4. Wygląd -->
+      <section class="sekcja">
+        <header class="sek-g"><span class="sek-nr">4</span><div><h2>Wygląd</h2><p>Sześć motywów, każdy działa na telefonie i dużym ekranie.</p></div></header>
+        <div class="motywy" id="motywy" role="radiogroup" aria-label="Motyw"></div>
+        <div class="pole akcent-pole">
+          <span class="etykieta">Kolor akcentu</span>
+          <div class="akcenty" id="akcenty" role="radiogroup" aria-label="Kolor akcentu"></div>
+        </div>
+      </section>
+    </form>
+
+    <aside class="kol-podglad" id="kol-podglad">
+      <div class="ud" id="ud">
+        <div class="ud-g">
+          <span class="ud-tytul"><svg class="ik" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Twój link</span>
+          <span class="ud-dl" id="ud-dl"></span>
+        </div>
+        <div class="ud-link" id="ud-link">Wpisz imię i nazwisko – link pojawi się tutaj.</div>
+        <div class="ud-btny">
+          <button type="button" class="btn btn-glowny" id="b-kopiuj" disabled>
+            <svg class="ik" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Kopiuj link
+          </button>
+          <button type="button" class="btn btn-ciemny" id="b-otworz" disabled>
+            <svg class="ik" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg>Otwórz
+          </button>
+          <button type="button" class="btn btn-ciemny" id="b-qr" disabled>
+            <svg class="ik" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM21 14v.01M14 21h.01M17 21h4v-4"/></svg>Kod QR
+          </button>
+          <button type="button" class="btn btn-ciemny" id="b-udostepnij" hidden disabled>
+            <svg class="ik" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Udostępnij
+          </button>
+        </div>
+        <p class="ud-nota" id="ud-nota" hidden></p>
+      </div>
+
+      <div class="pg">
+        <div class="pg-pasek">
+          <div class="seg" role="tablist" aria-label="Podgląd na urządzeniu">
+            <button type="button" data-urz="tel" class="wl" role="tab">
+              <svg class="ik" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>Telefon
+            </button>
+            <button type="button" data-urz="pc" role="tab">
+              <svg class="ik" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Komputer
+            </button>
+          </div>
+          <span class="pg-info" id="pg-info"></span>
+        </div>
+        <div class="pg-ekran" id="pg-ekran" data-urz="tel">
+          <div class="pg-wstazka" id="pg-wstazka">Przykład. Zacznij wpisywać, a podgląd zmieni się na Twój</div>
+          <div class="pg-rama" id="pg-rama">
+            <div class="pg-chrome"><i></i><i></i><i></i><span id="pg-url">linkowka</span></div>
+            <div class="pg-scroll" id="pg-scroll"><div class="pg-sizer" id="pg-sizer"><div class="pg-inner" id="pg-inner"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <section class="jak">
+    <h2>Jak to działa bez bazy danych?</h2>
+    <ol class="jak-kroki">
+      <li>
+        <span class="jak-nr">01</span>
+        <h3>Wpisujesz</h3>
+        <p>Formularz zamienia Twoje dane w krótki zapis: same wartości, bez nazw pól i bez zbędnego <code>https://</code>.</p>
+      </li>
+      <li>
+        <span class="jak-nr">02</span>
+        <h3>Ściskamy</h3>
+        <p>Przeglądarka kompresuje zapis algorytmem deflate (tym samym co w plikach ZIP) i zapisuje go znakami bezpiecznymi dla adresów.</p>
+      </li>
+      <li>
+        <span class="jak-nr">03</span>
+        <h3>Link to strona</h3>
+        <p>Wszystko trafia za znak <code>#</code>. Ta część adresu nigdy nie jest wysyłana do serwera. Otwierający link sam rozpakowuje i rysuje wizytówkę w kilka milisekund.</p>
+      </li>
+    </ol>
+    <div class="faq">
+      <details>
+        <summary>Jak zmienić coś na wizytówce?</summary>
+        <p>Link to zamrożony stan, więc zmiana oznacza nowy link. Otwórz swoją wizytówkę i kliknij w stopce „Edytuj kopię”. Formularz wypełni się danymi z linku. Popraw, skopiuj nowy adres i gotowe.</p>
+      </details>
+      <details>
+        <summary>Czy taki długi link na pewno zadziała?</summary>
+        <p>Typowa wizytówka to 600–1500 znaków. E-mail, Messenger, WhatsApp, Slack, LinkedIn i SMS radzą sobie z tym bez problemu. Jeśli wolisz krótki adres, przepuść go przez dowolny skracacz linków albo pokaż kod QR.</p>
+      </details>
+      <details>
+        <summary>Gdzie są przechowywane moje dane?</summary>
+        <p>Nigdzie poza samym linkiem. Nie ma konta, bazy ani serwera, który mógłby je zapisać. Wersja robocza formularza zostaje tylko w tej przeglądarce, żeby nic nie przepadło po odświeżeniu. Kto dostanie link, ten zobaczy wizytówkę, tak jak z papierową.</p>
+      </details>
+      <details>
+        <summary>Dlaczego zdjęcie podaję jako link?</summary>
+        <p>Nawet małe zdjęcie to dziesiątki tysięcy znaków, a link musi zostać poręczny. Dlatego awatar to emoji, inicjały albo adres zdjęcia, które już masz w sieci (GitHub, Gravatar, własna strona).</p>
+      </details>
+    </div>
+  </section>
+
+  <footer class="ed-stopka">
+    <span>Linkówka · cała aplikacja to jeden plik HTML, dwa arkusze stylów i trochę JavaScriptu.</span>
+    <span>Twoje dane nie opuszczają tej przeglądarki, dopóki sam nie wyślesz linku.</span>
+  </footer>
+
+  <div class="pasek-mob" id="pasek-mob">
+    <button type="button" class="btn btn-jasny" id="m-podglad">
+      <svg class="ik" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Podgląd
+    </button>
+    <button type="button" class="btn btn-glowny" id="m-kopiuj" disabled>
+      <svg class="ik" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Kopiuj link
+    </button>
+  </div>
+</div>
+
+<!-- Okno z kodem QR (wspólne dla kreatora i wizytówki) -->
+<dialog class="okno" id="qr-okno" aria-labelledby="qr-tytul">
+  <form method="dialog"><button class="okno-x" aria-label="Zamknij">×</button></form>
+  <h3 id="qr-tytul">Zeskanuj telefonem</h3>
+  <p class="okno-pod" id="qr-pod">Aparat w telefonie otworzy wizytówkę.</p>
+  <div class="qr-ramka"><canvas id="qr-canvas" width="8" height="8"></canvas></div>
+  <p class="qr-info" id="qr-info"></p>
+  <div class="okno-btny">
+    <button type="button" class="btn btn-glowny" id="qr-pobierz">
+      <svg class="ik" viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>Pobierz PNG
+    </button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="lib/qrcode.js"></script>
+<script src="js/kod.js"></script>
+<script src="js/karta.js"></script>
+<script src="js/przyklady.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
