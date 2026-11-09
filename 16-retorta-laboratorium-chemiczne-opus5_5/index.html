@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101c2e">
+  <title>Retorta – wirtualne laboratorium chemiczne</title>
+  <meta name="description" content="Wirtualne laboratorium chemii dla ucznia: ponad 60 odczynników, prawdziwe reakcje jonowe, strącanie osadów, gazy, wskaźniki, płomienie, spalanie i reakcje organiczne. 58 zadań z quizami, piaskownica, księga odkryć i układ okresowy. Działa bez internetu.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101c2e'/%3E%3Cpath d='M24 8h16M27 8v16L12 50a6 6 0 0 0 5 9h30a6 6 0 0 0 5-9L37 24V8' fill='none' stroke='%23e8f2ff' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M18 44h28l4 7a3 3 0 0 1-3 4H17a3 3 0 0 1-3-4z' fill='%235ef2c0'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="gora">
+    <button id="logo" class="logo" aria-label="Strona startowa">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M24 8h16M27 8v16L12 50a6 6 0 0 0 5 9h30a6 6 0 0 0 5-9L37 24V8" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M18 44h28l4 7a3 3 0 0 1-3 4H17a3 3 0 0 1-3-4z" fill="#5ef2c0"/><circle cx="28" cy="36" r="2.5" fill="#5ef2c0"/><circle cx="35" cy="30" r="1.8" fill="#5ef2c0"/></svg>
+      <span>Retorta</span>
+    </button>
+    <nav id="nawigacja">
+      <button data-widok="zadania"><span>🎯</span><b>Zadania</b></button>
+      <button data-widok="lab" id="navLab"><span>🧪</span><b>Laboratorium</b></button>
+      <button data-widok="ksiega"><span>📖</span><b>Księga odkryć</b></button>
+      <button data-widok="uklad"><span>🧩</span><b>Układ okresowy</b></button>
+    </nav>
+    <div class="licz">
+      <span class="pill" title="Zdobyte gwiazdki">⭐ <b id="lGwiazdki">0</b></span>
+      <span class="pill" title="Odkrycia w księdze">🔬 <b id="lOdkrycia">0</b></span>
+      <button class="ikonka" id="bDzwiek" title="Dźwięk włącz/wyłącz" aria-label="Dźwięk">🔊</button>
+      <button class="ikonka" id="bPomoc" title="Jak korzystać" aria-label="Pomoc">?</button>
+    </div>
+  </header>
+
+  <!-- START -->
+  <section id="w-start" class="widok aktywny">
+    <div class="hero">
+      <div class="hero-txt">
+        <p class="nadtytul">Wirtualne laboratorium chemiczne</p>
+        <h1>Retorta</h1>
+        <p class="lead">Mieszaj, ogrzewaj, spalaj i strącaj – bez ryzyka, bez sprzątania i bez limitu odczynników. Każda reakcja liczy się naprawdę: jony, stężenia, ciepło i pH.</p>
+        <div class="hero-btn">
+          <button class="btn duzy glowny" id="startZadania">🎯 Zadania <small id="startPostep">0 / 58</small></button>
+          <button class="btn duzy" id="startLab">🧪 Piaskownica</button>
+        </div>
+        <ul class="cechy">
+          <li><b>67</b> odczynników na półce</li>
+          <li><b>58</b> zadań w 8 rozdziałach</li>
+          <li><b id="startOdk">180</b> odkryć do zebrania</li>
+          <li><b>118</b> pierwiastków w układzie</li>
+        </ul>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <svg viewBox="0 0 320 320">
+          <defs><linearGradient id="gc" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#7f6bff"/><stop offset="1" stop-color="#5ef2c0"/></linearGradient></defs>
+          <circle cx="160" cy="170" r="130" fill="#16263d"/>
+          <path d="M132 50h56M140 50v70L82 232a22 22 0 0 0 20 32h116a22 22 0 0 0 20-32l-58-112V50" fill="rgba(200,225,255,.06)" stroke="#dce9ff" stroke-width="6" stroke-linejoin="round"/>
+          <path class="ciecz" d="M100 196h120l22 42a14 14 0 0 1-13 20H91a14 14 0 0 1-13-20z" fill="url(#gc)"/>
+          <g class="babelki" fill="#e8fff7"><circle cx="140" cy="230" r="6"/><circle cx="175" cy="240" r="4"/><circle cx="160" cy="215" r="5"/><circle cx="190" cy="222" r="3"/><circle cx="128" cy="244" r="3"/></g>
+          <g class="dym" fill="rgba(220,235,255,.25)"><circle cx="160" cy="36" r="14"/><circle cx="176" cy="18" r="10"/><circle cx="148" cy="12" r="8"/></g>
+        </svg>
+      </div>
+    </div>
+    <div class="start-karty">
+      <div class="karta"><span>⚗️</span><h3>Prawdziwa chemia</h3><p>Silnik liczy reakcje jonowe, strącanie z tabeli rozpuszczalności, szereg aktywności metali, pH, ciepło reakcji i szybkość zależną od temperatury.</p></div>
+      <div class="karta"><span>🔬</span><h3>Zajrzyj do środka</h3><p>Widok cząsteczkowy pokazuje jony i cząsteczki w naczyniu, a dziennik zapisuje każdą obserwację razem z równaniem reakcji.</p></div>
+      <div class="karta"><span>🦺</span><h3>Bezpiecznie</h3><p>Sód w wodzie, stężony kwas, siarkowodór czy związki ołowiu – tutaj nikomu nic się nie stanie, a każda pomyłka czegoś uczy.</p></div>
+    </div>
+  </section>
+
+  <!-- ZADANIA -->
+  <section id="w-zadania" class="widok">
+    <div class="wnetrze">
+      <div class="naglowek"><h2>Zadania</h2><p>Wybierz dowolne zadanie. Gwiazdki: ⭐ za wykonanie, ⭐ bez podpowiedzi, ⭐ za poprawną odpowiedź w quizie (w zagadkach detektywa – za trafienie za pierwszym razem).</p></div>
+      <div id="listaZadan"></div>
+    </div>
+  </section>
+
+  <!-- LABORATORIUM -->
+  <section id="w-lab" class="widok">
+    <aside id="polka">
+      <div class="polka-gora">
+        <h3>Półka z odczynnikami</h3>
+        <input id="szukaj" type="search" placeholder="Szukaj: nazwa lub wzór…" autocomplete="off">
+        <div id="kategorie"></div>
+      </div>
+      <div id="listaOdcz"></div>
+      <div class="dawka">
+        <div class="dawka-tyt">Porcja <small>(roztwór · ciało stałe)</small></div>
+        <div id="dawki"></div>
+      </div>
+      <label class="wszystkie" id="wszystkieWrap"><input type="checkbox" id="wszystkieOdcz"> pokaż wszystkie odczynniki</label>
+    </aside>
+
+    <main id="stol">
+      <div id="kartaZadania" hidden></div>
+      <div id="scena">
+        <canvas id="cv"></canvas>
+        <div id="baner" hidden></div>
+        <div id="obserwacja" aria-live="polite"></div>
+      </div>
+      <div id="kontrolki"></div>
+      <div id="narzedzia">
+        <div class="grupa">
+          <button class="narz" data-n="zarzace" title="Żarzące się łuczywko – test na tlen">🪵<span>Żarzące</span></button>
+          <button class="narz" data-n="plonace" title="Płonące łuczywko – test na wodór i CO₂, zapala etanol">🔥<span>Płonące</span></button>
+          <button class="narz" data-n="papierek" title="Papierek wskaźnikowy – pH cieczy lub gaz nad naczyniem">📄<span>Papierek</span></button>
+          <button class="narz" data-n="wapienna" title="Test wodą wapienną – wykrywa CO₂">🥛<span>W. wapienna</span></button>
+          <button class="narz" data-n="nos" title="Powąchaj (ostrożnie, ruchem dłoni)">👃<span>Powąchaj</span></button>
+          <button class="narz" data-n="slomka" title="Słomka – przytrzymaj, aby dmuchać (CO₂ z oddechu)">🥤<span>Słomka</span></button>
+          <button class="narz" data-n="drucik" title="Drucik – próba płomieniowa">🔁<span>Drucik</span></button>
+        </div>
+        <div class="grupa prawa">
+          <div class="czas" role="group" aria-label="Tempo czasu">
+            <button data-s="0" title="Pauza (spacja)">⏸</button><button data-s="1" class="on">×1</button><button data-s="3">×3</button><button data-s="10" title="Przyspieszenie – przydatne przy ogrzewaniu">⏩×10</button>
+          </div>
+          <div class="dodajN">
+            <button id="bDodajN" class="btn maly">＋ Naczynie</button>
+            <div id="menuN" hidden>
+              <button data-t="zlewka">Zlewka 250 cm³</button><button data-t="kolba">Kolba stożkowa</button><button data-t="probowka">Probówka</button><button data-t="tygiel">Tygiel (do spalań)</button>
+            </div>
+          </div>
+          <button id="bWyczysc" class="btn maly" title="Wylej zawartość wszystkich naczyń">🧽 Wyczyść</button>
+        </div>
+      </div>
+    </main>
+
+    <aside id="inspektor">
+      <div id="insNaczynie"></div>
+      <div class="sekcja" id="sekMikro">
+        <div class="sek-tyt">🔬 Widok cząsteczkowy</div>
+        <canvas id="mikro"></canvas>
+      </div>
+      <div class="sekcja dziennik-wrap">
+        <div class="sek-tyt">📓 Dziennik obserwacji <button class="mini" id="bCzyscDz" title="Wyczyść dziennik">wyczyść</button></div>
+        <ol id="dziennik"></ol>
+      </div>
+    </aside>
+  </section>
+
+  <!-- KSIĘGA -->
+  <section id="w-ksiega" class="widok">
+    <div class="wnetrze">
+      <div class="naglowek"><h2>Księga odkryć</h2><p>Każde nowe zjawisko, które wywołasz w laboratorium, trafia tutaj. Zakryte karty podpowiadają, czego spróbować.</p></div>
+      <div id="ksiega"></div>
+    </div>
+  </section>
+
+  <!-- UKŁAD OKRESOWY -->
+  <section id="w-uklad" class="widok">
+    <div class="wnetrze szerokie">
+      <div class="naglowek"><h2>Układ okresowy pierwiastków</h2><p>Kliknij pierwiastek, aby zobaczyć szczegóły i odczynniki z półki, które go zawierają.</p></div>
+      <div class="uklad-wrap">
+        <div id="uklad"></div>
+        <div id="elInfo"></div>
+      </div>
+      <div id="legenda"></div>
+    </div>
+  </section>
+</div>
+
+<div id="modal" hidden><div class="okno" role="dialog" aria-modal="true"><button class="zamknij" aria-label="Zamknij">✕</button><div class="tresc"></div></div></div>
+<div id="toasty" aria-live="polite"></div>
+
+<script src="js/dane.js"></script>
+<script src="js/silnik.js"></script>
+<script src="js/rysowanie.js"></script>
+<script src="js/zadania.js"></script>
+<script src="js/dzwiek.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
