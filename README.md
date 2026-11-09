@@ -27,6 +27,7 @@ Strona z projektami: **[projekty.vibemaster.pl](https://projekty.vibemaster.pl)*
 | 13 | [Bezpiecznik](13-bezpiecznik-sprawdzanie-linkow-opus5_5/) | [jeden-prompt/13-bezpiecznik-sprawdzanie-linkow-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/13-bezpiecznik-sprawdzanie-linkow-opus5_5) |
 | 14 | [Jednogłośnie](14-jednoglosnie-wybor-obiadu-i-filmu-opus5_5/) | [jeden-prompt/14-jednoglosnie-wybor-obiadu-i-filmu-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/14-jednoglosnie-wybor-obiadu-i-filmu-opus5_5) |
 | 15 | [Linkówka](15-linkowka-wizytowki-w-linku-opus5_5/) | [jeden-prompt/15-linkowka-wizytowki-w-linku-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/15-linkowka-wizytowki-w-linku-opus5_5) |
+| 16 | [Retorta](16-retorta-laboratorium-chemiczne-opus5_5/) | [jeden-prompt/16-retorta-laboratorium-chemiczne-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/16-retorta-laboratorium-chemiczne-opus5_5) |
 
 ## Jak to działa
 
