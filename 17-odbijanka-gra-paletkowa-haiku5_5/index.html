@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#03040c">
+  <title>Odbijanka – gra paletkowa</title>
+  <meta name="description" content="Odbijanka: gra paletkowa w przeglądarce. Zagraj z komputerem (3 poziomy), z drugim graczem na jednej klawiaturze albo sam ze sobą – pokonaj własny rekord i swojego ducha.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <main id="gra">
+    <canvas id="plotno" aria-label="Plansza gry Odbijanka"></canvas>
+  </main>
+
+  <div id="hud" class="hud ukryty">
+    <button id="btn-pauza" class="przycisk maly" aria-label="Pauza">Pauza</button>
+    <button id="btn-dzwiek" class="przycisk maly" aria-label="Dźwięk">Dźwięk: wł.</button>
+  </div>
+
+  <!-- MENU GŁÓWNE -->
+  <div id="menu" class="overlay">
+    <div class="karta">
+      <h1 class="tytul">ODBIJANKA</h1>
+      <p class="podtytul">Odbijaj piłkę. Nie przepuść ani jednej.</p>
+
+      <h2>Tryb</h2>
+      <div class="grupa">
+        <button class="przycisk" data-tryb="ai">Ty vs komputer</button>
+        <button class="przycisk" data-tryb="dwoch">Dwóch graczy</button>
+        <button class="przycisk" data-tryb="solo">Sam ze sobą</button>
+      </div>
+
+      <div id="sekcja-poziom">
+        <h2>Poziom komputera</h2>
+        <div class="grupa">
+          <button class="przycisk" data-poziom="0">Łatwy</button>
+          <button class="przycisk" data-poziom="1">Normalny</button>
+          <button class="przycisk" data-poziom="2">Trudny</button>
+        </div>
+      </div>
+
+      <div id="sekcja-mecz">
+        <h2>Mecz do</h2>
+        <div class="grupa">
+          <button class="przycisk" data-cel="3">3 punktów</button>
+          <button class="przycisk" data-cel="7">7 punktów</button>
+          <button class="przycisk" data-cel="11">11 punktów</button>
+        </div>
+      </div>
+
+      <button id="start" class="przycisk duzy">Graj</button>
+      <p id="sterowanie-info" class="info"></p>
+      <p class="info">Rekord sam ze sobą: <strong id="rekord-solo">0</strong></p>
+      <p class="info male">P / Esc – pauza · M – dźwięk · Enter – start</p>
+    </div>
+  </div>
+
+  <!-- PAUZA -->
+  <div id="pauza" class="overlay ukryty">
+    <div class="karta">
+      <h2 class="tytul-maly">PAUZA</h2>
+      <button id="wznow" class="przycisk duzy">Wznów</button>
+      <button id="pauza-restart" class="przycisk">Zacznij od nowa</button>
+      <button id="pauza-menu" class="przycisk">Menu główne</button>
+    </div>
+  </div>
+
+  <!-- KONIEC MECZU / SERII -->
+  <div id="koniec" class="overlay ukryty">
+    <div class="karta">
+      <h2 id="koniec-tytul" class="tytul-maly"></h2>
+      <p id="koniec-wynik" class="wynik"></p>
+      <p id="koniec-opis" class="info"></p>
+      <button id="rewanz" class="przycisk duzy">Jeszcze raz</button>
+      <button id="koniec-menu" class="przycisk">Menu główne</button>
+    </div>
+  </div>
+
+  <script src="js/dzwiek.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/gra.js"></script>
+  <script src="js/rysowanie.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

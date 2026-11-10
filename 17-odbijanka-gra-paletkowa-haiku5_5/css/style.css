@@ -1,0 +1,198 @@
+:root {
+  --tlo: #03040c;
+  --tekst: #e9ecff;
+  --cyan: #3ff0ff;
+  --roz: #ff5ad1;
+  --zloto: #ffd166;
+  --szklo: rgba(10, 13, 34, 0.8);
+  --obramowanie: rgba(120, 140, 255, 0.28);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: radial-gradient(ellipse at 50% 35%, #161c44 0%, #03040c 70%) fixed, var(--tlo);
+  color: var(--tekst);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.w-grze #plotno { cursor: none; }
+
+/* Plansza: zawsze proporcja 16:10, wyśrodkowana w oknie */
+#gra {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+#plotno {
+  display: block;
+  touch-action: none;
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px rgba(120, 140, 255, 0.25), 0 30px 90px rgba(0, 0, 0, 0.65), 0 0 80px rgba(63, 240, 255, 0.08);
+}
+
+/* Nakładki */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 4, 12, 0.5);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  overflow-y: auto;
+}
+
+.karta {
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 26px;
+  text-align: center;
+  background: var(--szklo);
+  border: 1px solid var(--obramowanie);
+  border-radius: 18px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.ukryty { display: none !important; }
+
+.tytul {
+  margin: 0;
+  font-family: 'Orbitron', 'Segoe UI', Arial, sans-serif;
+  font-weight: 800;
+  font-size: clamp(34px, 7vw, 56px);
+  letter-spacing: 0.08em;
+  background: linear-gradient(90deg, var(--cyan), #ffffff, var(--roz));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(63, 240, 255, 0.35));
+}
+
+.tytul-maly {
+  margin: 0;
+  font-family: 'Orbitron', 'Segoe UI', Arial, sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  opacity: 1;
+}
+
+.podtytul { margin: 0; opacity: 0.75; }
+
+h2 {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+#sekcja-poziom, #sekcja-mecz {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.grupa {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.przycisk {
+  font: inherit;
+  font-weight: 600;
+  color: var(--tekst);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 11px 18px;
+  cursor: pointer;
+  transition: transform 0.12s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.przycisk:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.przycisk:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+.przycisk.aktywny {
+  border-color: var(--cyan);
+  background: linear-gradient(135deg, rgba(63, 240, 255, 0.22), rgba(255, 90, 209, 0.22));
+  box-shadow: 0 0 20px rgba(63, 240, 255, 0.3);
+}
+
+.przycisk.duzy {
+  font-family: 'Orbitron', 'Segoe UI', Arial, sans-serif;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  padding: 14px 44px;
+  color: #07081a;
+  border: 0;
+  background: linear-gradient(135deg, var(--cyan), var(--roz));
+  box-shadow: 0 10px 30px rgba(255, 90, 209, 0.25);
+}
+
+.przycisk.maly {
+  padding: 7px 12px;
+  font-size: 13px;
+  background: rgba(10, 13, 34, 0.75);
+}
+
+.info {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
+.info.male { font-size: 12px; opacity: 0.5; }
+
+.wynik {
+  margin: 0;
+  font-family: 'Orbitron', 'Segoe UI', Arial, sans-serif;
+  font-size: 44px;
+  font-weight: 800;
+}
+
+/* Przyciski w rogu podczas gry */
+.hud {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .karta { padding: 22px 16px; }
+  .przycisk.duzy { padding: 12px 30px; }
+}
