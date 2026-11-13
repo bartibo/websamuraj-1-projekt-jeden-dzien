@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12141c">
+  <title>Dziesiątka – nauka bezwzrokowego pisania na klawiaturze</title>
+  <meta name="description" content="Kurs bezwzrokowego pisania dziesięcioma palcami po polsku: 34 lekcje, klawiatura ekranowa z kolorami palców, trening dopasowany do Twoich słabych klawiszy, testy prędkości, statystyki i gra. Działa w przeglądarce, bez instalacji i bez internetu.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%2312141c'/%3E%3Crect x='10' y='20' width='20' height='24' rx='6' fill='%23eda100'/%3E%3Crect x='34' y='20' width='20' height='24' rx='6' fill='%23e87ba4'/%3E%3Crect x='15' y='37' width='10' height='3' rx='1.5' fill='%2312141c'/%3E%3Crect x='39' y='37' width='10' height='3' rx='1.5' fill='%2312141c'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <header id="gora">
+    <button class="logo" id="logo" aria-label="Strona startowa">
+      <span class="logo-znak" aria-hidden="true"><i></i><i></i></span>
+      <span class="logo-txt">Dziesiątka</span>
+    </button>
+    <nav id="nawigacja" aria-label="Główna nawigacja">
+      <button data-widok="dzis">Dziś</button>
+      <button data-widok="kurs">Kurs</button>
+      <button data-widok="trening">Trening</button>
+      <button data-widok="test">Test</button>
+      <button data-widok="gra">Gra</button>
+      <button data-widok="staty">Statystyki</button>
+      <button data-widok="poradnik">Poradnik</button>
+    </nav>
+    <div class="gora-prawa">
+      <span class="pigulka" id="pSeria" data-dymek="Seria dni z ćwiczeniami"><span aria-hidden="true">🔥</span> <b>0</b></span>
+      <button class="ikonka" data-widok="ustawienia" aria-label="Ustawienia" data-dymek="Ustawienia">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="tresc">
+    <section id="w-dzis" class="widok"></section>
+    <section id="w-kurs" class="widok"></section>
+    <section id="w-trening" class="widok"></section>
+    <section id="w-test" class="widok"></section>
+
+    <!-- GRA -->
+    <section id="w-gra" class="widok">
+      <div class="naglowek-widoku">
+        <div>
+          <h1>Deszcz słów</h1>
+          <p class="lead">Słowa spadają z nieba. Wpisz słowo, zanim dotknie ziemi. Im dalej, tym szybciej pada.</p>
+        </div>
+        <div class="gra-hud">
+          <div><b id="gPunkty">0</b><span>punkty</span></div>
+          <div><b id="gPoziom">1</b><span>poziom</span></div>
+          <div><b id="gSeria">0</b><span>seria</span></div>
+          <div><b id="gZycia" class="zycia"></b><span>życia</span></div>
+        </div>
+      </div>
+      <div id="graPole" class="gra-pole">
+        <div class="gra-niebo" aria-hidden="true"></div>
+        <div class="gra-ziemia" aria-hidden="true"></div>
+        <div id="graEkran" class="gra-ekran"></div>
+      </div>
+      <p class="drobne">Pierwsza litera wybiera słowo, kolejne je dopisują. Spacja albo Backspace porzuca rozpoczęte słowo, Esc wstrzymuje grę.</p>
+    </section>
+
+    <section id="w-staty" class="widok"></section>
+
+    <!-- PORADNIK -->
+    <section id="w-poradnik" class="widok">
+      <div class="naglowek-widoku"><div>
+        <h1>Poradnik</h1>
+        <p class="lead">Wszystko, co trzeba wiedzieć, żeby przesiąść się z dwóch palców na dziesięć. Dziesięć minut czytania oszczędzi Ci wielu godzin błądzenia.</p>
+      </div></div>
+      <div class="poradnik">
+        <article class="karta">
+          <h2>Dlaczego dwa palce to ślepa uliczka</h2>
+          <p>Pisząc dwoma palcami, szukasz każdego klawisza wzrokiem. Oczy skaczą między klawiaturą a ekranem, więc błędy zauważasz późno, a prędkość zatrzymuje się na pewnym poziomie i nie chce rosnąć. Pisanie bezwzrokowe działa inaczej: <b>każdy klawisz ma swój palec, a każdy palec zna swoją drogę na pamięć</b>. Wzrok zostaje na tekście, a dłonie prawie się nie przesuwają.</p>
+          <p>Uczciwe ostrzeżenie: przez pierwsze dni będziesz pisać <b>wolniej</b> niż po staremu. To normalne i mija. Stary nawyk jest szybki, bo ma za sobą lata praktyki, a nowy dopiero powstaje. Nie wracaj do dwóch palców, gdy zrobi się niewygodnie – właśnie wtedy uczysz się najwięcej.</p>
+        </article>
+
+        <article class="karta">
+          <h2>Pozycja wyjściowa</h2>
+          <p>Połóż palce na rzędzie podstawowym: lewa ręka na <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd>, prawa na <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd>. Kciuki spoczywają nad spacją. Na klawiszach <kbd>F</kbd> i <kbd>J</kbd> są małe <b>wypustki</b> – wyczujesz je palcami wskazującymi bez patrzenia. To one mówią Ci, że dłonie są na miejscu.</p>
+          <div class="klaw-wrap statyczna" id="porKlaw"></div>
+          <div class="legenda-palcow" id="porLegenda"></div>
+          <p>Kolory pokazują, który palec obsługuje który klawisz. Każdy palec porusza się po swojej lekko ukośnej kolumnie: w górę, w dół i z powrotem. Palce wskazujące mają po dwie kolumny, bo są najsprawniejsze.</p>
+        </article>
+
+        <article class="karta">
+          <h2>Pięć zasad, które robią różnicę</h2>
+          <ol class="zasady">
+            <li><b>Nie patrz na klawiaturę. Nigdy.</b> Jeśli nie wiesz, gdzie jest klawisz, spójrz na klawiaturę na ekranie. Gdy pomylisz klawisz, aplikacja pokaże na czerwono, w co trafił Twój palec – poprawisz się bez zerkania w dół.</li>
+            <li><b>Najpierw dokładność, potem prędkość.</b> Pisz tak wolno, żeby nie robić błędów. Szybkość jest skutkiem ubocznym pewnych ruchów. Kto goni tempo, utrwala pomyłki.</li>
+            <li><b>Zawsze wracaj do bazy.</b> Po każdym sięgnięciu palec wraca na swój klawisz w rzędzie podstawowym. Dzięki temu każda droga zaczyna się w tym samym miejscu.</li>
+            <li><b>Pisz równo.</b> Stały rytm jest ważniejszy niż zrywy. Lepiej stukać powoli jak metronom, niż pędzić po łatwych literach i stawać na trudnych. W ćwiczeniach możesz włączyć metronom.</li>
+            <li><b>Krótko, ale codziennie.</b> Kwadrans dziennie daje więcej niż dwie godziny raz w tygodniu. Pamięć ruchowa utrwala się między sesjami, także we śnie.</li>
+          </ol>
+        </article>
+
+        <article class="karta">
+          <h2>Shift i prawy Alt</h2>
+          <p><b>Wielkie litery</b> piszesz dwiema rękami: mały palec jednej ręki przytrzymuje <kbd>Shift</kbd>, a druga ręka naciska literę. Litera po lewej stronie – prawy Shift. Litera po prawej – lewy Shift. Nie używaj Caps Locka do pojedynczych liter.</p>
+          <p><b>Polskie znaki</b> wymagają prawego klawisza <kbd>Alt</kbd>, który leży tuż obok spacji. Przytrzymuje go prawy kciuk, a litera idzie swoim zwykłym palcem: <kbd>Alt</kbd>+<kbd>A</kbd> to ą, <kbd>Alt</kbd>+<kbd>L</kbd> to ł. Jedyna pułapka to <b>ź</b>, które jest pod <kbd>X</kbd>, bo <kbd>Z</kbd> zajęło już ż.</p>
+          <p class="drobne">Aplikacja zakłada układ „Polski (programisty)”, czyli standardowy w Polsce. Jeśli po naciśnięciu Y pojawia się Z, masz włączony układ „Polski (214)” – zmień go w ustawieniach systemu.</p>
+        </article>
+
+        <article class="karta">
+          <h2>Jak siedzieć</h2>
+          <ul>
+            <li>Plecy proste i oparte, stopy płasko na podłodze, ramiona luźne.</li>
+            <li>Łokcie zgięte mniej więcej pod kątem prostym, blisko tułowia.</li>
+            <li>Nadgarstki unoszą się lekko nad klawiaturą – nie opieraj ich podczas pisania, opieraj w przerwach.</li>
+            <li>Palce lekko zgięte, jak przy trzymaniu małej piłki. Klawisze naciskaj krótko i lekko.</li>
+            <li>Ekran na wysokości oczu, w odległości wyciągniętej ręki.</li>
+            <li>Co pół godziny wstań, rozprostuj dłonie i spójrz w dal.</li>
+          </ul>
+        </article>
+
+        <article class="karta">
+          <h2>Jak oduczyć się zerkania</h2>
+          <ul>
+            <li><b>Zasłoń dłonie.</b> Połóż na nich ściereczkę albo lekki ręcznik. Brzmi śmiesznie, działa znakomicie.</li>
+            <li><b>Ustaw ekran wyżej</b> albo odsuń klawiaturę tak, żeby nie mieścić ich w jednym spojrzeniu.</li>
+            <li><b>Korzystaj z klawiatury na ekranie.</b> Na początku to Twoja ściąga. Z czasem ją wyłącz – każda lekcja kończy się krokiem bez podpowiedzi.</li>
+            <li><b>Zgub się i odnajdź.</b> Gdy stracisz pozycję, nie patrz w dół. Poszukaj wypustek na F i J palcami wskazującymi.</li>
+            <li><b>Przenieś nawyk do codziennego pisania.</b> Kiedy skończysz etap z rzędem dolnym, zacznij pisać nową techniką także maile i wiadomości. Będzie wolniej przez kilka dni, ale bez tego stary nawyk zawsze wygra.</li>
+          </ul>
+        </article>
+
+        <article class="karta">
+          <h2>Plan nauki</h2>
+          <div class="plan-tabela">
+            <div><b>Tydzień 1</b><span>Rząd podstawowy i górny. Cel: nie patrzeć na dłonie, dokładność ponad 95%.</span></div>
+            <div><b>Tydzień 2</b><span>Rząd dolny, wszystkie litery, pierwsze słowa i zdania.</span></div>
+            <div><b>Tydzień 3</b><span>Wielkie litery, interpunkcja i polskie znaki. Zacznij pisać nową techniką na co dzień.</span></div>
+            <div><b>Tydzień 4</b><span>Cyfry, symbole, egzamin. Od teraz trening inteligentny i testy.</span></div>
+            <div><b>Potem</b><span>Kwadrans dziennie treningu słabych klawiszy. Prędkość rośnie z tygodnia na tydzień.</span></div>
+          </div>
+          <p class="drobne">To orientacyjne tempo przy kwadransie ćwiczeń dziennie. Jeśli lekcja nie wychodzi, powtórz ją następnego dnia – nie ma nagrody za pośpiech.</p>
+        </article>
+
+        <article class="karta">
+          <h2>Częste pytania</h2>
+          <details><summary>Ile to potrwa?</summary><p>Wszystkie klawisze poznasz zwykle w trzy do czterech tygodni krótkich codziennych sesji. Dawną prędkość większość osób odzyskuje po kilku tygodniach używania nowej techniki na co dzień, a potem zaczyna ją wyraźnie przekraczać.</p></details>
+          <details><summary>Jaka prędkość jest dobra?</summary><p>W Polsce prędkość podaje się zwykle w znakach na minutę. Pisanie dwoma palcami to najczęściej 80–150 zn./min. Sprawne pisanie bezwzrokowe zaczyna się około 200 zn./min, a 300 zn./min i więcej to już poziom osób, które piszą zawodowo. Słowa na minutę (WPM) to znaki na minutę podzielone przez pięć.</p></details>
+          <details><summary>Ciągle robię błędy w tych samych miejscach. Co robić?</summary><p>Zwolnij o połowę i włącz trening inteligentny – sam podsuwa słowa z literami, które sprawiają Ci kłopot. W statystykach zobaczysz też, które klawisze mylisz ze sobą. Najczęściej winny jest sąsiedni palec albo sąsiedni rząd.</p></details>
+          <details><summary>Czy poprawiać błędy Backspace?</summary><p>W nauce nie musisz: domyślnie kursor czeka, aż trafisz we właściwy klawisz. Dzięki temu od razu utrwalasz poprawny ruch. W testach piszesz jak w życiu, czyli z poprawianiem. Zachowanie po błędzie zmienisz w ustawieniach.</p></details>
+          <details><summary>Mam laptopa albo klawiaturę bez bloku numerycznego. Czy to przeszkadza?</summary><p>Nie. Układ głównych klawiszy jest ten sam. Jeśli Twoja klawiatura ma wysoki klawisz Enter i krótszy lewy Shift (układ ISO), litery i tak leżą w tych samych miejscach.</p></details>
+          <details><summary>Gdzie są zapisane moje postępy?</summary><p>Tylko w tej przeglądarce, na tym komputerze. Nic nie jest nigdzie wysyłane. W ustawieniach możesz pobrać kopię postępów do pliku i wczytać ją na innym urządzeniu.</p></details>
+        </article>
+      </div>
+    </section>
+
+    <section id="w-ustawienia" class="widok"></section>
+
+    <!-- ARENA: tu odbywa się pisanie -->
+    <section id="w-arena" class="widok">
+      <div class="arena">
+        <div class="arena-gora">
+          <button class="przycisk cichy" id="aWyjdz" aria-label="Wróć"><span aria-hidden="true">←</span> Wróć</button>
+          <div class="arena-tytul"><b id="aTytul"></b><span id="aPod"></span></div>
+          <div class="arena-liczniki" aria-live="off">
+            <div><b id="aZn">0</b><span id="aZnJ">zn./min</span></div>
+            <div><b id="aDok">100%</b><span>dokładność</span></div>
+            <div><b id="aCzas">0:00</b><span id="aCzasJ">czas</span></div>
+          </div>
+        </div>
+        <div class="arena-kroki" id="aKroki"></div>
+        <div class="pasek"><i id="aPostep"></i></div>
+        <div class="caps" id="aCaps" hidden>Caps Lock jest włączony – wyłącz go, żeby pisać małymi literami.</div>
+
+        <div class="tekst-box" id="aTekstBox"><div class="tekst" id="aTekst"></div></div>
+        <div class="panel" id="aPanel" hidden></div>
+
+        <div class="podp" id="aPodp"></div>
+        <div class="klaw-wrap" id="aKlaw"></div>
+
+        <div class="arena-dol">
+          <button class="przelacznik" id="aKlawTryb"></button>
+          <button class="przelacznik" id="aDlonie"></button>
+          <button class="przelacznik" id="aDzwiek"></button>
+          <button class="przelacznik" id="aMetronom"></button>
+          <span class="drobne arena-skroty">Esc – przerwij · Enter – dalej</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal" hidden></div>
+  <div id="toast" class="toast" hidden></div>
+  <div id="dymek" class="dymek" hidden></div>
+</div>
+
+<script src="js/dane.js"></script>
+<script src="js/silnik.js"></script>
+<script src="js/klawiatura.js"></script>
+<script src="js/dzwiek.js"></script>
+<script src="js/gra.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
