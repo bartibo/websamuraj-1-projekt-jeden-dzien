@@ -29,6 +29,7 @@ Strona z projektami: **[projekty.vibemaster.pl](https://projekty.vibemaster.pl)*
 | 15 | [Linkówka](15-linkowka-wizytowki-w-linku-opus5_5/) | [jeden-prompt/15-linkowka-wizytowki-w-linku-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/15-linkowka-wizytowki-w-linku-opus5_5) |
 | 16 | [Retorta](16-retorta-laboratorium-chemiczne-opus5_5/) | [jeden-prompt/16-retorta-laboratorium-chemiczne-opus5_5](https://github.com/bartibo/jeden-prompt/tree/main/16-retorta-laboratorium-chemiczne-opus5_5) |
 | 17 | [Odbijanka](17-odbijanka-gra-paletkowa-haiku5_5/) | [jeden-prompt/17-odbijanka-gra-paletkowa-haiku5_5](https://github.com/bartibo/jeden-prompt/tree/main/17-odbijanka-gra-paletkowa-haiku5_5) |
+| 18 | [Dziesiątka](18-dziesiatka-nauka-pisania-bezwzrokowego-fable5_2/) | [jeden-prompt/18-dziesiatka-nauka-pisania-bezwzrokowego-fable5_2](https://github.com/bartibo/jeden-prompt/tree/main/18-dziesiatka-nauka-pisania-bezwzrokowego-fable5_2) |
 
 ## Jak to działa
 
